@@ -272,3 +272,5 @@ a { color: inherit; text-decoration: none; }
 /* evita que campos lado a lado estourem no celular */
 .row > * { min-width: 0; }
 .field input, .field select, .field textarea { width: 100%; min-width: 0; }
+
+.item .btns { flex-wrap: wrap; justify-content: flex-end; max-width: 52%; }

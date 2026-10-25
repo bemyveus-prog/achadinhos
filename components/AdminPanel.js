@@ -81,7 +81,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
     const j = await r.json();
     setBusy(false);
     if (!r.ok) return setMsg({ type: "warn", text: j.error });
-    setMsg({ type: "ok", text: editing ? "Atualizado!" : `Publicado como #${j.id} ✅ Fale no vídeo: "produto ${j.id} na bio".` });
+    setMsg({ type: "ok", text: editing ? "Atualizado!" : `Publicado como #${j.id}. Fale no vídeo: "produto ${j.id} na bio".` });
     reset(false);
     load();
   }
@@ -152,8 +152,8 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
         <h2>{editing ? `Editando #${editing}` : "Nova oferta"}</h2>
 
         <div className="tabs">
-          <button type="button" className={!isCoupon ? "on" : ""} onClick={() => set("kind", "produto")}>🛍️ Produto</button>
-          <button type="button" className={isCoupon ? "on" : ""} onClick={() => set("kind", "cupom")}>🎟️ Cupom</button>
+          <button type="button" className={!isCoupon ? "on" : ""} onClick={() => set("kind", "produto")}>Produto</button>
+          <button type="button" className={isCoupon ? "on" : ""} onClick={() => set("kind", "cupom")}>Cupom</button>
         </div>
 
         {!isCoupon && (
@@ -276,7 +276,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
         </div>
         {shown.map((o) => (
           <div key={o.id} className={`item ${o.active ? "" : "off"}`}>
-            {o.image_url ? <img src={o.image_url} alt="" /> : <div className="ph">{o.kind === "cupom" ? "🎟️" : "🛍️"}</div>}
+            {o.image_url ? <img src={o.image_url} alt="" /> : <div className="ph">{o.kind === "cupom" ? "%" : "#"}</div>}
             <div className="meta">
               <b>#{o.id} · {o.title}</b>
               <small>
@@ -286,7 +286,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
               </small>
             </div>
             <div className="btns">
-              <button className="btn ghost sm" onClick={() => patch(o, { active: !o.active })} title="Mostrar/ocultar">{o.active ? "👁" : "🚫"}</button>
+              <button className="btn ghost sm" onClick={() => patch(o, { active: !o.active })} title="Mostrar/ocultar">{o.active ? "Ocultar" : "Mostrar"}</button>
               <button className="btn ghost sm" onClick={() => patch(o, { pinned: !o.pinned })} title="Destaque">{o.pinned ? "★" : "☆"}</button>
               <button className="btn ghost sm" onClick={() => edit(o)}>Editar</button>
               <button className="btn danger sm" onClick={() => remove(o)}>✕</button>
