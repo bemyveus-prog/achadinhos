@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import StoreSettings from "./StoreSettings";
 
 const EMPTY = {
   kind: "produto", title: "", description: "", image_url: "", price: "", original_price: "",
@@ -17,10 +18,13 @@ const toLocal = (iso) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
-export default function AdminPanel({ dbReady, shopeeReady }) {
+export default function AdminPanel({ store: initialStore, adminActing = false, hasOwnShopee = false }) {
+  const [store, setStore] = useState(initialStore);
+  const [view, setView] = useState("ofertas"); // ofertas | perfil
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [editing, setEditing] = useState(null);
+  const [editingNum, setEditingNum] = useState(null);
   const [importUrl, setImportUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null); // {type, text}
@@ -29,7 +33,6 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   async function load() {
-    if (!dbReady) return;
     const r = await fetch("/api/offers");
     if (r.ok) setItems(await r.json());
   }
@@ -53,7 +56,8 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
     if (!r.ok) return setMsg({ type: "warn", text: j.error });
     setForm((f) => ({
       ...f,
-      link: j.link || f.link,
+      // link que não é de afiliado nem foi convertido: deixa vazio para a pessoa colar o dela
+      link: j.needs_affiliate ? "" : j.link || f.link,
       platform: j.platform || f.platform,
       title: j.title || f.title,
       image_url: j.image_url || f.image_url,
@@ -81,7 +85,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
     const j = await r.json();
     setBusy(false);
     if (!r.ok) return setMsg({ type: "warn", text: j.error });
-    setMsg({ type: "ok", text: editing ? "Atualizado!" : `Publicado como #${j.id}. Fale no vídeo: "produto ${j.id} na bio".` });
+    setMsg({ type: "ok", text: editing ? "Atualizado!" : `Publicado como #${j.num}. Fale no vídeo: "produto ${j.num} na bio".` });
     reset(false);
     load();
   }
@@ -95,6 +99,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
 
   function edit(o) {
     setEditing(o.id);
+    setEditingNum(o.num);
     setForm({
       ...EMPTY,
       ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v ?? ""])),
@@ -126,21 +131,51 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
     window.location.reload();
   }
 
+  async function backToStores() {
+    await fetch("/api/admin/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ store_id: null }) });
+    window.location.reload();
+  }
+
+  const vitrineUrl = `/${store.slug}`;
+
   const isCoupon = form.kind === "cupom";
-  const shown = items.filter((i) => !filter || String(i.id) === filter.replace("#", "") || i.title.toLowerCase().includes(filter.toLowerCase()));
+  const shown = items.filter((i) => !filter || String(i.num) === filter.replace("#", "") || i.title.toLowerCase().includes(filter.toLowerCase()));
 
   return (
     <div className="adm">
+      {adminActing && (
+        <div className="acting">
+          <span>Você está gerenciando a vitrine <b>{store.name}</b></span>
+          <button className="btn ghost sm" onClick={backToStores}>Voltar à lista</button>
+        </div>
+      )}
+
       <div className="adm-top">
-        <h1>Painel</h1>
+        <div>
+          <h1>{store.name}</h1>
+          <a className="adm-url" href={vitrineUrl} target="_blank" rel="noopener">{typeof window !== "undefined" ? window.location.host : ""}{vitrineUrl}</a>
+        </div>
         <div className="links">
-          <a className="btn ghost sm" href="/" target="_blank">Ver vitrine</a>
+          <a className="btn ghost sm" href={vitrineUrl} target="_blank" rel="noopener">Ver vitrine</a>
           <button className="btn ghost sm" onClick={logout}>Sair</button>
         </div>
       </div>
 
-      {!dbReady && <div className="warn">Supabase não configurado. Preencha SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY e rode o supabase/schema.sql.</div>}
-      {!shopeeReady && <div className="warn">API da Shopee não configurada: os dados de links Shopee não serão puxados automaticamente (cole seu link de afiliado e preencha à mão).</div>}
+      <div className="tabs view-tabs">
+        <button type="button" className={view === "ofertas" ? "on" : ""} onClick={() => setView("ofertas")}>Ofertas</button>
+        <button type="button" className={view === "perfil" ? "on" : ""} onClick={() => setView("perfil")}>Minha vitrine</button>
+      </div>
+
+      {view === "perfil" ? (
+        <StoreSettings store={store} adminActing={adminActing} onSaved={setStore} />
+      ) : (
+      <>
+      {!hasOwnShopee && (
+        <div className="notice">
+          Cole o seu link curto de afiliado (s.shopee.com.br/...) e clique em Puxar. Para gerar links a partir de qualquer link da Shopee,
+          cadastre sua API em <button type="button" className="linkish" onClick={() => setView("perfil")}>Minha vitrine</button>.
+        </div>
+      )}
 
       <div className="kpis">
         <div className="kpi"><b>{activeCount}</b><span>ofertas ativas</span></div>
@@ -149,7 +184,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
       </div>
 
       <form className="panel" onSubmit={save}>
-        <h2>{editing ? `Editando #${editing}` : "Nova oferta"}</h2>
+        <h2>{editing ? `Editando #${editingNum}` : "Nova oferta"}</h2>
 
         <div className="tabs">
           <button type="button" className={!isCoupon ? "on" : ""} onClick={() => set("kind", "produto")}>Produto</button>
@@ -265,7 +300,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
 
         <div className="actions">
           {editing && <button type="button" className="btn ghost" onClick={() => reset()}>Cancelar</button>}
-          <button className="btn" disabled={busy || !dbReady}>{editing ? "Salvar alterações" : "Publicar na vitrine"}</button>
+          <button className="btn" disabled={busy}>{editing ? "Salvar alterações" : "Publicar na vitrine"}</button>
         </div>
       </form>
 
@@ -275,10 +310,10 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
           <input placeholder="Filtrar por nome ou #nº" value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
         {shown.map((o) => (
-          <div key={o.id} className={`item ${o.active ? "" : "off"}`}>
+          <div key={o.id} className={`item ${o.active ? "" : "is-off"}`}>
             {o.image_url ? <img src={o.image_url} alt="" /> : <div className="ph">{o.kind === "cupom" ? "%" : "#"}</div>}
             <div className="meta">
-              <b>#{o.id} · {o.title}</b>
+              <b>#{o.num} · {o.title}</b>
               <small>
                 {o.kind === "cupom" ? `Cupom ${o.coupon_code || ""}` : brl(o.price)} · {o.clicks || 0} cliques
                 {o.pinned ? " · ⭐" : ""}
@@ -295,6 +330,8 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
         ))}
         {!shown.length && <p style={{ color: "var(--muted)", fontSize: 14 }}>Nenhuma oferta ainda.</p>}
       </div>
+      </>
+      )}
     </div>
   );
 }

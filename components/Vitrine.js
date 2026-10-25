@@ -32,7 +32,7 @@ export default function Vitrine({ offers, profile, demo }) {
   const isNum = /^\d+$/.test(num);
 
   const filtered = useMemo(() => {
-    if (isNum) return products.filter((p) => String(p.id) === num);
+    if (isNum) return products.filter((p) => String(p.num ?? p.id) === num);
     const nq = norm(q);
     return products.filter(
       (p) =>
@@ -204,7 +204,7 @@ function ProductCard({ p, eager }) {
         ) : (
           <div className="thumb-fallback">🛍️</div>
         )}
-        <span className="num">#{p.id}</span>
+        <span className="num">#{p.num ?? p.id}</span>
         {off >= 5 && <span className="off">-{off}%</span>}
         {(p.badge || p.pinned) && <span className="badge">{p.badge || "Destaque"}</span>}
       </div>

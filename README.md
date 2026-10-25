@@ -1,5 +1,14 @@
 # Vitrine Bio — link da bio com todas as suas ofertas
 
+## Várias vitrines (um afiliado por endereço)
+
+- Cada afiliado tem a vitrine em `site.com/usuario`, entra no `/admin` com usuário + senha e só vê as próprias ofertas.
+- O administrador geral entra no `/admin` com usuário `admin` (ou vazio) e a senha `ADMIN_PASSWORD`: cria afiliados, troca senhas, bloqueia, exclui e gerencia qualquer vitrine.
+- A vitrine marcada como **principal** abre no endereço raiz do site.
+- Cada afiliado cadastra a própria API da Shopee em **Minha vitrine**. Sem ela, cola o próprio link curto (s.shopee.com.br/...). O link de afiliado nunca é gerado com a chave de outra pessoa.
+- Atualizando de uma versão antiga: rode `supabase/migracao-2-varias-vitrines.sql` no SQL Editor (suas ofertas viram da loja principal, `/silvachei`).
+
+
 Página mobile, leve e rápida para colocar na bio do Instagram / YouTube / TikTok, com:
 
 - **Produtos numerados** (#23): no vídeo você fala *"produto 23 na bio"*, e a pessoa digita 23 na busca e cai direto nele.
