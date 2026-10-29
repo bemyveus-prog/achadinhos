@@ -1,0 +1,65 @@
+name: Achado do dia
+
+on:
+  schedule:
+    # 10:40 UTC = 7:40 em Brasília (o GitHub pode atrasar alguns minutos)
+    - cron: "40 10 * * *"
+  workflow_dispatch:
+    inputs:
+      sem_vitrine:
+        description: "Só gerar o carrossel, sem gravar na vitrine"
+        type: boolean
+        default: true
+
+jobs:
+  achado:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: automacao
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+
+      - name: Instalar
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y -qq fonts-noto-color-emoji
+
+      - name: Escolher produto, publicar na vitrine e gerar carrossel
+        run: node achado-do-dia.mjs ${{ inputs.sem_vitrine && '--sem-vitrine' || '' }}
+        env:
+          SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+          SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Ajustes opcionais em Settings > Secrets and variables > Actions > Variables
+          SHOPEE_SUB_ID: ${{ vars.SHOPEE_SUB_ID }}
+          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE }}
+          PALAVRAS_CHAVE: ${{ vars.PALAVRAS_CHAVE }}
+          PALAVRAS_BLOQUEADAS: ${{ vars.PALAVRAS_BLOQUEADAS }}
+          MIN_COMISSAO: ${{ vars.MIN_COMISSAO }}
+          MIN_NOTA: ${{ vars.MIN_NOTA }}
+          MIN_VENDAS: ${{ vars.MIN_VENDAS }}
+          PRECO_MIN: ${{ vars.PRECO_MIN }}
+          PRECO_MAX: ${{ vars.PRECO_MAX }}
+          FIXAR_NO_TOPO: ${{ vars.FIXAR_NO_TOPO }}
+
+      - name: Guardar o carrossel para download
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carrossel-${{ github.run_number }}
+          path: automacao/saida/
+          retention-days: 14
+          if-no-files-found: ignore
