@@ -63,3 +63,28 @@ O arquivo `.github/workflows/achado-do-dia.yml` roda tudo todo dia às 7h40 (Bra
 4. O carrossel fica para baixar no fim da execução (**Artifacts**) por 14 dias, e chega no Telegram se configurado.
 
 Obs.: o GitHub pausa agendamentos de repositórios sem nenhum commit há 60 dias; se acontecer, é só reativar na aba Actions.
+
+## Postar sozinho no Instagram e no Facebook
+
+O carrossel sobe no Storage do Supabase (bucket público `carrosseis`, criado sozinho) e é publicado pela API oficial da Meta:
+**Instagram** como carrossel e **Página do Facebook** como post com as 5 fotos (no Facebook vai também o link de afiliado clicável).
+
+Requisitos: Instagram **profissional** (comercial ou criador) **ligado a uma Página do Facebook**.
+
+### Pegar as chaves (tudo pelo navegador, uma vez)
+
+1. Em **developers.facebook.com → Meus apps → Criar app** → tipo **Empresa** (ou "Outro" → "Empresa").
+   Adicione o produto **Instagram** (API com login do Facebook).
+2. Abra o **Graph API Explorer** (developers.facebook.com/tools/explorer), escolha o seu app, clique em
+   **Get Token → Get User Access Token** e marque:
+   `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`, `business_management`.
+   Autorize escolhendo a Página e o Instagram.
+3. Copie o token, cole no **Access Token Debugger** (developers.facebook.com/tools/debug/accesstoken) e clique em
+   **Extend Access Token** → copie o token longo.
+4. De volta ao Explorer, com o token longo, rode `me/accounts`. Na Página certa copie
+   `id` → **META_PAGE_ID** e `access_token` → **META_PAGE_TOKEN** (esse não expira).
+5. Rode `SEU_PAGE_ID?fields=instagram_business_account{id,username}` → `id` → **META_IG_USER_ID**.
+6. Cadastre os três como **secrets** no GitHub e crie a **variável** `POSTAR` = `instagram,facebook`.
+
+Execuções manuais só postam se marcar "Postar no Instagram/Facebook". O agendamento diário posta sempre que `POSTAR` estiver preenchida.
+Se algo falhar, a execução fica vermelha e o motivo vai no Telegram.

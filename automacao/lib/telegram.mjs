@@ -34,3 +34,10 @@ export async function sendPreview(files, caption, summary) {
   text.append("text", caption.slice(0, 4000));
   await call("sendMessage", text);
 }
+
+export async function sendText(text) {
+  const form = new FormData();
+  form.append("chat_id", process.env.TELEGRAM_CHAT_ID);
+  form.append("text", text.slice(0, 4000));
+  await call("sendMessage", form);
+}
