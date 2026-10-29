@@ -1,0 +1,14 @@
+{
+  "name": "vitrine-automacao",
+  "private": true,
+  "type": "module",
+  "description": "Escolhe o achado do dia na API de afiliados da Shopee, publica na vitrine e gera o carrossel",
+  "scripts": {
+    "achado": "node --env-file=.env achado-do-dia.mjs",
+    "teste": "node achado-do-dia.mjs --teste"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "playwright": "^1.48.0"
+  }
+}
