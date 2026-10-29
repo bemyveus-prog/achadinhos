@@ -13,7 +13,8 @@ import { pickProduct } from "./lib/escolha.mjs";
 import { buildTexts, brl, salesLabel } from "./lib/textos.mjs";
 import { renderCarousel } from "./lib/carrossel.mjs";
 import { hasDb, pickedItemIds, publishOffer, recordPick } from "./lib/vitrine.mjs";
-import { hasTelegram, sendPreview } from "./lib/telegram.mjs";
+import { hasTelegram, sendPreview, sendText } from "./lib/telegram.mjs";
+import { hasMeta, publishSocial } from "./lib/social.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -105,6 +106,30 @@ async function main() {
     await sendPreview(files, texts.legenda, summary);
     log("Prévia enviada no Telegram.");
   }
+
+  // 7. Postagem automática (POSTAR=instagram,facebook)
+  const targets = list("POSTAR").filter((t) => ["instagram", "facebook"].includes(t));
+  if (flag("--nao-postar") || test || !targets.length) {
+    log("Postagem automática desligada (variável POSTAR vazia).");
+    return;
+  }
+  if (!hasMeta()) throw new Error("POSTAR está ligado, mas falta META_PAGE_TOKEN.");
+  if (!hasDb()) throw new Error("Para postar, o Supabase precisa estar configurado (as imagens sobem no Storage).");
+  const { results, errors } = await publishSocial(files, {
+    folder: path.basename(outDir),
+    caption: texts.legenda,
+    link,
+    targets,
+  });
+  for (const [k, v] of Object.entries(results)) log(`Postado no ${k}: ${v}`);
+  if (hasTelegram()) {
+    const msg = [
+      ...Object.entries(results).map(([k, v]) => `✅ ${k}: ${v}`),
+      ...errors.map((e) => `❌ ${e}`),
+    ].join("\n");
+    await sendText(msg).catch(() => {});
+  }
+  if (errors.length) throw new Error(errors.join(" | "));
 }
 
 main().catch((e) => {
