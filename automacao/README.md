@@ -50,3 +50,16 @@ CRON_TZ=America/Sao_Paulo
 5. Chamada: "Na vitrine da bio, digite #ID"
 
 Os números vêm sempre da API. A IA (opcional) só escreve gancho e destaques a partir do título do anúncio, com regra de não inventar medidas, resultados ou promessas de saúde.
+
+## Rodar pelo GitHub Actions (sem VPS)
+
+O arquivo `.github/workflows/achado-do-dia.yml` roda tudo todo dia às 7h40 (Brasília) nos servidores do GitHub.
+
+1. No GitHub: **Settings → Secrets and variables → Actions → New repository secret**, cadastre:
+   `SHOPEE_APP_ID`, `SHOPEE_APP_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+   e, se quiser, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ANTHROPIC_API_KEY`.
+2. Ajustes (opcionais) na aba **Variables**: `INSTAGRAM_HANDLE`, `PALAVRAS_CHAVE`, `MIN_COMISSAO` etc. (mesmos nomes do `.env.example`).
+3. Teste manual: **Actions → Achado do dia → Run workflow** (vem marcado "só gerar o carrossel").
+4. O carrossel fica para baixar no fim da execução (**Artifacts**) por 14 dias, e chega no Telegram se configurado.
+
+Obs.: o GitHub pausa agendamentos de repositórios sem nenhum commit há 60 dias; se acontecer, é só reativar na aba Actions.
