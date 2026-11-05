@@ -2,8 +2,8 @@
 
 Todo dia, sozinho:
 
-1. Busca na **API de afiliados da Shopee** os produtos com **maior comissão** (uma palavra-chave por dia, em rodízio).
-2. Filtra por nota, vendas e preço, descarta o que já foi escolhido antes e pontua (comissão × vendas × nota).
+1. Busca na **API de afiliados da Shopee** os produtos com **maior comissão** e os **mais vendidos**, no geral e numa categoria do dia (rodízio de `PALAVRAS_CHAVE`, ou de uma lista padrão se estiver vazia).
+2. Filtra por nota, vendas e preço, descarta o que já foi escolhido antes e pontua (comissão × vendas × nota). Se nenhum passar, afrouxa os filtros aos poucos e, se mesmo assim não achar, mostra no log o motivo dos descartes.
 3. Gera o **link de afiliado** (subId `insta`, para ver no relatório o que veio dos carrosséis).
 4. Coloca o produto na **vitrine da bio** como "Achado do dia", fixado no topo (e tira o destaque do anterior).
 5. Gera o **carrossel de 5 imagens** (1080×1350) + **legenda** com "digite #ID na busca".
