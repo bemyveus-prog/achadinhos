@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SLIDE_COUNT, buildData, defaultTexts, drawSlide, loadFonts, loadImage } from "@/lib/carouselCanvas";
+import { SLIDE_COUNT, THEME_OPTIONS, buildData, defaultTexts, drawSlide, loadFonts, loadImage, themeFor } from "@/lib/carouselCanvas";
 
 const toBlob = (canvas) => new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
 
@@ -11,6 +11,7 @@ export default function CarouselMaker({ offer, defaultHandle = "", onClose }) {
   const [stats, setStats] = useState({});
   const [showNumber, setShowNumber] = useState(true);
   const [handle, setHandle] = useState(defaultHandle);
+  const [theme, setTheme] = useState(() => themeFor(offer));
   const [texts, setTexts] = useState(() => defaultTexts(offer, number));
   const [captionTouched, setCaptionTouched] = useState(false);
   const [status, setStatus] = useState("");
@@ -36,9 +37,9 @@ export default function CarouselMaker({ offer, defaultHandle = "", onClose }) {
   // redesenha quando algo muda
   useEffect(() => {
     if (img === undefined) return;
-    const d = buildData(offer, texts, { img, stats, number: showNumber ? number : null, handle: handle.trim() });
+    const d = buildData(offer, texts, { img, stats, number: showNumber ? number : null, handle: handle.trim(), theme });
     canvases.current.forEach((c, i) => c && drawSlide(c, i, d));
-  }, [img, stats, texts, showNumber, handle, offer, number]);
+  }, [img, stats, texts, showNumber, handle, offer, number, theme]);
 
   // fecha com Esc e trava a rolagem da página de trás
   useEffect(() => {
@@ -123,6 +124,12 @@ export default function CarouselMaker({ offer, defaultHandle = "", onClose }) {
           <div className="cm-note">Sem vendas/nota deste produto: o slide 2 usa o preço, o desconto ou os destaques que você escrever.</div>
         )}
 
+        <div className="field">
+          <label>Estilo</label>
+          <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+            {THEME_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
         <div className="field">
           <label>Frase da capa</label>
           <input value={texts.gancho} onChange={(e) => setT("gancho", e.target.value)} maxLength={80} />
