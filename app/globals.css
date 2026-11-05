@@ -274,3 +274,31 @@ a { color: inherit; text-decoration: none; }
 .field input, .field select, .field textarea { width: 100%; min-width: 0; }
 
 .item .btns { flex-wrap: wrap; justify-content: flex-end; max-width: 52%; }
+
+/* ===== gerador de carrossel (admin) ===== */
+.cm-back {
+  position: fixed; inset: 0; z-index: 60; background: rgba(28, 25, 23, .55);
+  display: flex; align-items: flex-end; justify-content: center; overscroll-behavior: contain;
+}
+.cm {
+  width: 100%; max-width: 760px; max-height: 94vh; overflow-y: auto; background: var(--surface);
+  border-radius: 22px 22px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+@media (min-width: 800px) { .cm-back { align-items: center; } .cm { border-radius: 22px; } }
+.cm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cm-head h2 { margin: 0; font-size: 16px; }
+.cm-strip {
+  position: relative; display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
+  padding-bottom: 8px; margin: 0 -16px 12px; padding-left: 16px; padding-right: 16px;
+}
+.cm-strip canvas {
+  flex: none; width: 62%; max-width: 280px; height: auto; aspect-ratio: 4 / 5; border-radius: 12px;
+  scroll-snap-align: start; background: #f3ede6; box-shadow: var(--shadow);
+}
+.cm-loading {
+  position: absolute; inset: 0; display: grid; place-items: center; font-weight: 700; color: var(--muted);
+  background: rgba(255, 255, 255, .6);
+}
+.cm-note { font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+.cm-actions { display: flex; flex-wrap: wrap; gap: 8px; position: sticky; bottom: 0; background: var(--surface); padding-top: 8px; }
+.cm-actions .btn { flex: 1 1 160px; }
