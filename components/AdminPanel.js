@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import CarouselMaker from "@/components/CarouselMaker";
 
 const EMPTY = {
   kind: "produto", title: "", description: "", image_url: "", price: "", original_price: "",
@@ -25,6 +26,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null); // {type, text}
   const [filter, setFilter] = useState("");
+  const [carousel, setCarousel] = useState(null); // oferta aberta no gerador de carrossel
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -82,6 +84,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
     setBusy(false);
     if (!r.ok) return setMsg({ type: "warn", text: j.error });
     setMsg({ type: "ok", text: editing ? "Atualizado!" : `Publicado como #${j.id}. Fale no vídeo: "produto ${j.id} na bio".` });
+    if (!editing && j.kind === "produto") setCarousel(j);
     reset(false);
     load();
   }
@@ -288,6 +291,7 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
             <div className="btns">
               <button className="btn ghost sm" onClick={() => patch(o, { active: !o.active })} title="Mostrar/ocultar">{o.active ? "Ocultar" : "Mostrar"}</button>
               <button className="btn ghost sm" onClick={() => patch(o, { pinned: !o.pinned })} title="Destaque">{o.pinned ? "★" : "☆"}</button>
+              {o.kind === "produto" && <button className="btn ghost sm" onClick={() => setCarousel(o)}>Carrossel</button>}
               <button className="btn ghost sm" onClick={() => edit(o)}>Editar</button>
               <button className="btn danger sm" onClick={() => remove(o)}>✕</button>
             </div>
@@ -295,6 +299,15 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
         ))}
         {!shown.length && <p style={{ color: "var(--muted)", fontSize: 14 }}>Nenhuma oferta ainda.</p>}
       </div>
+
+      {carousel && (
+        <CarouselMaker
+          key={carousel.id}
+          offer={carousel}
+          defaultHandle={process.env.NEXT_PUBLIC_SITE_HANDLE || ""}
+          onClose={() => setCarousel(null)}
+        />
+      )}
     </div>
   );
 }
