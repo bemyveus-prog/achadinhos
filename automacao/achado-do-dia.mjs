@@ -59,7 +59,7 @@ async function main() {
     const picked = hasDb() ? await pickedItemIds() : new Set();
     const r = await pickProduct(cfg, picked, log);
     if (!r.pick) throw new Error("Nenhum produto passou nos filtros. Baixe MIN_COMISSAO/MIN_VENDAS ou troque as PALAVRAS_CHAVE.");
-    p = r.pick;
+    p = { ...r.pick, category: r.keyword };
     runnersUp = r.runnersUp;
   }
   log(`Escolhido: ${p.name}`);
@@ -89,8 +89,8 @@ async function main() {
 
   // 5. Carrossel
   const outDir = path.resolve(env("PASTA_SAIDA", path.join(HERE, "saida")), `${today}-${p.itemId}`);
-  const files = await renderCarousel(p, texts, { outDir, number, handle: env("INSTAGRAM_HANDLE", "") });
-  log(`Carrossel salvo em ${outDir}`);
+  const files = await renderCarousel(p, texts, { outDir, number, handle: env("INSTAGRAM_HANDLE", ""), theme: env("ESTILO", "") });
+  log(`Carrossel salvo em ${outDir} (estilo: ${files.themeKey})`);
 
   if (writeDb) await recordPick(p, { offerId: offer?.id, outDir, link });
 
