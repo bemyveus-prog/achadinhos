@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import CarouselMaker from "@/components/CarouselMaker";
+import BannerManager from "@/components/BannerManager";
 
 const EMPTY = {
   kind: "produto", title: "", description: "", image_url: "", price: "", original_price: "",
@@ -271,6 +272,8 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
           <button className="btn" disabled={busy || !dbReady}>{editing ? "Salvar alterações" : "Publicar na vitrine"}</button>
         </div>
       </form>
+
+      {dbReady && <BannerManager />}
 
       <div className="panel">
         <h2>Minhas ofertas ({items.length})</h2>

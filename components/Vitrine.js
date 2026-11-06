@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
+import BannerCarousel from "./BannerCarousel";
 
 const brl = (v) =>
   v == null ? "" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -13,7 +14,7 @@ const PLATFORM = {
 
 const norm = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-export default function Vitrine({ offers, profile, demo }) {
+export default function Vitrine({ offers, profile, demo, banners = [] }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("Todos");
   const [toast, setToast] = useState("");
@@ -90,6 +91,8 @@ export default function Vitrine({ offers, profile, demo }) {
         </div>
         <Socials s={profile.socials} />
       </header>
+
+      <BannerCarousel banners={banners} />
 
       <div className="sticky">
         <label className="search">
