@@ -1,6 +1,7 @@
 import Vitrine from "@/components/Vitrine";
 import { db, hasDb, isLive } from "@/lib/supabase";
 import { DEMO_OFFERS } from "@/lib/demo";
+import { loadLiveBanners } from "@/lib/banners";
 
 // Sem cache: a vitrine lê o banco a cada visita. Com cache (ISR), a Netlify/Vercel
 // às vezes mostravam a versão antiga logo depois de salvar uma oferta no painel.
@@ -26,7 +27,7 @@ async function getOffers() {
 }
 
 export default async function Home() {
-  const { offers, demo } = await getOffers();
+  const [{ offers, demo }, banners] = await Promise.all([getOffers(), hasDb() ? loadLiveBanners() : []]);
   const profile = {
     name: process.env.NEXT_PUBLIC_SITE_NAME || "Meus Achadinhos",
     handle: process.env.NEXT_PUBLIC_SITE_HANDLE || "",
@@ -39,5 +40,5 @@ export default async function Home() {
       whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_URL || "",
     },
   };
-  return <Vitrine offers={offers} profile={profile} demo={demo} />;
+  return <Vitrine offers={offers} profile={profile} demo={demo} banners={banners} />;
 }
