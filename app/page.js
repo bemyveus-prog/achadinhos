@@ -2,7 +2,10 @@ import Vitrine from "@/components/Vitrine";
 import { db, hasDb, isLive } from "@/lib/supabase";
 import { DEMO_OFFERS } from "@/lib/demo";
 
-export const revalidate = 60; // página fica em cache e atualiza a cada 1 min (leve e rápida)
+// Sem cache: a vitrine lê o banco a cada visita. Com cache (ISR), a Netlify/Vercel
+// às vezes mostravam a versão antiga logo depois de salvar uma oferta no painel.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 async function getOffers() {
   if (!hasDb()) return { offers: DEMO_OFFERS, demo: true };
