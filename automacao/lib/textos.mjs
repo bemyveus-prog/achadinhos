@@ -31,7 +31,7 @@ export function templateTexts(p) {
     legenda: [
       `${nome} 🛒`,
       "",
-      `⭐ Nota ${p.rating.toFixed(1).replace(".", ",")} e ${salesLabel(p.sales)} vendidos`,
+      p.rating && p.sales ? `⭐ Nota ${Number(p.rating).toFixed(1).replace(".", ",")} e ${salesLabel(p.sales)} vendidos` : "",
       p.originalPrice ? `💸 De ${brl(p.originalPrice)} por ${brl(p.price)}` : `💸 Por ${brl(p.price)}`,
       "",
       "👉 Link na bio! Digite o número do produto na busca.",
@@ -43,7 +43,7 @@ export function templateTexts(p) {
 
 const AI_PROMPT = (p) => `Você escreve carrosséis de Instagram para um perfil de achadinhos da Shopee (afiliado).
 Produto (título do anúncio): "${p.name}"
-Preço: ${brl(p.price)}${p.originalPrice ? ` (antes ${brl(p.originalPrice)})` : ""}. Nota ${p.rating}. ${p.sales} vendidos.
+Preço: ${brl(p.price)}${p.originalPrice ? ` (antes ${brl(p.originalPrice)})` : ""}.${p.rating ? ` Nota ${p.rating}.` : ""}${p.sales ? ` ${p.sales} vendidos.` : ""}
 
 Regras:
 - Use SOMENTE o que dá para afirmar a partir do título do anúncio. Não invente medidas, materiais, resultados ou números.
