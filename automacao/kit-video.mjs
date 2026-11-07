@@ -12,7 +12,7 @@ const log = (...m) => console.log(new Date().toLocaleTimeString("pt-BR"), ...m);
 
 // voz mais séria para esse tema (pode trocar com a variável EDGE_VOICE_KIT)
 process.env.EDGE_VOICE = env("EDGE_VOICE_KIT", "pt-BR-AntonioNeural");
-process.env.EDGE_RATE = env("EDGE_RATE_KIT", "+6%");
+process.env.EDGE_RATE = env("EDGE_RATE_KIT", "+14%");
 
 const handle = env("HANDLE_KIT", "@mindloop_u");
 

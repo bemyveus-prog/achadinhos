@@ -45,7 +45,7 @@ export function kitScenes({ handle }) {
   return [
     {
       key: "gancho", min: 3.6,
-      say: "Se faltar água e luz, e o socorro demorar três dias... a sua casa aguenta?",
+      say: "Se faltar água e luz por três dias, a sua casa aguenta?",
       html: `<div class="icon-alert" data-pop="0.1">${ICONS.alerta}</div>
         <div class="eyebrow" data-in="0.2">Alerta de preparação</div>
         <h1 data-in="0.35">Se faltar ${hl("água e luz")}…</h1>
@@ -53,14 +53,14 @@ export function kitScenes({ handle }) {
     },
     {
       key: "72h", min: 4,
-      say: "Vários países já pedem que cada família tenha um kit de emergência para, no mínimo, setenta e duas horas.",
+      say: "Vários países já pedem um kit de emergência para setenta e duas horas.",
       html: `<div class="eyebrow" data-in="0.1">A referência no mundo</div>
         <div class="mega" data-pop="0.3"><span data-count="72" data-from="0" data-at="0.3">72</span><small>horas</small></div>
         <p class="lead" data-in="0.9">de autonomia para cada família, com água, comida e o básico</p>`,
     },
     {
-      key: "paises", min: 5.2,
-      say: "A União Europeia recomenda no mínimo setenta e duas horas. O Reino Unido, três dias. México e Canadá também usam setenta e duas horas como referência.",
+      key: "paises", min: 4.4,
+      say: "União Europeia, Reino Unido, México e Canadá usam três dias como referência.",
       html: `<div class="eyebrow" data-in="0.1">Guias oficiais de preparação</div>
         <h2 data-in="0.2">Quem já ${hl("recomenda")}</h2>
         <div class="rows">
@@ -70,7 +70,7 @@ export function kitScenes({ handle }) {
     },
     {
       key: "agua-mundo", min: 4.6,
-      say: "Na água, o Canadá orienta dois litros por pessoa, por dia. Nos Estados Unidos, a FEMA fala em um galão, quase quatro litros.",
+      say: "Na água: dois litros por pessoa, por dia, no Canadá. Quase quatro, nos Estados Unidos.",
       html: `<div class="eyebrow" data-in="0.1">E a água?</div>
         <h2 data-in="0.2">Por pessoa, ${hl("por dia")}</h2>
         <div class="cards">
@@ -79,8 +79,8 @@ export function kitScenes({ handle }) {
         </div>`,
     },
     {
-      key: "brasil", min: 5.2,
-      say: "E no Brasil? Ainda não existe uma campanha nacional. Mas a Defesa Civil de São Paulo orienta ter água e comida para três dias.",
+      key: "brasil", min: 4.6,
+      say: "E no Brasil? Não há campanha nacional, mas a Defesa Civil de São Paulo orienta três dias.",
       html: `<span class="flag flag-big" data-pop="0.1">${FLAGS.br}</span>
         <h1 data-in="0.3">E no ${hl("Brasil")}?</h1>
         <p class="lead" data-in="0.9">Ainda não há uma campanha nacional.</p>
@@ -88,7 +88,7 @@ export function kitScenes({ handle }) {
     },
     {
       key: "6L", min: 5.4,
-      say: "A Defesa Civil do Paraná indica dois litros por pessoa, por dia. Em três dias, são seis litros por pessoa.",
+      say: "No Paraná, a conta é dois litros por pessoa, por dia. Seis litros em três dias.",
       html: `<div class="eyebrow" data-in="0.1">Referência da Defesa Civil do Paraná</div>
         <h2 data-in="0.2">A conta começa ${hl("pela água.")}</h2>
         <p class="cyan" data-in="0.6">2 L por pessoa, por dia</p>
@@ -98,30 +98,30 @@ export function kitScenes({ handle }) {
     },
     {
       key: "24L", min: 4.4,
-      say: "Numa casa com quatro pessoas, são vinte e quatro litros de água.",
+      say: "Pra quatro pessoas, vinte e quatro litros.",
       html: `<h2 data-in="0.1">Quatro moradores ${hl("em casa.")}</h2>
         <div class="family">${[1, 2, 3, 4].map((r) => `<div class="frow" data-in="${0.3 + (r - 1) * 0.25}"><span class="n">${r}</span><div class="bts">${Array.from({ length: 6 }, (_, b) => `<span data-pop="${0.35 + (r - 1) * 0.25 + b * 0.05}">${bottle()}</span>`).join("")}</div><b>6 L</b></div>`).join("")}</div>
         <div class="mega y" data-pop="1.6"><span data-count="24" data-from="0" data-at="1.6">24</span> L</div>
         <p class="lead" data-in="1.9">para quatro pessoas em três dias</p>`,
     },
     {
-      key: "kit", min: 6.4,
-      say: "Além da água: comida que não estraga, lanterna com pilhas, rádio, carregador portátil, primeiros socorros e documentos protegidos num saco plástico.",
+      key: "kit", min: 5.2,
+      say: "E mais: comida que não estraga, lanterna, rádio, carregador, primeiros socorros e documentos.",
       html: `<div class="eyebrow" data-in="0.1">Além da água</div>
         <h2 data-in="0.2">O que mais ter ${hl("no kit")}</h2>
         <div class="items">${[["comida", "Comida que não estraga"], ["lanterna", "Lanterna e pilhas"], ["radio", "Rádio a pilha"], ["bateria", "Carregador portátil"], ["socorro", "Primeiros socorros e remédios de uso contínuo"], ["documento", "Documentos em saco plástico"]]
-          .map(([ic, t], i) => `<div class="item" data-in="${0.6 + i * 0.75}"><span class="ic">${ICONS[ic]}</span><b>${t}</b></div>`).join("")}</div>`,
+          .map(([ic, t], i) => `<div class="item" data-in="${0.5 + i * 0.6}"><span class="ic">${ICONS[ic]}</span><b>${t}</b></div>`).join("")}</div>`,
     },
     {
       key: "revisar", min: 3.4,
-      say: "E revise o kit a cada seis meses, trocando o que venceu.",
+      say: "Revise tudo a cada seis meses.",
       html: `<div class="icon-cal" data-pop="0.1">${ICONS.calendario}</div>
         <h1 data-in="0.3">Revise a cada ${hl("6 meses")}</h1>
         <p class="lead" data-in="0.9">e troque água, comida e pilhas que venceram</p>`,
     },
     {
       key: "cta", min: 4.8,
-      say: "Separei todos os itens do kit na vitrine do link da bio. É só tocar em Kit Emergência.",
+      say: "Os itens do kit estão na vitrine do link da bio. Toque em Kit Emergência.",
       html: `<div class="eyebrow" data-in="0.1">Montei o kit pra você</div>
         <h2 data-in="0.2">Todos os itens na ${hl("vitrine da bio")}</h2>
         <div class="chips" data-in="0.9"><span class="chip">Todos</span><span class="chip on" data-tap="1.6">Kit Emergência</span><span class="chip">Casa</span></div>
@@ -247,7 +247,7 @@ export async function renderKitVideo({ outDir, handle, music, log = console.log 
   const scenes = kitScenes({ handle });
   const voice = await narrate(scenes.map((s) => s.say), tmp, log);
   let acc = 0;
-  scenes.forEach((s, i) => { s.dur = Math.max(s.min, voice[i].duration + 0.55); s.start = acc; acc += s.dur; });
+  scenes.forEach((s, i) => { s.dur = Math.max(s.min, voice[i].duration + 0.35); s.start = acc; acc += s.dur; });
   log(`Vídeo do kit: ${scenes.length} cenas, ${acc.toFixed(1)} s`);
 
   const browser = await chromium.launch();
