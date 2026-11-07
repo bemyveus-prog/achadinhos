@@ -1,0 +1,66 @@
+name: Kit Emergência 72h
+
+# 1) Escolhe na Shopee um produto para cada item do kit e coloca na vitrine (categoria "Kit Emergência")
+# 2) Cria o banner "Kit 72h" no topo da vitrine
+# 3) Gera o vídeo infográfico narrado (Reels/Shorts) + legenda do Instagram e texto do YouTube
+on:
+  workflow_dispatch:
+    inputs:
+      simular:
+        description: "Só mostrar os produtos que escolheria (não grava na vitrine)"
+        type: boolean
+        default: false
+      so_video:
+        description: "Só gerar o vídeo (pular a escolha dos produtos)"
+        type: boolean
+        default: false
+
+jobs:
+  kit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: automacao
+    env:
+      SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+      SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VITRINE_URL: ${{ vars.VITRINE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+
+      - name: Instalar
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y -qq fonts-noto-color-emoji ffmpeg
+
+      - name: Separar os itens do kit na vitrine
+        if: ${{ !inputs.so_video }}
+        run: node kit.mjs ${{ inputs.simular && '--simular' || '--banner' }}
+
+      - name: Gerar o vídeo do kit
+        run: node kit-video.mjs
+        env:
+          FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
+          FISH_VOICE_ID: ${{ vars.FISH_VOICE_ID }}
+          EDGE_VOICE_KIT: ${{ vars.EDGE_VOICE_KIT }}
+          HANDLE_KIT: ${{ vars.HANDLE_KIT }}
+          MUSICA: ${{ vars.MUSICA }}
+
+      - name: Guardar o vídeo para download
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kit-72h-${{ github.run_number }}
+          path: automacao/saida/kit-72h/
+          retention-days: 14
+          if-no-files-found: ignore
