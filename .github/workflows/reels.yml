@@ -1,0 +1,56 @@
+name: Reels do achado
+
+# Gera o Reels (vídeo vertical) de um produto da vitrine, com a foto real e narração.
+# Por enquanto só gera o vídeo para baixar (Artifacts); a postagem automática vem depois do teste.
+on:
+  workflow_dispatch:
+    inputs:
+      oferta:
+        description: "Número da oferta na vitrine (vazio = achado do dia mais recente)"
+        type: string
+        default: ""
+
+jobs:
+  reels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: automacao
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+
+      - name: Instalar
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y -qq fonts-noto-color-emoji ffmpeg
+
+      - name: Gerar o Reels
+        run: node reels.mjs ${{ inputs.oferta && format('--oferta {0}', inputs.oferta) || '' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Voz da Fish Audio (opcional). Sem ela, usa a voz neural da Microsoft (grátis).
+          FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
+          FISH_VOICE_ID: ${{ vars.FISH_VOICE_ID }}
+          EDGE_VOICE: ${{ vars.EDGE_VOICE }}
+          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
+          # Trilha de fundo (opcional): link de um mp3 sem direitos autorais
+          MUSICA: ${{ vars.MUSICA }}
+
+      - name: Guardar o Reels para download
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reels-${{ github.run_number }}
+          path: automacao/saida/reels/
+          retention-days: 14
+          if-no-files-found: ignore

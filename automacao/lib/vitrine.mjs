@@ -65,3 +65,19 @@ export async function recordPick(p, { offerId, outDir, link }) {
   });
   if (error) throw new Error(`Supabase (auto_picks): ${error.message}`);
 }
+
+// Oferta da vitrine (para gerar o Reels de um produto já cadastrado). Traz nota/vendas
+// do achado do dia quando a oferta veio da automação.
+export async function getOffer(id) {
+  const { data: o, error } = await db().from("offers").select("id,title,image_url,price,original_price,link").eq("id", id).maybeSingle();
+  if (error) throw new Error(`Supabase (offers): ${error.message}`);
+  if (!o) return null;
+  const { data: pick } = await db().from("auto_picks").select("item_id,rating,sales").eq("offer_id", id).maybeSingle();
+  return { ...o, rating: pick?.rating ? Number(pick.rating) : null, sales: pick?.sales || null, itemId: pick?.item_id ? String(pick.item_id) : String(o.id) };
+}
+
+// Achado do dia mais recente na vitrine
+export async function latestPickOfferId() {
+  const { data } = await db().from("auto_picks").select("offer_id").not("offer_id", "is", null).order("picked_at", { ascending: false }).limit(1);
+  return data?.[0]?.offer_id || null;
+}

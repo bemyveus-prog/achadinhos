@@ -88,3 +88,13 @@ Requisitos: Instagram **profissional** (comercial ou criador) **ligado a uma Pá
 
 Execuções manuais só postam se marcar "Postar no Instagram/Facebook". O agendamento diário posta sempre que `POSTAR` estiver preenchida.
 Se algo falhar, a execução fica vermelha e o motivo vai no Telegram.
+
+## Reels do achado (teste)
+
+`node reels.mjs --oferta 41` gera um vídeo vertical (1080×1920, 15–20 s) da oferta #41 da vitrine:
+gancho com a foto, nome com nota e vendas, destaques, preço "de/por" e a chamada "Digite #41 na busca".
+Cada cena dura o tempo da fala. Sem `--oferta`, usa o achado do dia mais recente.
+
+- **Narração:** Fish Audio se houver o secret `FISH_API_KEY` e a variável `FISH_VOICE_ID`; senão, voz neural da Microsoft (grátis, `EDGE_VOICE`, padrão `pt-BR-FranciscaNeural`).
+- **Trilha (opcional):** variável `MUSICA` com o link de um mp3 sem direitos autorais.
+- **Pelo GitHub:** Actions → **Reels do achado** → Run workflow (informe o número da oferta ou deixe vazio). O vídeo fica em Artifacts.

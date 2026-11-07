@@ -5,10 +5,13 @@
   "description": "Escolhe o achado do dia na API de afiliados da Shopee, publica na vitrine e gera o carrossel",
   "scripts": {
     "achado": "node --env-file=.env achado-do-dia.mjs",
-    "teste": "node achado-do-dia.mjs --teste"
+    "teste": "node achado-do-dia.mjs --teste",
+    "reels": "node --env-file=.env reels.mjs",
+    "reels-teste": "node reels.mjs --teste"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
-    "playwright": "^1.48.0"
+    "playwright": "^1.48.0",
+    "msedge-tts": "^2.1.1"
   }
 }
