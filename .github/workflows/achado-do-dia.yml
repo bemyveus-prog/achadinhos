@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       sem_vitrine:
-        description: "Só gerar o carrossel, sem gravar na vitrine"
+        description: "Só gerar o carrossel, sem gravar na vitrine (ignorado se marcar Postar)"
         type: boolean
         default: true
       postar:
@@ -39,7 +39,8 @@ jobs:
           sudo apt-get install -y -qq fonts-noto-color-emoji
 
       - name: Escolher produto, publicar na vitrine e gerar carrossel
-        run: node achado-do-dia.mjs ${{ inputs.sem_vitrine && '--sem-vitrine' || '' }} ${{ github.event_name == 'workflow_dispatch' && !inputs.postar && '--nao-postar' || '' }}
+        # Postar exige o produto na vitrine, então "postar" ignora "só gerar o carrossel"
+        run: node achado-do-dia.mjs ${{ inputs.sem_vitrine && !inputs.postar && '--sem-vitrine' || '' }} ${{ github.event_name == 'workflow_dispatch' && !inputs.postar && '--nao-postar' || '' }}
         env:
           SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
           SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}

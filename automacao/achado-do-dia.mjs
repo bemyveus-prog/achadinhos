@@ -113,6 +113,11 @@ async function main() {
     log("Postagem automática desligada (variável POSTAR vazia).");
     return;
   }
+  // A legenda manda procurar o produto na vitrine: sem ele lá, o post não faz sentido
+  if (!offer) {
+    log("Não postei: o produto não foi gravado na vitrine (rode sem \"Só gerar o carrossel\" para postar).");
+    return;
+  }
   if (!hasMeta()) throw new Error("POSTAR está ligado, mas falta META_PAGE_TOKEN.");
   if (!hasDb()) throw new Error("Para postar, o Supabase precisa estar configurado (as imagens sobem no Storage).");
   const { results, errors } = await publishSocial(files, {
