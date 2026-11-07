@@ -27,14 +27,14 @@ async function graph(method, pathname, params = {}) {
 }
 
 // O Instagram só aceita imagem por URL pública: sobe no Storage do Supabase (bucket público)
-export async function uploadPublic(files, folder) {
+export async function uploadPublic(files, folder, contentType = "image/jpeg") {
   const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const { error: bErr } = await sb.storage.createBucket(BUCKET, { public: true });
   if (bErr && !/already exists|duplicate/i.test(bErr.message)) throw new Error(`Supabase Storage: ${bErr.message}`);
   const urls = [];
   for (const f of files) {
     const key = `${folder}/${path.basename(f)}`;
-    const { error } = await sb.storage.from(BUCKET).upload(key, await readFile(f), { contentType: "image/jpeg", upsert: true });
+    const { error } = await sb.storage.from(BUCKET).upload(key, await readFile(f), { contentType, upsert: true });
     if (error) throw new Error(`Supabase Storage: ${error.message}`);
     urls.push(sb.storage.from(BUCKET).getPublicUrl(key).data.publicUrl);
   }
@@ -100,4 +100,29 @@ export async function publishSocial(files, { folder, caption, link, targets }) {
     catch (e) { errors.push(`Facebook: ${e.message}`); }
   }
   return { results, errors };
+}
+
+// Reels: o vídeo sobe no Storage e o Instagram baixa pela URL. O processamento de vídeo
+// demora mais que o de foto (até alguns minutos), por isso a espera é maior.
+export async function postReel(videoFile, caption, folder) {
+  const ig = process.env.META_IG_USER_ID;
+  if (!ig) throw new Error("Falta META_IG_USER_ID");
+  const [video_url] = await uploadPublic([videoFile], folder, "video/mp4");
+  const c = await graph("POST", `${ig}/media`, {
+    media_type: "REELS",
+    video_url,
+    caption: caption.slice(0, 2200),
+    share_to_feed: "true",
+  });
+  let ok = false;
+  for (let i = 0; i < 60; i++) { // até ~5 min
+    await sleep(5000);
+    const s = await graph("GET", c.id, { fields: "status_code,status" });
+    if (s.status_code === "FINISHED") { ok = true; break; }
+    if (s.status_code === "ERROR" || s.status_code === "EXPIRED") throw new Error(`Instagram recusou o Reels (${s.status || s.status_code})`);
+  }
+  if (!ok) throw new Error("O Instagram demorou demais para processar o Reels");
+  const pub = await graph("POST", `${ig}/media_publish`, { creation_id: c.id });
+  const info = await graph("GET", pub.id, { fields: "permalink" }).catch(() => ({}));
+  return info.permalink || pub.id;
 }

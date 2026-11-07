@@ -1,7 +1,7 @@
 name: Reels do achado
 
 # Gera o Reels (vídeo vertical) de um produto da vitrine, com a foto real e narração.
-# Por enquanto só gera o vídeo para baixar (Artifacts); a postagem automática vem depois do teste.
+# Gera o vídeo para baixar (Artifacts) e, se marcar "Postar", publica no Instagram.
 on:
   workflow_dispatch:
     inputs:
@@ -9,6 +9,10 @@ on:
         description: "Número da oferta na vitrine (vazio = achado do dia mais recente)"
         type: string
         default: ""
+      postar:
+        description: "Postar o Reels no Instagram"
+        type: boolean
+        default: false
 
 jobs:
   reels:
@@ -33,10 +37,12 @@ jobs:
           sudo apt-get install -y -qq fonts-noto-color-emoji ffmpeg
 
       - name: Gerar o Reels
-        run: node reels.mjs ${{ inputs.oferta && format('--oferta {0}', inputs.oferta) || '' }}
+        run: node reels.mjs ${{ inputs.oferta && format('--oferta {0}', inputs.oferta) || '' }} ${{ inputs.postar && '--postar' || '' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # Voz da Fish Audio (opcional). Sem ela, usa a voz neural da Microsoft (grátis).
           FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
