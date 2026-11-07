@@ -32,7 +32,7 @@ npm run teste -- --foto foto.jpg   # só testa o visual do carrossel com um prod
 
 Saída em `saida/AAAA-MM-DD-ITEMID/` (`1.jpg` … `5.jpg` e `legenda.txt`).
 
-## Agendar (todo dia às 7h40, horário de Brasília)
+## Agendar na VPS (opcional)
 
 ```bash
 crontab -e
@@ -53,7 +53,7 @@ Os números vêm sempre da API. A IA (opcional) só escreve gancho e destaques a
 
 ## Rodar pelo GitHub Actions (sem VPS)
 
-O arquivo `.github/workflows/achado-do-dia.yml` roda tudo todo dia às 7h40 (Brasília) nos servidores do GitHub.
+O arquivo `.github/workflows/achado-do-dia.yml` roda tudo **2 vezes por dia, às 11h47 e às 18h47** (Brasília) nos servidores do GitHub. Cada execução escolhe um produto novo (nunca repete), coloca na vitrine e posta o carrossel.
 
 1. No GitHub: **Settings → Secrets and variables → Actions → New repository secret**, cadastre:
    `SHOPEE_APP_ID`, `SHOPEE_APP_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`

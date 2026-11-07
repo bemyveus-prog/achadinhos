@@ -2,8 +2,9 @@ name: Achado do dia
 
 on:
   schedule:
-    # 10:40 UTC = 7:40 em Brasília (o GitHub pode atrasar alguns minutos)
-    - cron: "40 10 * * *"
+    # 2 achados por dia (horário de Brasília = UTC-3; o GitHub pode atrasar alguns minutos)
+    - cron: "47 14 * * *"   # 11:47 — antes do almoço
+    - cron: "47 21 * * *"   # 18:47 — começo da noite
   workflow_dispatch:
     inputs:
       sem_vitrine:
@@ -54,7 +55,7 @@ jobs:
           POSTAR: ${{ vars.POSTAR }}
           # Ajustes opcionais em Settings > Secrets and variables > Actions > Variables
           SHOPEE_SUB_ID: ${{ vars.SHOPEE_SUB_ID }}
-          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE }}
+          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
           ESTILO: ${{ vars.ESTILO }}
           PALAVRAS_CHAVE: ${{ vars.PALAVRAS_CHAVE }}
           PALAVRAS_BLOQUEADAS: ${{ vars.PALAVRAS_BLOQUEADAS }}
