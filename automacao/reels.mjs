@@ -4,6 +4,7 @@
 //   node reels.mjs --oferta 41          Reels da oferta #41 da vitrine
 //   node reels.mjs                      Reels do achado do dia mais recente
 //   node reels.mjs --teste --foto x.jpg testa o visual com um produto de exemplo (sem banco)
+//   --postar                            também posta o Reels no Instagram (precisa das chaves META_*)
 //
 // Saída: saida/reels/AAAA-MM-DD-oferta-N/reels.mp4 (+ reels-roteiro.txt e legenda.txt)
 
@@ -13,6 +14,7 @@ import { fileURLToPath } from "url";
 import { buildTexts } from "./lib/textos.mjs";
 import { renderReel } from "./lib/reels.mjs";
 import { hasDb, getOffer, latestPickOfferId } from "./lib/vitrine.mjs";
+import { hasMeta, postReel } from "./lib/social.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -63,6 +65,14 @@ async function main() {
   });
   await writeFile(path.join(outDir, "legenda.txt"), texts.legenda + "\n");
   log(`Reels pronto: ${file} (${seconds.toFixed(1)} s)`);
+
+  if (flag("--postar")) {
+    if (flag("--teste")) throw new Error("O modo teste não posta.");
+    if (!hasMeta()) throw new Error("Para postar, cadastre META_PAGE_TOKEN e META_IG_USER_ID.");
+    log("Enviando o Reels para o Instagram (o processamento do vídeo leva 1 a 3 minutos)...");
+    const url = await postReel(file, texts.legenda, `reels-${folder}`);
+    log(`Postado no Instagram: ${url}`);
+  }
 }
 
 main().catch((e) => {
