@@ -220,7 +220,7 @@ function hookHtml(text) {
   return words.join(" ");
 }
 
-async function encodeFrames(page, totalSec, outFile) {
+export async function encodeFrames(page, totalSec, outFile) {
   const frames = Math.ceil(totalSec * FPS);
   const ff = spawn("ffmpeg", [
     "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "mjpeg", "-i", "-",
@@ -237,7 +237,7 @@ async function encodeFrames(page, totalSec, outFile) {
   return frames;
 }
 
-async function mixAudio(video, voice, scenes, music, totalSec, outFile) {
+export async function mixAudio(video, voice, scenes, music, totalSec, outFile) {
   const inputs = ["-i", video];
   const parts = [];
   let n = 1;

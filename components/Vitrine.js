@@ -25,7 +25,9 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
 
   const categories = useMemo(() => {
     const set = new Set(products.map((p) => p.category).filter(Boolean));
-    return ["Todos", ...(coupons.length ? ["Cupons"] : []), ...[...set].sort()];
+    // categorias "Kit ..." (campanhas, como o Kit Emergência) vêm primeiro
+    const sorted = [...set].sort((a, b) => (/^kit/i.test(b) - /^kit/i.test(a)) || a.localeCompare(b, "pt-BR"));
+    return ["Todos", ...(coupons.length ? ["Cupons"] : []), ...sorted];
   }, [offers]); // eslint-disable-line
 
   // Busca: "23" ou "#23" vai direto no produto do vídeo
@@ -63,8 +65,15 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
 
   useEffect(() => {
     // abre direto no produto se vier com ?p=23 (ex: link do vídeo)
-    const p = new URLSearchParams(window.location.search).get("p");
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get("p");
     if (p) setQ(p);
+    // abre direto numa categoria com ?c=kit (vale o começo do nome, sem acento)
+    const c = norm(params.get("c") || "");
+    if (c) {
+      const found = categories.find((x) => norm(x).startsWith(c));
+      if (found) setCat(found);
+    }
   }, []);
 
   const initials = profile.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
