@@ -58,7 +58,7 @@ export async function publishOffer(p, { link, title, pin = true }) {
   return data;
 }
 
-export async function recordPick(p, { offerId, outDir, link }) {
+export async function recordPick(p, { offerId, outDir, link, capa = null }) {
   const { error } = await db().from("auto_picks").insert({
     item_id: Number(p.itemId),
     shop_id: Number(p.shopId),
@@ -70,6 +70,7 @@ export async function recordPick(p, { offerId, outDir, link }) {
     rating: p.rating,
     link,
     out_dir: outDir,
+    capa,
   });
   if (error) throw new Error(`Supabase (auto_picks): ${error.message}`);
 }

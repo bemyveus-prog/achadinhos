@@ -19,10 +19,11 @@ export async function imageDataUri(src) {
   return `data:image/${ext};base64,${(await readFile(src)).toString("base64")}`;
 }
 
-export async function renderCarousel(p, texts, { outDir, number, handle, theme }) {
+export async function renderCarousel(p, texts, { outDir, number, handle, theme, cover = null }) {
   const { chromium } = await import("playwright");
   await mkdir(outDir, { recursive: true });
   const img = await imageDataUri(p.imageUrl);
+  const coverImg = cover?.file ? await imageDataUri(cover.file) : null;
   const lib = await readFile(CANVAS_LIB, "utf8");
 
   const offer = {
@@ -49,12 +50,13 @@ export async function renderCarousel(p, texts, { outDir, number, handle, theme }
     await page.addScriptTag({ type: "module", content: `${lib}\nwindow.__CC = { drawSlide, buildData, loadFonts, loadImage, SLIDE_COUNT, themeFor };` });
     await page.waitForFunction(() => window.__CC, null, { timeout: 10000 });
 
-    const { jpgs, themeKey } = await page.evaluate(async ({ offer, t, stats, number, handle, theme, img }) => {
+    const { jpgs, themeKey } = await page.evaluate(async ({ offer, t, stats, number, handle, theme, img, cover, coverImg }) => {
       const C = window.__CC;
       await C.loadFonts();
       const image = await C.loadImage(img);
       const key = theme || C.themeFor(offer);
-      const d = C.buildData(offer, t, { img: image, stats, number, handle, theme: key });
+      const coverData = coverImg ? { ...cover, img: await C.loadImage(coverImg) } : null;
+      const d = C.buildData(offer, t, { img: image, stats, number, handle, theme: key, cover: coverData });
       const out = [];
       for (let i = 0; i < C.SLIDE_COUNT; i++) {
         const c = document.createElement("canvas");
@@ -62,7 +64,7 @@ export async function renderCarousel(p, texts, { outDir, number, handle, theme }
         out.push(c.toDataURL("image/jpeg", 0.92).split(",")[1]);
       }
       return { jpgs: out, themeKey: key };
-    }, { offer, t, stats, number, handle, theme, img });
+    }, { offer, t, stats, number, handle, theme, img, cover: cover ? { hook: cover.hook, tag: cover.tag, badge: cover.badge, accent: cover.accent } : null, coverImg });
 
     for (const [i, b64] of jpgs.entries()) {
       const file = path.join(outDir, `${i + 1}.jpg`);

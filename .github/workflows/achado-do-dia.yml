@@ -74,6 +74,7 @@ jobs:
           FIXAR_NO_TOPO: ${{ vars.FIXAR_NO_TOPO }}
           # dias que o achado fica na vitrine (depois some sozinho; 0 = não some)
           DIAS_NA_VITRINE: ${{ vars.DIAS_NA_VITRINE }}
+          CAPA_FOTO: ${{ vars.CAPA_FOTO }}
 
       - name: Guardar o carrossel para download
         if: always()

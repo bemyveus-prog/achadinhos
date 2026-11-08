@@ -12,6 +12,7 @@ import { hasShopeeApi, shortLink } from "./lib/shopee.mjs";
 import { pickProduct } from "./lib/escolha.mjs";
 import { buildTexts, brl, salesLabel } from "./lib/textos.mjs";
 import { renderCarousel } from "./lib/carrossel.mjs";
+import { pickCover } from "./lib/capas.mjs";
 import { hasDb, pickedItemIds, publishOffer, recordPick } from "./lib/vitrine.mjs";
 import { hasTelegram, sendPreview, sendText } from "./lib/telegram.mjs";
 import { hasMeta, publishSocial } from "./lib/social.mjs";
@@ -89,10 +90,12 @@ async function main() {
 
   // 5. Carrossel
   const outDir = path.resolve(env("PASTA_SAIDA", path.join(HERE, "saida")), `${today}-${p.itemId}`);
-  const files = await renderCarousel(p, texts, { outDir, number, handle: env("INSTAGRAM_HANDLE", ""), theme: env("ESTILO", "") });
+  // capa com foto da categoria (se houver imagem para ela); CAPA_FOTO=nao volta para a capa antiga
+  const cover = env("CAPA_FOTO", "sim") === "nao" ? null : await pickCover(p, { log }).catch((e) => { log(`  capa: ${e.message}`); return null; });
+  const files = await renderCarousel(p, texts, { outDir, number, handle: env("INSTAGRAM_HANDLE", ""), theme: env("ESTILO", ""), cover });
   log(`Carrossel salvo em ${outDir} (estilo: ${files.themeKey})`);
 
-  if (writeDb) await recordPick(p, { offerId: offer?.id, outDir, link });
+  if (writeDb) await recordPick(p, { offerId: offer?.id, outDir, link, capa: cover?.id || null });
 
   // 6. Prévia no Telegram
   if (hasTelegram()) {

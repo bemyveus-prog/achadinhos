@@ -1,0 +1,175 @@
+{
+  "_como_usar": "Cada categoria tem imagens (mandadas pelo bot com /capa <categoria>, ou na pasta capas/<categoria>/) e os ganchos abaixo. Entre * fica colorido. 'detecta' = palavras no nome do produto que levam a esta categoria; a ordem importa (a primeira que bater ganha). Categoria sem imagem usa a capa antiga.",
+  "moda-masculina": {
+    "etiqueta": "Moda masculina",
+    "cor": "#1F6FEB",
+    "detecta": "masculin|\\bhomem\\b|\\bmen\\b",
+    "ganchos": [
+      "Se você gosta de andar bem vestido, *precisa ver isso*",
+      "A peça que *todo homem* deveria ter",
+      "Ninguém vai acreditar que *custou tão pouco*"
+    ]
+  },
+  "infantil": {
+    "etiqueta": "Infantil",
+    "cor": "#E8762B",
+    "detecta": "infantil|beb[eê]|crian[cç]a|\\bkids\\b|brinquedo|maternidade|menin[ao]s?\\b",
+    "ganchos": [
+      "Toda mãe *precisa conhecer* isso",
+      "Isso facilitou *muito* a rotina com criança",
+      "Achei para os pequenos e *amei*"
+    ]
+  },
+  "pet": {
+    "etiqueta": "Pet",
+    "cor": "#E8762B",
+    "detecta": "\\bpet\\b|cachorro|\\bc[aã]es\\b|gato|coleira|ra[cç][aã]o|arranhador|comedouro",
+    "ganchos": [
+      "Todo tutor *precisa ver isso*",
+      "Seu pet vai *te agradecer* por isso",
+      "Achei isso e *pensei no seu pet*"
+    ]
+  },
+  "maquiagem": {
+    "etiqueta": "Maquiagem",
+    "cor": "#D0306F",
+    "detecta": "batom|r[ií]mel|m[aá]scara de c[ií]lios|corretivo|sombra|paleta|delineador|blush|gloss|maquiagem|\\bmake\\b|pincel|pinc[eé]is|l[aá]pis de olho|c[ií]lios|sobrancelha|henna|base l[ií]quida|p[oó] compacto|iluminador|primer",
+    "ganchos": [
+      "Toda mulher que se cuida *deveria saber disso*",
+      "Sua necessaire está *incompleta* sem isso",
+      "Eu *não acreditei* quando vi o preço disso",
+      "A make que *você vai querer* depois de ver isso"
+    ]
+  },
+  "cabelo": {
+    "etiqueta": "Cabelo",
+    "cor": "#B4469A",
+    "detecta": "cabelo|shampoo|condicionador|capilar|chapinha|prancha|secador|babyliss|modelador|escova (de cabelo|secadora|alisadora)|cachos|reparador de pontas|pente",
+    "ganchos": [
+      "Quem tem cabelo assim *precisa ver isso*",
+      "O segredo do cabelo bonito *pode ser isso*",
+      "Eu *não acreditei* quando vi o preço disso"
+    ]
+  },
+  "skincare": {
+    "etiqueta": "Skincare",
+    "cor": "#C2410C",
+    "detecta": "s[eé]rum|hidratante|protetor solar|skin ?care|facial|t[oô]nico|[aá]cido|vitamina c|esfoliante|demaquilante|creme|pele",
+    "ganchos": [
+      "Sua pele *vai agradecer* por isso",
+      "Toda mulher que se cuida *deveria saber disso*",
+      "O skincare que *cabe no bolso*"
+    ]
+  },
+  "calcados": {
+    "etiqueta": "Calçados",
+    "cor": "#D0306F",
+    "detecta": "sand[aá]lia|t[eê]nis|\\bbota\\b|chinelo|rasteira|sapat|scarpin|mule|papete|coturno",
+    "ganchos": [
+      "O calçado que *combina com tudo*",
+      "Confortável e bonito? *Achei*",
+      "Ninguém vai acreditar que *custou tão pouco*"
+    ]
+  },
+  "acessorios": {
+    "etiqueta": "Acessórios",
+    "cor": "#B45309",
+    "detecta": "[oó]culos|rel[oó]gio|bolsa|colar|brinco|pulseira|\\banel\\b|bijuteria|carteira|cinto|mochila|necessaire|piranha|presilha",
+    "ganchos": [
+      "O detalhe que *muda o look inteiro*",
+      "Todo mundo vai perguntar *onde você comprou*",
+      "Eu *não acreditei* quando vi o preço disso"
+    ]
+  },
+  "moda-feminina": {
+    "etiqueta": "Moda feminina",
+    "cor": "#D0306F",
+    "detecta": "blusa|vestido|saia|cropped|regata|cal[cç]a|shorts?\\b|body|conjunto|\\btop\\b|legging|jaqueta|casaco|cardig[aã]|macac[aã]o|camisa|feminin[ao]|lingerie|suti[aã]|pijama|biqu[ií]ni|mai[oô]|meia",
+    "ganchos": [
+      "Se você gosta de andar bem vestida, *precisa ver isso*",
+      "A peça que *combina com tudo* no seu guarda-roupa",
+      "Ninguém vai acreditar que *custou tão pouco*",
+      "Achei o look que *você estava procurando*"
+    ]
+  },
+  "celular": {
+    "etiqueta": "Tecnologia",
+    "cor": "#2563EB",
+    "detecta": "celular|smartphone|\\bfone\\b|headset|carregador|capinha|\\bcapa (para|de) celular|cabo usb|tipo c|smartwatch|power ?bank|bluetooth|caixa de som|suporte (de|para) celular|tablet|notebook|mouse|teclado",
+    "ganchos": [
+      "Quem usa celular o dia todo *precisa disso*",
+      "Eu *não sabia* que precisava disso até ver",
+      "Esse achado *vale cada centavo*"
+    ]
+  },
+  "fitness": {
+    "etiqueta": "Fitness",
+    "cor": "#16A34A",
+    "detecta": "academia|fitness|halter|yoga|el[aá]stico|caneleira|corda de pular|garrafa (de )?academia|squeeze|top fitness|legging fitness|treino|whey|creatina",
+    "ganchos": [
+      "Treina em casa? *Você precisa ver isso*",
+      "O achado que *facilitou meu treino*",
+      "Eu *não acreditei* quando vi o preço disso"
+    ]
+  },
+  "organizador": {
+    "etiqueta": "Organização",
+    "cor": "#0E7490",
+    "detecta": "organizador|organiza[cç][aã]o|cesto|caixa organizadora|gaveteiro|divis[oó]ria|cabide|porta[- ]",
+    "ganchos": [
+      "Sua casa *mais organizada* com isso",
+      "Quem gosta de tudo no lugar *precisa ver isso*",
+      "Eu *não sabia* que precisava disso até ver"
+    ]
+  },
+  "cozinha": {
+    "etiqueta": "Cozinha",
+    "cor": "#C2410C",
+    "detecta": "panela|frigideira|cozinha|air ?fryer|liquidificador|\\bfaca|\\bpote|garrafa|\\bcopo|x[ií]cara|talher|t[aá]bua|forma de|assadeira|mixer|batedeira|cafeteira|chaleira|escorredor|ralador|utens[ií]lio",
+    "ganchos": [
+      "Quem cozinha *precisa conhecer isso*",
+      "Isso *facilitou muito* minha cozinha",
+      "Eu *não sabia* que precisava disso até ver"
+    ]
+  },
+  "banheiro": {
+    "etiqueta": "Banheiro",
+    "cor": "#0E7490",
+    "detecta": "banheiro|toalha|chuveiro|\\bbox\\b|ducha|saboneteira|porta escova|tapete (de )?banheiro|lixeira",
+    "ganchos": [
+      "Seu banheiro *nunca mais* vai ser o mesmo",
+      "O detalhe que *faltava* no seu banheiro",
+      "Eu *não sabia* que precisava disso até ver"
+    ]
+  },
+  "ferramentas": {
+    "etiqueta": "Ferramentas",
+    "cor": "#CA8A04",
+    "detecta": "ferramenta|furadeira|parafusadeira|parafus|chave de fenda|alicate|martelo|trena|n[ií]vel|serra|jogo de chaves|kit ferramentas",
+    "ganchos": [
+      "Todo mundo *deveria ter isso* em casa",
+      "O achado que *resolve* aquele conserto",
+      "Eu *não acreditei* quando vi o preço disso"
+    ]
+  },
+  "decoracao": {
+    "etiqueta": "Casa e decoração",
+    "cor": "#9A3412",
+    "detecta": "decora|tapete|cortina|almofada|lumin[aá]ria|\\bquadro|vaso|manta|len[cç]ol|travesseiro|edredom|abajur|fita led|vela|aromatizador|difusor|planta artificial",
+    "ganchos": [
+      "Sua casa *mais aconchegante* com isso",
+      "O detalhe que *transforma* qualquer cantinho",
+      "Ninguém vai acreditar que *custou tão pouco*"
+    ]
+  },
+  "casa": {
+    "etiqueta": "Casa",
+    "cor": "#9A3412",
+    "detecta": "casa|limpeza|vassoura|rodo|mop|aspirador|lavanderia|varal|ferro de passar|ventilador",
+    "ganchos": [
+      "Quem cuida da casa *precisa ver isso*",
+      "Isso *facilitou muito* minha rotina",
+      "Eu *não sabia* que precisava disso até ver"
+    ]
+  }
+}

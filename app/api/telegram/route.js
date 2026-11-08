@@ -2,6 +2,7 @@ import { isAdmin, unauthorized } from "@/lib/auth";
 import { db, hasDb } from "@/lib/supabase";
 import { hasShopeeApi, shopeeProduct, shopeeSearch, shopeeShortLinkSub } from "@/lib/shopee";
 import { allowedChat, brl, CATEGORIAS, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
+import GANCHOS from "@/automacao/capas/ganchos.json";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -20,7 +21,18 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
 Também dá para só escrever o produto (ex.: <i>air fryer</i>).
-Em cada produto, toque em <b>➕ Colocar na vitrine</b> para ele entrar no site com o seu link (subId botsite).`;
+Em cada produto, toque em <b>➕ Colocar na vitrine</b> para ele entrar no site com o seu link (subId botsite).
+
+🖼️ <b>Capas do carrossel</b>
+Mande uma FOTO com a legenda <b>/capa maquiagem</b> (ou outra categoria) para ela entrar no rodízio de capas.
+<b>/capas</b> → quantas imagens cada categoria tem`;
+
+const CAPA_SLUGS = Object.keys(GANCHOS).filter((k) => !k.startsWith("_"));
+const slugify = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const ALIAS = { moda: "moda-feminina", feminina: "moda-feminina", "moda-feminino": "moda-feminina", masculina: "moda-masculina", "moda-masculino": "moda-masculina",
+  make: "maquiagem", beleza: "maquiagem", skin: "skincare", "skin-care": "skincare", cabelos: "cabelo", calcado: "calcados", sapatos: "calcados",
+  acessorio: "acessorios", tecnologia: "celular", eletronicos: "celular", organizacao: "organizador", decoracao: "decoracao", decor: "decoracao", pets: "pet", ferramenta: "ferramentas", crianca: "infantil", bebe: "infantil" };
+const toSlug = (t) => { const s = slugify(t); return ALIAS[s] || s; };
 
 // ---------- configuração do webhook (abrir logado no /admin) ----------
 export async function GET(req) {
@@ -46,6 +58,7 @@ export async function POST(req) {
   const update = await req.json().catch(() => ({}));
   try {
     if (update.callback_query) await onButton(update.callback_query);
+    else if (update.message?.photo || update.message?.document) await onPhoto(update.message);
     else if (update.message?.text) await onText(update.message);
   } catch (e) {
     const chat = update.message?.chat?.id || update.callback_query?.message?.chat?.id;
@@ -72,6 +85,9 @@ async function onText(msg) {
   if (!cmd && !arg) return;
   if (cmd === "start" || cmd === "ajuda" || cmd === "help") return say(chat, AJUDA);
   if (!hasShopeeApi()) return say(chat, "Falta SHOPEE_APP_ID/SHOPEE_APP_SECRET na Vercel.");
+
+  if (cmd === "capa") return say(chat, `Mande a <b>foto</b> com a legenda <b>/capa categoria</b>.\nCategorias: ${CAPA_SLUGS.join(", ")}`);
+  if (cmd === "capas") return listCovers(chat);
 
   if (cmd === "categoria") {
     const key = arg.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(" ")[0];
@@ -193,4 +209,46 @@ async function onButton(q) {
     ].join("\n"));
   }
   return tg("answerCallbackQuery", { callback_query_id: q.id });
+}
+
+// ---------- capas do carrossel ----------
+async function onPhoto(msg) {
+  const chat = msg.chat.id;
+  if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
+  const cap = (msg.caption || "").trim();
+  const m = cap.match(/^\/?capas?\s+(.+)$/i);
+  if (!m) return say(chat, `Para usar como capa, mande a foto com a legenda <b>/capa categoria</b>.\nCategorias: ${CAPA_SLUGS.join(", ")}`);
+  const slug = toSlug(m[1]);
+  if (!CAPA_SLUGS.includes(slug)) return say(chat, `Não conheço a categoria "${esc(m[1])}".\nUse uma destas: ${CAPA_SLUGS.join(", ")}`);
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+
+  // foto comprimida: pega a maior; arquivo (documento): usa como veio
+  const doc = msg.document && /^image\//.test(msg.document.mime_type || "") ? msg.document : null;
+  const fileId = doc ? doc.file_id : msg.photo?.[msg.photo.length - 1]?.file_id;
+  if (!fileId) return say(chat, "Esse arquivo não é imagem.");
+  const f = await tg("getFile", { file_id: fileId });
+  const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
+  if (!res.ok) return say(chat, "Não consegui baixar a imagem do Telegram.");
+  const buf = Buffer.from(await res.arrayBuffer());
+  const ext = (f.file_path.split(".").pop() || "jpg").toLowerCase().replace("jpeg", "jpg");
+  const type = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+  const name = `${slug}/${Date.now()}.${["png", "webp"].includes(ext) ? ext : "jpg"}`;
+  const { error } = await db().storage.from("capas").upload(name, buf, { contentType: type, upsert: false });
+  if (error) return say(chat, `Erro ao guardar: ${esc(error.message)}`);
+  const { data } = await db().storage.from("capas").list(slug, { limit: 100 });
+  const total = (data || []).filter((x) => /\.(jpe?g|png|webp)$/i.test(x.name)).length;
+  const warn = !doc && Math.max(msg.photo?.at(-1)?.width || 0, msg.photo?.at(-1)?.height || 0) < 1200
+    ? "\n⚠️ Dica: para qualidade máxima, mande como <b>arquivo</b> (📎 → Arquivo) em vez de foto." : "";
+  return say(chat, `✅ Capa guardada em <b>${GANCHOS[slug].etiqueta}</b> (${total} no Telegram${slug === "maquiagem" || slug === "moda-feminina" ? " + 1 que você mandou no chat" : ""}).\nGanchos dessa categoria:\n${GANCHOS[slug].ganchos.map((g) => "• " + esc(g.replace(/\*/g, ""))).join("\n")}${warn}`);
+}
+
+async function listCovers(chat) {
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  const linhas = [];
+  for (const slug of CAPA_SLUGS) {
+    const { data } = await db().storage.from("capas").list(slug, { limit: 100 });
+    const n = (data || []).filter((x) => /\.(jpe?g|png|webp)$/i.test(x.name)).length + (["maquiagem", "moda-feminina"].includes(slug) ? 1 : 0);
+    linhas.push(`${n ? "✅" : "⬜"} ${slug}: ${n}`);
+  }
+  return say(chat, `🖼️ <b>Capas por categoria</b>\n${linhas.join("\n")}\n\nCategoria sem imagem usa a capa antiga.`);
 }
