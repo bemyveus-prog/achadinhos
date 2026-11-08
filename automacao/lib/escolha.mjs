@@ -28,6 +28,7 @@ export function normalize(p) {
     shopName: p.shopName || "",
     offerLink: p.offerLink,
     productLink: p.productLink,
+    offerStart: num(p.periodStartTime) ? new Date(num(p.periodStartTime) * 1000) : null, // início da comissão atual
   };
 }
 

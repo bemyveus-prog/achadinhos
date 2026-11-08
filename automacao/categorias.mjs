@@ -39,7 +39,19 @@ export const CATEGORIAS = {
 };
 const PADRAO = "100017,100532,100016,100009,100630,100636";
 
-const cfg = {
+// Modo "pouco disputado": comissão alta, poucas vendas (pouca gente divulgando ainda),
+// nota boa e oferta de comissão recente. É estimativa: a Shopee não informa quantos afiliados há.
+const NICHO = args.includes("--pouco-disputado") || env("MODO_CATEGORIAS", "") === "pouco-disputado";
+
+const cfg = NICHO ? {
+  ids: env("CATEGORIAS_IDS", PADRAO).split(/[\s,;]+/).filter(Boolean),
+  per: Number(env("POR_CATEGORIA", "4")),
+  minCommission: Number(env("CAT_MIN_COMISSAO", "30")) / 100,
+  minRating: Number(env("CAT_MIN_NOTA", "4.7")),
+  minSales: Number(env("CAT_MIN_VENDAS", "5")),
+  maxSales: Number(env("CAT_MAX_VENDAS", "300")),
+  days: Number(env("DIAS_NA_VITRINE", "15")),
+} : {
   ids: env("CATEGORIAS_IDS", PADRAO).split(/[\s,;]+/).filter(Boolean),
   per: Number(env("POR_CATEGORIA", "4")),
   minCommission: Number(env("CAT_MIN_COMISSAO", "20")) / 100,
@@ -48,11 +60,18 @@ const cfg = {
   days: Number(env("DIAS_NA_VITRINE", "15")),
 };
 
+const ageDays = (p) => (p.offerStart ? (Date.now() - p.offerStart.getTime()) / 86400000 : null);
+// pouco disputado: comissão e nota pesam; oferta recente ganha bônus; vendas quase não importam
+const nichoScore = (p) => p.commission * (p.rating / 5) * (1 + Math.max(0, 30 - (ageDays(p) ?? 30)) / 30) * (1 + Math.log10(Math.max(p.sales, 1)) / 4);
+const rank = (p) => (NICHO ? nichoScore(p) : score(p));
+
 function reject(p) {
   if (!p.imageUrl || !p.name || !p.price) return "sem foto/preço";
   if (p.commission < cfg.minCommission) return "comissão baixa";
   if (p.rating && p.rating < cfg.minRating) return "nota baixa";
   if (p.sales < cfg.minSales) return "poucas vendas";
+  if (cfg.maxSales && p.sales > cfg.maxSales) return "muito vendido (disputado)";
+  if (NICHO && !p.rating) return "sem avaliação";
   return null;
 }
 
@@ -68,7 +87,8 @@ async function main() {
     existing = new Set((data || []).map((o) => o.description));
   }
 
-  log(`Filtros: comissão ≥ ${pct(cfg.minCommission)}, nota ≥ ${cfg.minRating}, vendas ≥ ${cfg.minSales}, ${cfg.per} por categoria`);
+  log(NICHO ? "Modo POUCO DISPUTADO (estimativa: comissão alta, poucas vendas, nota boa, oferta recente)" : "Modo padrão (mais vendidos com comissão alta)");
+  log(`Filtros: comissão ≥ ${pct(cfg.minCommission)}, nota ≥ ${cfg.minRating}, vendas ≥ ${cfg.minSales}${cfg.maxSales ? ` e ≤ ${cfg.maxSales}` : ""}, ${cfg.per} por categoria`);
   const chosen = [];
   for (const id of cfg.ids) {
     const nome = CATEGORIAS[id] || `Categoria ${id}`;
@@ -88,11 +108,14 @@ async function main() {
       const r = reject(p);
       if (r) reasons[r] = (reasons[r] || 0) + 1;
       return !r && !existing.has(`cat:${p.itemId}`);
-    }).sort((a, b) => score(b) - score(a)).slice(0, cfg.per);
+    }).sort((a, b) => rank(b) - rank(a)).slice(0, cfg.per);
     const why = Object.entries(reasons).map(([r, n]) => `${n} ${r}`).join(", ");
     log(`${nome} (${id}): ${seen.size} lidos, ${ok.length} escolhidos${why ? ` · descartados: ${why}` : ""}`);
     for (const p of ok) {
-      log(`  ${pct(p.commission)} · ${brl(p.price)} · ${salesLabel(p.sales)} vendas · nota ${p.rating || "-"} · ${p.name.slice(0, 60)}`);
+      const age = ageDays(p);
+      const ofe = age == null ? "" : ` · comissão desde ${p.offerStart.toLocaleDateString("pt-BR")} (${Math.round(age)} dias)`;
+      const loja = p.sellerCommission ? ` (loja ${pct(p.sellerCommission)})` : "";
+      log(`  ${pct(p.commission)}${loja} · ${brl(p.price)} · ${salesLabel(p.sales)} vendas · nota ${p.rating || "-"}${ofe} · ${p.name.slice(0, 55)}`);
       chosen.push({ nome, p });
     }
   }

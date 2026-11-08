@@ -6,7 +6,7 @@ const ENDPOINT = "https://open-api.affiliate.shopee.com.br/graphql";
 const BASE_FIELDS = `itemId shopId productName imageUrl price priceMin priceMax
   priceDiscountRate offerLink productLink commissionRate shopName sales ratingStar`;
 // Campos extras (separação comissão Shopee x comissão da marca). Se a API recusar, cai pro básico.
-const EXTRA_FIELDS = `sellerCommissionRate shopeeCommissionRate`;
+const EXTRA_FIELDS = `sellerCommissionRate shopeeCommissionRate periodStartTime periodEndTime`;
 
 export function hasShopeeApi() {
   return Boolean(process.env.SHOPEE_APP_ID && process.env.SHOPEE_APP_SECRET);

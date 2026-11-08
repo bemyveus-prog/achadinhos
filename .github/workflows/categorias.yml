@@ -10,6 +10,10 @@ on:
         description: "Só mostrar o que gravaria (não grava nada)"
         type: boolean
         default: false
+      pouco_disputado:
+        description: "Priorizar produtos pouco disputados (comissão alta, poucas vendas, oferta recente)"
+        type: boolean
+        default: false
 
 concurrency:
   group: categorias
@@ -33,6 +37,7 @@ jobs:
       CAT_MIN_NOTA: ${{ vars.CAT_MIN_NOTA }}
       CAT_MIN_VENDAS: ${{ vars.CAT_MIN_VENDAS }}
       DIAS_NA_VITRINE: ${{ vars.DIAS_NA_VITRINE }}
+      MODO_CATEGORIAS: ${{ vars.MODO_CATEGORIAS }}
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4
@@ -42,4 +47,4 @@ jobs:
           cache: npm
           cache-dependency-path: automacao/package-lock.json
       - run: npm ci
-      - run: node categorias.mjs ${{ inputs.simular && '--simular' || '' }}
+      - run: node categorias.mjs ${{ inputs.simular && '--simular' || '' }} ${{ inputs.pouco_disputado && '--pouco-disputado' || '' }}
