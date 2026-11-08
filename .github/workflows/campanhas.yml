@@ -1,0 +1,42 @@
+name: Campanhas Shopee
+
+# Puxa as "Ofertas da Shopee" (campanhas oficiais do painel de afiliados) para a vitrine:
+# cards em "Cupons do momento" + as 3 melhores como banner. Somem sozinhas quando a campanha acaba.
+on:
+  schedule:
+    - cron: "37 9 * * *"   # todo dia ~06:37 (Brasília)
+  workflow_dispatch:
+    inputs:
+      simular:
+        description: "Só mostrar o que gravaria (não grava nada)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: campanhas
+  cancel-in-progress: false
+
+jobs:
+  campanhas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: automacao
+    env:
+      SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+      SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      CAMPANHAS_MAX: ${{ vars.CAMPANHAS_MAX }}
+      CAMPANHAS_BANNERS: ${{ vars.CAMPANHAS_BANNERS }}
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: npm ci
+      - run: node campanhas.mjs ${{ inputs.simular && '--simular' || '' }}

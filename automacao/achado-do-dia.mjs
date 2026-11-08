@@ -65,10 +65,10 @@ async function main() {
   log(`Escolhido: ${p.name}`);
   log(`  comissão ${pct(p.commission)} · ${brl(p.price)} · ${salesLabel(p.sales)} vendas · nota ${p.rating}`);
 
-  // 2. Link de afiliado (subId "insta" para ver no relatório o que veio dos carrosséis)
+  // 2. Link de afiliado (subId "achadosite": o clique acontece na vitrine)
   let link = p.offerLink;
   if (!test && p.productLink) {
-    try { link = (await shortLink(p.productLink, env("SHOPEE_SUB_ID", "insta"))) || link; }
+    try { link = (await shortLink(p.productLink, env("SHOPEE_SUB_ID_ACHADO", "achado"))) || link; }
     catch (e) { log(`Link curto não gerado (${e.message}), usando o link de oferta.`); }
   }
 

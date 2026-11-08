@@ -65,7 +65,9 @@ export default function BannerCarousel({ banners }) {
             aria-label={b.title || `Banner ${i + 1}`}
             aria-roledescription="slide"
           >
+            <img className="banner-bg" src={b.image_url} alt="" aria-hidden="true" loading={i === 0 ? "eager" : "lazy"} decoding="async" draggable="false" />
             <img
+              className="banner-img"
               src={b.image_url}
               alt={b.title || ""}
               loading={i === 0 ? "eager" : "lazy"}

@@ -62,8 +62,17 @@ export async function searchOffers({ keyword = "", page = 1, limit = 50, sortTyp
   }
 }
 
+// Todo link que vai para a vitrine termina em "site" (achadosite, kitsite, campanhasite),
+// para o relatório da Shopee mostrar que o clique veio do site.
+export function siteSubId(base = "") {
+  let b = String(base || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  if (b === "insta" || b === "bio") b = "";
+  if (!b.endsWith("site")) b += "site";
+  return b.slice(-50);
+}
+
 export async function shortLink(originUrl, subId) {
-  const sub = String(subId || "insta").replace(/[^a-zA-Z0-9]/g, "").slice(0, 50) || "insta";
+  const sub = siteSubId(subId);
   const data = await gql(`mutation {
     generateShortLink(input: { originUrl: ${JSON.stringify(originUrl)}, subIds: [${JSON.stringify(sub)}] }) { shortLink }
   }`);
