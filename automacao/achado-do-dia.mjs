@@ -103,8 +103,9 @@ async function main() {
       link ? `Link: ${link}` : "",
       runnersUp.length ? `\nOutras opções:\n${runnersUp.map((r) => `• ${pct(r.commission)} · ${r.name.slice(0, 60)}`).join("\n")}` : "",
     ].filter(Boolean).join("\n");
-    await sendPreview(files, texts.legenda, summary);
-    log("Prévia enviada no Telegram.");
+    // erro no Telegram nunca impede a postagem
+    try { await sendPreview(files, texts.legenda, summary); log("Prévia enviada no Telegram."); }
+    catch (e) { log(`Telegram falhou (${e.message}); seguindo com a postagem.`); }
   }
 
   // 7. Postagem automática (POSTAR=instagram,facebook)
