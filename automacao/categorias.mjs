@@ -73,12 +73,15 @@ async function main() {
   for (const id of cfg.ids) {
     const nome = CATEGORIAS[id] || `Categoria ${id}`;
     const seen = new Map();
-    for (const page of [1, 2]) {
-      try {
-        const { nodes = [], pageInfo } = await searchOffers({ catId: id, sortType: 5, page, limit: 50 });
-        for (const n of nodes) { const p = normalize(n); if (!seen.has(p.itemId)) seen.set(p.itemId, p); }
-        if (!pageInfo?.hasNextPage) break;
-      } catch (e) { log(`  ${nome}: busca falhou (${e.message})`); break; }
+    for (const page of [1, 2, 3]) {
+      let res = null;
+      for (let t = 1; t <= 3 && !res; t++) { // a API às vezes devolve "System Error"; tenta de novo
+        try { res = await searchOffers({ catId: id, sortType: 5, page, limit: 50 }); }
+        catch (e) { if (t === 3) log(`  ${nome}: página ${page} falhou (${e.message})`); else await new Promise((r) => setTimeout(r, 2000 * t)); }
+      }
+      if (!res) break;
+      for (const n of res.nodes || []) { const p = normalize(n); if (!seen.has(p.itemId)) seen.set(p.itemId, p); }
+      if (!res.pageInfo?.hasNextPage) break;
     }
     const reasons = {};
     const ok = [...seen.values()].filter((p) => {
