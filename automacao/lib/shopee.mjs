@@ -36,9 +36,10 @@ export async function gql(query) {
 let useExtra = true;
 
 // sortType 5 = maior comissão primeiro
-export async function searchOffers({ keyword = "", page = 1, limit = 50, sortType = 5 }) {
+export async function searchOffers({ keyword = "", page = 1, limit = 50, sortType = 5, catId = null }) {
   const args = [
     keyword ? `keyword: ${JSON.stringify(keyword)}` : null,
+    catId ? `productCatId: ${Number(catId)}` : null,
     `sortType: ${sortType}`,
     `page: ${page}`,
     `limit: ${limit}`,
