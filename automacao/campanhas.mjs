@@ -90,6 +90,8 @@ async function main() {
       start: toDate(c.periodStartTime),
       end: toDate(c.periodEndTime),
     }))
+    // links permanentes de categoria só entram se a variável CAMPANHAS_CATEGORIAS=1
+    .filter((c) => !c.category || env("CAMPANHAS_CATEGORIAS", "") === "1")
     .filter((c) => c.name && c.link && (!c.end || c.end.getTime() > now + 3600000) && (!c.start || c.start.getTime() <= now))
     // campanhas de verdade (com data de fim) primeiro, depois as de categoria; dentro, maior comissão
     .sort((a, b) => (a.category - b.category) || (!!b.end - !!a.end) || (b.commission - a.commission))
