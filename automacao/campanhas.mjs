@@ -50,8 +50,28 @@ async function fetchCampaigns() {
 const toDate = (v) => {
   const n = Number(v);
   if (!n) return null;
-  return new Date(n > 1e12 ? n : n * 1000); // a API manda em segundos
+  const d = new Date(n > 1e12 ? n : n * 1000); // a API manda em segundos
+  return d.getFullYear() > 2100 ? null : d; // "31/12/2999" = oferta permanente, sem fim
 };
+
+// Ofertas permanentes de categoria vêm como "- - Women Clothes"; viram nome em português
+const PT = {
+  "health": "Saúde", "beauty": "Beleza", "fashion accessories": "Acessórios de Moda", "home appliances": "Eletrodomésticos",
+  "men clothes": "Moda Masculina", "men shoes": "Calçados Masculinos", "mobile & gadgets": "Celulares e Acessórios",
+  "travel & luggage": "Viagem e Malas", "women bags": "Bolsas Femininas", "women clothes": "Moda Feminina",
+  "food delivery": "Delivery de Comida", "women shoes": "Calçados Femininos", "men bags": "Bolsas Masculinas",
+  "home & living": "Casa e Decoração", "baby & kids fashion": "Moda Infantil", "mom & baby": "Mães e Bebês",
+  "toys": "Brinquedos", "sports & outdoors": "Esportes", "computers & accessories": "Informática",
+  "watches": "Relógios", "pets": "Pets", "automotive": "Automotivo", "groceries": "Mercado", "audio": "Áudio",
+  "cameras & drones": "Câmeras e Drones", "gaming & consoles": "Games", "books & magazines": "Livros",
+  "stationery": "Papelaria", "home improvement": "Ferramentas e Construção", "hobbies & collections": "Hobbies",
+  "muslim fashion": "Moda Modesta", "jewelry": "Joias", "motorcycles": "Motos", "tickets & vouchers": "Vouchers",
+};
+function cleanName(raw) {
+  const s = String(raw || "").replace(/^[\s-]+/, "").trim();
+  if (s === String(raw || "").trim()) return { name: s, category: false };
+  return { name: `Ofertas de ${PT[s.toLowerCase()] || s}`, category: true };
+}
 
 async function main() {
   if (!hasShopeeApi()) throw new Error("Configure SHOPEE_APP_ID e SHOPEE_APP_SECRET");
@@ -62,7 +82,7 @@ async function main() {
   const raw = await fetchCampaigns();
   const list = raw
     .map((c) => ({
-      name: String(c.offerName || "").trim(),
+      ...cleanName(c.offerName),
       image: c.imageUrl || null,
       link: c.offerLink,
       original: c.originalLink || null,
@@ -71,11 +91,16 @@ async function main() {
       end: toDate(c.periodEndTime),
     }))
     .filter((c) => c.name && c.link && (!c.end || c.end.getTime() > now + 3600000) && (!c.start || c.start.getTime() <= now))
-    .sort((a, b) => b.commission - a.commission)
+    // campanhas de verdade (com data de fim) primeiro, depois as de categoria; dentro, maior comissão
+    .sort((a, b) => (a.category - b.category) || (!!b.end - !!a.end) || (b.commission - a.commission))
     .slice(0, MAX_CAMPANHAS);
 
+  if (simulate) {
+    log("Tudo o que a Shopee mandou:");
+    for (const c of raw) log("  " + JSON.stringify({ ...c, imageUrl: c.imageUrl ? "sim" : null }));
+  }
   log(`${raw.length} campanhas recebidas, ${list.length} ativas escolhidas:`);
-  for (const c of list) log(`  ${pct(c.commission)} · ${c.name}${c.end ? ` · até ${c.end.toLocaleDateString("pt-BR")}` : ""}${c.image ? "" : " · (sem imagem)"}`);
+  for (const c of list) log(`  ${pct(c.commission)} · ${c.name}${c.end ? ` · até ${c.end.toLocaleDateString("pt-BR")}` : " · permanente"}${c.image ? "" : " · (sem imagem)"}`);
   if (simulate || !list.length) { if (simulate) log("Simulação: nada gravado."); return; }
 
   const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
