@@ -2,9 +2,11 @@ name: Achado do dia
 
 on:
   schedule:
-    # 2 achados por dia (horário de Brasília = UTC-3; o GitHub pode atrasar alguns minutos)
-    - cron: "47 14 * * *"   # 11:47 — antes do almoço
-    - cron: "47 21 * * *"   # 18:47 — começo da noite
+    # 10 achados por dia, a cada 1h30 (Brasília = UTC-3; o GitHub costuma atrasar uns 30 min)
+    # 07:17 10:17 13:17 16:17 19:17 (Brasília)
+    - cron: "17 10,13,16,19,22 * * *"
+    # 08:47 11:47 14:47 17:47 20:47 (Brasília)
+    - cron: "47 11,14,17,20,23 * * *"
   workflow_dispatch:
     inputs:
       sem_vitrine:
@@ -15,6 +17,10 @@ on:
         description: "Postar no Instagram/Facebook (conforme a variável POSTAR)"
         type: boolean
         default: false
+
+concurrency:
+  group: achado-do-dia
+  cancel-in-progress: false
 
 jobs:
   achado:
@@ -66,6 +72,8 @@ jobs:
           PRECO_MIN: ${{ vars.PRECO_MIN }}
           PRECO_MAX: ${{ vars.PRECO_MAX }}
           FIXAR_NO_TOPO: ${{ vars.FIXAR_NO_TOPO }}
+          # dias que o achado fica na vitrine (depois some sozinho; 0 = não some)
+          DIAS_NA_VITRINE: ${{ vars.DIAS_NA_VITRINE }}
 
       - name: Guardar o carrossel para download
         if: always()

@@ -53,7 +53,7 @@ Os números vêm sempre da API. A IA (opcional) só escreve gancho e destaques a
 
 ## Rodar pelo GitHub Actions (sem VPS)
 
-O arquivo `.github/workflows/achado-do-dia.yml` roda tudo **2 vezes por dia, às 11h47 e às 18h47** (Brasília) nos servidores do GitHub. Cada execução escolhe um produto novo (nunca repete), coloca na vitrine e posta o carrossel.
+O arquivo `.github/workflows/achado-do-dia.yml` roda tudo **10 vezes por dia, a cada 1h30 das 7h17 às 20h47** (Brasília) nos servidores do GitHub. Cada execução escolhe um produto novo (nunca repete), coloca na vitrine e posta o carrossel.
 
 1. No GitHub: **Settings → Secrets and variables → Actions → New repository secret**, cadastre:
    `SHOPEE_APP_ID`, `SHOPEE_APP_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
@@ -98,3 +98,5 @@ Cada cena dura o tempo da fala. Sem `--oferta`, usa o achado do dia mais recente
 - **Narração:** Fish Audio se houver o secret `FISH_API_KEY` e a variável `FISH_VOICE_ID`; senão, voz neural da Microsoft (grátis, `EDGE_VOICE`, padrão `pt-BR-FranciscaNeural`).
 - **Trilha (opcional):** variável `MUSICA` com o link de um mp3 sem direitos autorais.
 - **Pelo GitHub:** Actions → **Reels do achado** → Run workflow (informe o número da oferta ou deixe vazio). O vídeo fica em Artifacts.
+
+Cada achado fica **15 dias** na vitrine e depois sai sozinho (variável `DIAS_NA_VITRINE`; `0` = não sai).

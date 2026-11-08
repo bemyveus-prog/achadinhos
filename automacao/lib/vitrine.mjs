@@ -21,6 +21,13 @@ export async function pickedItemIds() {
   return new Set((data || []).map((r) => String(r.item_id)));
 }
 
+// O achado sai sozinho da vitrine depois de DIAS_NA_VITRINE dias (padrão 15; 0 = fica para sempre)
+function expiresAt() {
+  const dias = Number((process.env.DIAS_NA_VITRINE || "15").trim());
+  if (!dias || dias <= 0) return null;
+  return new Date(Date.now() + dias * 86400000).toISOString();
+}
+
 // Cadastra o produto na vitrine em destaque e tira o destaque do achado anterior
 export async function publishOffer(p, { link, title, pin = true }) {
   if (pin) {
@@ -43,6 +50,7 @@ export async function publishOffer(p, { link, title, pin = true }) {
       badge: pin ? BADGE : null,
       pinned: pin,
       active: true,
+      expires_at: expiresAt(),
     })
     .select()
     .single();
