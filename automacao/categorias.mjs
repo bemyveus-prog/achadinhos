@@ -13,6 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 import { hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
 import { normalize, score } from "./lib/escolha.mjs";
 import { brl, salesLabel } from "./lib/textos.mjs";
+import { hasTelegram, notify, sendText } from "./lib/telegram.mjs";
 
 const args = process.argv.slice(2);
 const env = (k, d) => (process.env[k] ?? "").trim() || d;
@@ -128,7 +129,7 @@ async function main() {
     let link = p.offerLink;
     try { link = (await shortLink(p.productLink, env("CATEGORIA_SUB_ID", "categoria"))) || link; }
     catch (e) { log(`  link curto não gerado (${e.message})`); }
-    const { error } = await sb.from("offers").insert({
+    const { data: row, error } = await sb.from("offers").insert({
       kind: "produto",
       title: p.name.slice(0, 120),
       description: `cat:${p.itemId}`,
@@ -140,8 +141,11 @@ async function main() {
       category: nome,
       active: true,
       expires_at: expires,
-    });
-    if (error) log(`  erro ao gravar: ${error.message}`); else added++;
+    }).select("id,title,price,original_price,image_url,link,category").single();
+    if (error) { log(`  erro ao gravar: ${error.message}`); continue; }
+    added++;
+    if (added === 1 && hasTelegram()) await sendText(`📦 <b>Produtos novos na vitrine (${chosen.length})</b>`, { html: true }).catch(() => {});
+    await notify(row, p, "Produtos por categoria", log);
   }
   log(`Vitrine: ${added} produtos novos por categoria (subId categoriasite, saem em ${cfg.days} dias).`);
 }
