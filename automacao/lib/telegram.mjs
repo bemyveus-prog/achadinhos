@@ -31,10 +31,14 @@ export async function getChatId() {
   if (chatId) return chatId;
   chatId = env("TELEGRAM_CHAT_ID");
   if (chatId) return chatId;
-  const ups = await call("getUpdates", { limit: 50 });
-  const last = [...ups].reverse().find((u) => u.message?.chat?.id || u.channel_post?.chat?.id);
-  chatId = last?.message?.chat?.id || last?.channel_post?.chat?.id || null;
-  if (!chatId) throw new Error("Não achei o chat: abra o seu bot no Telegram, mande /start e rode de novo");
+  const me = await call("getMe", {});
+  const hook = await call("getWebhookInfo", {});
+  if (hook.url) throw new Error(`O bot @${me.username} está ligado a outro sistema (webhook). Use um bot só para isto ou crie o secret TELEGRAM_CHAT_ID`);
+  const ups = await call("getUpdates", { limit: 100 });
+  const chatOf = (u) => (u.message || u.edited_message || u.channel_post || u.my_chat_member || u.callback_query?.message)?.chat?.id;
+  const last = [...ups].reverse().find(chatOf);
+  chatId = last ? chatOf(last) : null;
+  if (!chatId) throw new Error(`O token é do bot @${me.username}, mas ele não recebeu mensagem nenhuma. Abra t.me/${me.username}, mande "oi" e rode de novo`);
   return chatId;
 }
 
