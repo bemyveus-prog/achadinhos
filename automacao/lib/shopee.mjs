@@ -13,7 +13,18 @@ export function hasShopeeApi() {
 }
 
 // Assinatura oficial: SHA256(appId + timestamp + payload + secret)
+// A API às vezes devolve "System Error" (10000) ou falha de rede: tenta de novo até 3 vezes
 export async function gql(query) {
+  for (let t = 1; ; t++) {
+    try { return await gqlOnce(query); }
+    catch (e) {
+      if (t >= 3 || !/System Error|10000|fetch failed|timeout|aborted|ECONN/i.test(e.message)) throw e;
+      await new Promise((r) => setTimeout(r, 1500 * t));
+    }
+  }
+}
+
+async function gqlOnce(query) {
   const appId = process.env.SHOPEE_APP_ID;
   const secret = process.env.SHOPEE_APP_SECRET;
   const payload = JSON.stringify({ query });
