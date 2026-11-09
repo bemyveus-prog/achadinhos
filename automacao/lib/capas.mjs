@@ -65,7 +65,7 @@ export async function pickCover(p, { log = console.log, force } = {}) {
   const hooks = c.ganchos?.length ? c.ganchos : ["Eu *não acreditei* quando vi o preço disso"];
   const hookIdx = t % hooks.length;
   const badges = ["adivinha o preço?"];
-  if (p.sales >= 500) badges.push(`+${salesLabel(p.sales)} vendidos`);
+  if (p.sales >= 500) badges.push(`${salesLabel(p.sales)} vendidos`);
   if (p.rating >= 4.7) badges.push(`nota ${Number(p.rating).toFixed(1).replace(".", ",")} ⭐`);
   const img = images[Math.floor(t / hooks.length) % images.length];
   const cover = {

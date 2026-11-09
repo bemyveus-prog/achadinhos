@@ -7,7 +7,10 @@
 import { mkdir, writeFile, rm } from "fs/promises";
 import path from "path";
 import { imageDataUri } from "./carrossel.mjs";
-import { narrate } from "./voz.mjs";
+import { narrate, audioDuration } from "./voz.mjs";
+import { execFile } from "child_process";
+import { promisify } from "util";
+const run = promisify(execFile);
 import { encodeFrames, mixAudio } from "./reels.mjs";
 import { brl, salesLabel } from "./textos.mjs";
 
@@ -24,10 +27,10 @@ export function buildScenes2(p, { hook, nome, number, comment }) {
   const prova = [p.rating >= 4.5 ? `nota ${num(Number(p.rating).toFixed(1))}` : "", p.sales >= 100 ? `mais de ${salesLabel(p.sales).replace("+", "")} vendidos` : ""].filter(Boolean).join(", ");
   return [
     { key: "gancho", say: hook.replace(/\*/g, ""), min: 2.2 },
-    { key: "produto", say: `Olha isso: ${nome}.${prova ? ` ${prova[0].toUpperCase() + prova.slice(1)}.` : ""}`, min: 2.4 },
+    { key: "produto", say: `${nome}.${prova ? ` ${prova[0].toUpperCase() + prova.slice(1)}.` : ""}`, min: 2.2 },
     { key: "palpite", say: "Quanto você acha que custa?", min: 2.0 },
     { key: "preco", say: `Só ${reais(p.price)}!`, min: 1.8 },
-    { key: "cta", say: `${comment} O link tá na bio${n ? `, procura o ${n}` : ""}.`, min: 3.4 },
+    { key: "cta", say: `${comment} Link na bio${n ? `, número ${n}` : ""}.`, min: 3.0 },
   ];
 }
 
@@ -139,9 +142,20 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   await mkdir(tmp, { recursive: true });
   comment = comment || "Quanto você chutou? Comenta aí!";
   const scenes = buildScenes2(p, { hook: cover.hook, nome, number, comment });
+  // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)
+  process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
   const voice = await narrate(scenes.map((s) => s.say), tmp, log);
+  for (const v of voice) {
+    if (!v.file) continue;
+    const out = v.file.replace(/\.mp3$/, "-cut.mp3");
+    const sil = "silenceremove=start_periods=1:start_threshold=-42dB:start_silence=0.03";
+    try {
+      await run("ffmpeg", ["-y", "-loglevel", "error", "-i", v.file, "-af", `${sil},areverse,${sil},areverse`, out]);
+      v.file = out; v.duration = await audioDuration(out);
+    } catch { /* fica com o áudio original */ }
+  }
   let acc = 0;
-  scenes.forEach((s, i) => { s.dur = Math.max(s.min, voice[i].duration + 0.35); s.start = acc; acc += s.dur; });
+  scenes.forEach((s, i) => { s.dur = Math.max(s.min, voice[i].duration + 0.25); s.start = acc; acc += s.dur; });
   const total = acc;
   log(`Reels v2: ${total.toFixed(1)} s`);
 
