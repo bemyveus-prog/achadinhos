@@ -27,6 +27,7 @@ Em cada produto, toque em <b>➕ Colocar na vitrine</b> para ele entrar no site 
 
 🖼️ <b>Capas do carrossel</b>
 Mande uma FOTO com a legenda <b>/capa maquiagem</b> (ou outra categoria) para ela entrar no rodízio de capas.
+Foto do perfil para o final dos Reels: mande a imagem com a legenda <b>/avatar</b>.
 <b>/capas</b> → quantas imagens cada categoria tem`;
 
 const CAPA_SLUGS = Object.keys(GANCHOS).filter((k) => !k.startsWith("_"));
@@ -252,6 +253,7 @@ async function onPhoto(msg) {
   const chat = msg.chat.id;
   if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
   const cap = (msg.caption || "").trim();
+  if (/^\/?avatar\b/i.test(cap)) return saveAvatar(chat, msg);
   const m = cap.match(/^\/?capas?\s+(.+)$/i);
   if (!m) return say(chat, `Para usar como capa, mande a foto com a legenda <b>/capa categoria</b>.\nCategorias: ${CAPA_SLUGS.join(", ")}`);
   const slug = toSlug(m[1]);
@@ -457,4 +459,20 @@ async function approveReels(chat, q, data) {
   await db().from("reels_pendentes").update({ status: "postando" }).eq("id", r.id);
   await setButton("⏳ Postando no Instagram…");
   await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Postando! Te aviso aqui quando sair." });
+}
+
+// foto do perfil usada na animação "Seguir" do final dos Reels
+async function saveAvatar(chat, msg) {
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  const doc = msg.document && /^image\//.test(msg.document.mime_type || "") ? msg.document : null;
+  const fileId = doc ? doc.file_id : msg.photo?.[msg.photo.length - 1]?.file_id;
+  if (!fileId) return say(chat, "Mande uma imagem com a legenda /avatar");
+  const f = await tg("getFile", { file_id: fileId });
+  const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
+  if (!res.ok) return say(chat, "Não consegui baixar a imagem do Telegram.");
+  const ext = (f.file_path.split(".").pop() || "jpg").toLowerCase().replace("jpeg", "jpg");
+  const { error } = await db().storage.from("capas").upload(`avatar/${Date.now()}.${["png", "webp"].includes(ext) ? ext : "jpg"}`, Buffer.from(await res.arrayBuffer()),
+    { contentType: ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg" });
+  if (error) return say(chat, `Erro ao guardar: ${esc(error.message)}`);
+  return say(chat, "✅ Foto do perfil guardada. Ela aparece no final dos próximos Reels, no botão \"Seguir\".");
 }

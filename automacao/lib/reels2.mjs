@@ -22,7 +22,7 @@ const reais = (v) => {
   return c ? `${r} reais e ${c}` : `${r} reais`;
 };
 
-export function buildScenes2(p, { hook, nome, number, comment, fala = "" }) {
+export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false }) {
   const n = number ? String(number).replace("#", "") : "";
   const prova = [p.rating >= 4.5 ? `nota ${num(Number(p.rating).toFixed(1))}` : "", p.sales >= 100 ? `mais de ${salesLabel(p.sales).replace("+", "")} vendidos` : ""].filter(Boolean).join(", ");
   return [
@@ -30,7 +30,7 @@ export function buildScenes2(p, { hook, nome, number, comment, fala = "" }) {
     { key: "produto", say: fala || `${nome}.${prova ? ` ${prova[0].toUpperCase() + prova.slice(1)}.` : ""}`, min: 2.2 },
     { key: "palpite", say: "Quanto você acha que custa?", min: 2.0 },
     { key: "preco", say: `Só ${reais(p.price)}!`, min: 1.8 },
-    { key: "cta", say: `${comment} Link na bio${n ? `, número ${n}` : ""}.`, min: 3.0 },
+    { key: "cta", say: `Me segue que todo dia tem achado novo abaixo de 50 reais! E corre no link da bio, ${cupom ? "que tem cupom da Shopee te esperando!" : `procura o número ${n}!`}`, min: 4.2 },
   ];
 }
 
@@ -67,7 +67,18 @@ function pageHtml() {
   #price small{display:block;color:#fff;font-weight:700;font-size:56px;opacity:.9}
   #price b{display:inline-block;margin-top:10px;background:var(--ac);color:#fff;font-weight:800;font-size:170px;letter-spacing:-5px;padding:6px 48px 16px;border-radius:44px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
   #cta{left:70px;right:70px;top:1200px;text-align:center;color:#fff}
-  #cta h2{font-weight:800;font-size:84px;line-height:1.05;letter-spacing:-2px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
+  #prof{left:90px;right:90px;top:760px;background:#fff;border-radius:44px;padding:34px 36px;display:flex;align-items:center;gap:28px;box-shadow:0 30px 80px rgba(0,0,0,.5);opacity:0}
+  #ava{flex:none;width:150px;height:150px;border-radius:50%;background:#eee center/cover;border:6px solid transparent;
+       background-clip:padding-box;box-shadow:0 0 0 6px #fff,0 0 0 11px #E1306C;display:grid;place-items:center;font-weight:800;font-size:56px;color:#2E1020}
+  #pinfo{flex:1;min-width:0;text-align:left}
+  #phandle{font-weight:800;font-size:44px;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #ptag{font-weight:600;font-size:30px;color:#666;margin-top:4px}
+  #follow{margin-top:18px;display:inline-flex;align-items:center;gap:10px;background:#0095F6;color:#fff;font-weight:800;font-size:40px;padding:14px 46px;border-radius:18px;transform-origin:center}
+  #follow.on{background:#EFEFEF;color:#111}
+  #finger{left:0;top:0;font-size:110px;opacity:0;filter:drop-shadow(0 10px 18px rgba(0,0,0,.4))}
+  #ring{left:0;top:0;width:60px;height:60px;border-radius:50%;border:8px solid #fff;opacity:0}
+  #coupon{display:inline-block;margin-top:22px;background:#FFD54A;color:#2E1020;font-weight:800;font-size:46px;padding:14px 34px;border-radius:999px;box-shadow:0 14px 30px rgba(0,0,0,.35)}
+  #cta h2{font-weight:800;font-size:64px;line-height:1.05;letter-spacing:-2px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
   #cta .emo{font-size:90px;display:block;margin-top:6px}
   #bio{margin:34px auto 0;display:inline-flex;align-items:center;gap:20px;background:#fff;color:#2E1020;font-weight:800;font-size:56px;padding:22px 40px;border-radius:999px}
   #bio i{font-style:normal;background:var(--ac);color:#fff;padding:4px 22px;border-radius:999px}
@@ -81,7 +92,9 @@ function pageHtml() {
 <div id="clip" class="abs"><img id="clipimg"></div><div id="cliptag" class="abs"></div>
 <div id="chips" class="abs"></div><div id="count" class="abs"></div>
 <div id="price" class="abs"><small>só</small><b id="pv"></b></div>
-<div id="cta" class="abs"><h2 id="ctah"></h2><span class="emo">👇</span><div id="bio">Link na bio <i id="num"></i></div></div>
+<div id="prof" class="abs"><div id="ava"></div><div id="pinfo"><div id="phandle"></div><div id="ptag">Achadinhos todo dia</div><div id="follow">Seguir</div></div></div>
+<div id="ring" class="abs"></div><div id="finger" class="abs">👆</div>
+<div id="cta" class="abs"><h2 id="ctah"></h2><span class="emo">👆</span><div id="bio">Link na bio <i id="num"></i></div><br><div id="coupon">🎟️ Cupom da Shopee hoje</div></div>
 <div id="flash" class="abs"></div>
 <script>
 const $=(i)=>document.getElementById(i);
@@ -93,7 +106,10 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   $("cover").style.backgroundImage="url("+d.cover+")";$("coverbg").style.backgroundImage="url("+d.cover+")";$("photo").src=d.img;
   $("tag").textContent=d.tag;$("hook").innerHTML=d.hookHtml;$("name").textContent=d.nome;
   $("chips").innerHTML=d.chips.map(c=>'<div class="chip">'+c+'</div>').join("");
-  $("pv").textContent=d.price;$("ctah").textContent=d.comment;$("num").textContent=d.number||"";
+  $("pv").textContent=d.price;$("ctah").textContent="Me segue! Todo dia tem achado novo abaixo de R$ 50";$("num").textContent=d.number||"";
+  $("phandle").textContent=d.handle||"@minh.asofertas";
+  if(d.avatar){$("ava").style.backgroundImage="url("+d.avatar+")"}else{$("ava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
+  $("coupon").style.display=d.cupom?"inline-block":"none";
   if(!d.number)$("num").style.display="none";
   let a=0;starts=d.scenes.map(s=>{const v=a;a+=s.dur;return v});
   return document.fonts.ready.then(()=>new Promise(r=>$("photo").complete?r():($("photo").onload=r)));};
@@ -130,10 +146,29 @@ window.render=(t)=>{
   $("price").querySelector("small").style.opacity=key==="preco"?ease(lt/0.2):0;
   $("pv").style.transform="scale("+(key==="preco"?0.3+0.7*back((lt-0.1)/0.4):0)+") rotate(-3deg)";
   // 5. chamada
-  $("cta").style.opacity=key==="cta"?1:0;
-  show($("ctah"),key==="cta"?ease(lt/0.35):0,30);
-  $("cta").querySelector(".emo").style.transform="translateY("+Math.abs(Math.sin(t*5))*16+"px)";
-  show($("bio"),key==="cta"?ease((lt-0.5)/0.35):0,30,key==="cta"?1+0.04*Math.sin(t*6):1);
+  const isC=key==="cta";
+  // 1) cartão do perfil entra e o dedo toca em "Seguir" (vira "Seguindo ✓")
+  show($("prof"),isC?ease(lt/0.35):0,60);
+  if(isC){$("card").style.opacity=1-ease(lt/0.3)}
+  const tap=1.0, fb=$("follow").getBoundingClientRect();
+  const fx=fb.left+fb.width*0.55, fy=fb.top+fb.height*0.6;
+  const fin=isC?clamp((lt-0.45)/0.35):0;
+  $("finger").style.opacity=isC&&lt<tap+0.6?fin:0;
+  $("finger").style.transform="translate("+(fx-30+(1-ease(fin))*180)+"px,"+(fy-10+(1-ease(fin))*260)+"px) scale("+(lt>tap&&lt<tap+0.15?0.85:1)+")";
+  const on=isC&&lt>=tap;
+  $("follow").classList.toggle("on",on);$("follow").textContent=on?"Seguindo ✓":"Seguir";
+  $("follow").style.transform="scale("+(isC&&lt>tap&&lt<tap+0.25?1.12:1)+")";
+  const rk=isC?clamp((lt-tap)/0.45):0;
+  $("ring").style.opacity=rk>0&&rk<1?1-rk:0;
+  $("ring").style.transform="translate("+(fx-30)+"px,"+(fy-30)+"px) scale("+(1+rk*3)+")";
+  // 2) chamada + link da bio (e cupom, se houver)
+  $("cta").style.opacity=isC?1:0;
+  $("cta").style.top="1250px";
+  show($("ctah"),isC?ease((lt-1.3)/0.35):0,30);
+  $("cta").querySelector(".emo").style.transform="translateY("+(-Math.abs(Math.sin(t*5))*16)+"px)";
+  $("cta").querySelector(".emo").style.opacity=isC?ease((lt-1.6)/0.3):0;
+  show($("bio"),isC?ease((lt-1.8)/0.35):0,30,isC?1+0.04*Math.sin(t*6):1);
+  show($("coupon"),isC?ease((lt-2.3)/0.35):0,30,isC?1+0.05*Math.sin(t*7):1);
   if(window.renderClip)window.renderClip(t); // por último: o vídeo do produto manda na cena "produto"
 };
 </script>
@@ -169,13 +204,13 @@ async function clipFrames(file, maxSec, dir) {
   return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
 }
 
-export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", log = console.log }) {
+export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, log = console.log }) {
   const { chromium } = await import("playwright");
   await mkdir(outDir, { recursive: true });
   const tmp = path.join(outDir, "_tmp");
   await mkdir(tmp, { recursive: true });
   comment = comment || "Quanto você chutou? Comenta aí!";
-  const scenes = buildScenes2(p, { hook: cover.hook, nome, number, comment, fala });
+  const scenes = buildScenes2(p, { hook: cover.hook, nome, number, comment, fala, cupom });
   // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)
   process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
   const voice = await narrate(scenes.map((s) => s.say), tmp, log);
@@ -210,6 +245,9 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     chips, price: brl(p.price), comment, number: number ? String(number).startsWith("#") ? number : `#${number}` : "",
     scenes: scenes.map(({ key, dur }) => ({ key, dur })),
     clip: [],
+    handle: handle || "@minh.asofertas",
+    avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null,
+    cupom,
   };
   if (clip?.file) {
     const sc = scenes.find((x) => x.key === "produto");

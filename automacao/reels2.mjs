@@ -160,7 +160,25 @@ async function main() {
   if (!cover) throw new Error("Essa categoria ainda não tem foto de capa. Mande uma pelo bot (/capa categoria) ou use --categoria");
   const fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
   if (fala) log(`Narração própria: "${fala}"`);
-  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, log });
+  // final: "me segue" + link da bio; o cupom só é citado se a vitrine tiver cupom ativo agora
+  const agora = new Date().toISOString();
+  const { count: cupons } = await sb.from("offers").select("id", { count: "exact", head: true })
+    .eq("active", true).eq("kind", "cupom").or(`expires_at.is.null,expires_at.gt.${agora}`);
+  const cupom = (cupons || 0) > 0;
+  let avatar = null;
+  try {
+    const { data: av } = await sb.storage.from("capas").list("avatar", { limit: 20, sortBy: { column: "name", order: "desc" } });
+    const last = (av || []).find((f) => /\.(jpe?g|png|webp)$/i.test(f.name));
+    if (last) {
+      const { data } = await sb.storage.from("capas").download(`avatar/${last.name}`);
+      avatar = path.join(outDir, "avatar" + path.extname(last.name));
+      const { mkdir } = await import("fs/promises");
+      await mkdir(outDir, { recursive: true });
+      await writeFile(avatar, Buffer.from(await data.arrayBuffer()));
+    }
+  } catch (e) { log(`  avatar: ${e.message}`); }
+  log(`  final: ${cupom ? `com cupom (${cupons} ativos)` : "sem cupom ativo"} · ${avatar ? "com foto do perfil" : "sem foto do perfil (mande /avatar no bot)"}`);
+  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), log });
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [
@@ -168,7 +186,8 @@ async function main() {
     "",
     "Quanto você chutou? Comenta aí 👇",
     "",
-    `🔎 Link na bio! Procura o #${offerId} na busca da vitrine.`,
+    "✅ Me segue que todo dia tem achado novo abaixo de R$ 50!",
+    `🔎 Link na bio! Procura o #${offerId} na busca da vitrine${cupom ? " (e tem cupom da Shopee lá 🎟️)" : ""}.`,
     "",
     "#achadinhos #achadinhosshopee #shopee #achadosdashopee #comprinhas",
   ].join("\n");

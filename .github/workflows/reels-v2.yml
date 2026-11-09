@@ -62,6 +62,7 @@ jobs:
           CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
           REELS_FALA: ${{ inputs.fala }}
           REELS_VIDEO: ${{ inputs.video }}
+          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
           SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
           SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
