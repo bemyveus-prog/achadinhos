@@ -14,6 +14,9 @@ on:
       oferta:
         description: "OU número de um produto que já está na vitrine (ex.: 91)"
         default: ""
+      cj_sku:
+        description: "SKU da CJ para usar o vídeo real do produto (opcional)"
+        default: ""
       postar:
         description: "Postar no Instagram"
         type: boolean
@@ -47,8 +50,10 @@ jobs:
           node reels2.mjs
           ${{ github.event_name == 'schedule' && '--auto --postar' || '' }}
           ${{ github.event_name != 'schedule' && (inputs.oferta && format('--oferta {0}', inputs.oferta) || format('--busca "{0}"', inputs.busca || 'blusa feminina')) || '' }}
+          ${{ inputs.cj_sku && format('--cj "{0}"', inputs.cj_sku) || '' }}
           ${{ inputs.postar && '--postar' || '' }}
         env:
+          CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
           SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
           SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

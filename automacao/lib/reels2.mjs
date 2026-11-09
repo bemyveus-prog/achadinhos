@@ -55,6 +55,9 @@ function pageHtml() {
   #dark{inset:0;background:radial-gradient(circle at 50% 40%,rgba(40,10,25,.55),rgba(20,5,12,.88))}
   #card{left:140px;top:420px;width:800px;height:800px;background:#fff;border-radius:56px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.6)}
   #card img{width:100%;height:100%;object-fit:contain}
+  #clip{left:150px;top:250px;width:780px;height:1180px;border-radius:48px;overflow:hidden;background:#000;box-shadow:0 40px 100px rgba(0,0,0,.6);opacity:0}
+  #clip img{width:100%;height:100%;object-fit:cover}
+  #cliptag{left:0;right:0;top:1470px;text-align:center;color:#fff;font-weight:800;font-size:44px;opacity:0;text-shadow:0 4px 20px rgba(0,0,0,.6)}
   #chips{left:0;right:0;top:1290px;display:flex;justify-content:center;gap:22px}
   .chip{background:#fff;color:#2E1020;font-weight:800;font-size:46px;padding:18px 34px;border-radius:999px;box-shadow:0 14px 34px rgba(0,0,0,.35)}
   #name{left:90px;right:90px;top:250px;text-align:center;color:#fff;font-weight:800;font-size:70px;line-height:1.08;letter-spacing:-1px;text-wrap:balance;text-shadow:0 6px 24px rgba(0,0,0,.5)}
@@ -75,6 +78,7 @@ function pageHtml() {
 <div id="dark" class="abs"></div>
 <div id="name" class="abs"></div><div id="guess" class="abs">Quanto você acha<br>que custa? 🤔</div>
 <div id="card" class="abs"><img id="photo"></div>
+<div id="clip" class="abs"><img id="clipimg"></div><div id="cliptag" class="abs"></div>
 <div id="chips" class="abs"></div><div id="count" class="abs"></div>
 <div id="price" class="abs"><small>só</small><b id="pv"></b></div>
 <div id="cta" class="abs"><h2 id="ctah"></h2><span class="emo">👇</span><div id="bio">Link na bio <i id="num"></i></div></div>
@@ -130,12 +134,42 @@ window.render=(t)=>{
   show($("ctah"),key==="cta"?ease(lt/0.35):0,30);
   $("cta").querySelector(".emo").style.transform="translateY("+Math.abs(Math.sin(t*5))*16+"px)";
   show($("bio"),key==="cta"?ease((lt-0.5)/0.35):0,30,key==="cta"?1+0.04*Math.sin(t*6):1);
+  if(window.renderClip)window.renderClip(t); // por último: o vídeo do produto manda na cena "produto"
+};
+</script>
+<script>
+// vídeo real do produto (quadros extraídos com FFmpeg), toca durante a cena "produto"
+window.renderClip=(t)=>{
+  if(!D.clip||!D.clip.length){return}
+  let i=0;while(i<starts.length-1&&t>=starts[i+1])i++;
+  const key=D.scenes[i].key, lt=t-starts[i], dur=D.scenes[i].dur;
+  const on=key==="produto";
+  const k=on?Math.min(1,lt/0.25)*Math.min(1,(dur-lt)/0.2):0;
+  $("clip").style.opacity=k;
+  $("clip").style.transform="scale("+(0.92+0.08*Math.min(1,lt/0.4))+")";
+  if(on){const f=Math.min(D.clip.length-1,Math.floor(lt*30));if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}}
+  // com vídeo, o cartão da foto e o nome ficam escondidos nessa cena
+  if(on){$("card").style.opacity=0;$("name").style.opacity=0;$("chips").style.top="1490px"}
+  else{$("chips").style.top="1290px"}
+  $("cliptag").style.opacity=0;
 };
 </script></body></html>`;
 }
 
 /** Gera o Reels v2. cover = resultado de pickCover (foto da categoria + gancho). */
-export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, log = console.log }) {
+// extrai os quadros do vídeo da CJ (30 fps, até maxSec) como JPEG em data URI
+async function clipFrames(file, maxSec, dir) {
+  const { readdir, readFile } = await import("fs/promises");
+  const fdir = path.join(dir, "clip");
+  await mkdir(fdir, { recursive: true });
+  // pula o primeiro 0,5 s (costuma ter tela preta ou logo) e enquadra vertical 780x1180
+  await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "0.5", "-i", file, "-t", String(maxSec),
+    "-vf", "fps=30,scale=780:1180:force_original_aspect_ratio=increase,crop=780:1180", "-q:v", "4", path.join(fdir, "%04d.jpg")]);
+  const names = (await readdir(fdir)).filter((f) => f.endsWith(".jpg")).sort();
+  return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
+}
+
+export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, log = console.log }) {
   const { chromium } = await import("playwright");
   await mkdir(outDir, { recursive: true });
   const tmp = path.join(outDir, "_tmp");
@@ -155,7 +189,15 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     } catch { /* fica com o áudio original */ }
   }
   let acc = 0;
-  scenes.forEach((s, i) => { s.dur = Math.max(s.min, voice[i].duration + 0.25); s.start = acc; acc += s.dur; });
+  // com vídeo do produto, a cena "produto" dura mais (até 5 s) para o vídeo aparecer
+  let clipDur = 0;
+  if (clip?.file) {
+    try { clipDur = Math.max(0, Math.min(5, (await audioDuration(clip.file)) - 0.6)); } catch { clipDur = 4; }
+  }
+  scenes.forEach((s, i) => {
+    const min = s.key === "produto" && clipDur ? Math.max(s.min, clipDur) : s.min;
+    s.dur = Math.max(min, voice[i].duration + 0.25); s.start = acc; acc += s.dur;
+  });
   const total = acc;
   log(`Reels v2: ${total.toFixed(1)} s`);
 
@@ -167,7 +209,13 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     tag: cover.tag, accent: cover.accent || "#D0306F", hookHtml: hookHtml(cover.hook), nome,
     chips, price: brl(p.price), comment, number: number ? String(number).startsWith("#") ? number : `#${number}` : "",
     scenes: scenes.map(({ key, dur }) => ({ key, dur })),
+    clip: [],
   };
+  if (clip?.file) {
+    const sc = scenes.find((x) => x.key === "produto");
+    data.clip = await clipFrames(clip.file, sc.dur + 0.2, tmp).catch((e) => { log(`  vídeo do produto: ${e.message}`); return []; });
+    log(`  vídeo do produto: ${data.clip.length} quadros`);
+  }
   const browser = await chromium.launch();
   const silent = path.join(tmp, "video.mp4");
   try {

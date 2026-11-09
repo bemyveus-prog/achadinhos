@@ -61,3 +61,25 @@ export async function downloadVideo(url, file) {
   await writeFile(file, Buffer.from(await r.arrayBuffer()));
   return file;
 }
+
+// produto pelo SKU da CJ (do produto ou da variante); devolve { pid, name, image }
+export async function productBySku(sku) {
+  sku = String(sku).trim();
+  for (const key of ["productSku", "variantSku"]) {
+    try {
+      const d = await cj("GET", "/product/query", { query: { [key]: sku, features: "enable_video" } });
+      if (d?.pid) return { pid: d.pid, name: d.productNameEn, image: d.bigImage };
+    } catch { /* tenta o próximo jeito */ }
+  }
+  // último recurso: a busca da lista também procura por SKU
+  const list = await searchVideoProducts(sku, 5).catch(() => []);
+  if (list[0]) return { pid: list[0].id, name: list[0].name, image: list[0].image };
+  return null;
+}
+
+// melhor vídeo grátis do produto: vertical primeiro, depois o mais visto/baixado, de 6 a 60 s
+export function bestFreeVideo(videos) {
+  const ok = videos.filter((v) => v.free && v.url && (v.duration === 0 || (v.duration >= 4 && v.duration <= 90)));
+  const score = (v) => (Number(v.h) > Number(v.w) ? 1e6 : 0) + v.plays + v.downloads * 3;
+  return ok.sort((a, b) => score(b) - score(a))[0] || null;
+}

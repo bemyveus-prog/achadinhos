@@ -18,6 +18,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/buscar</b> fone bluetooth → produtos de maior comissão (com vendas e nota boas)
 <b>/comissao</b> fone bluetooth → só pela maior comissão, mesmo com poucas vendas
 <b>/categoria</b> motos → os melhores da categoria
+<b>/reels</b> 105 SKU-da-CJ → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
@@ -46,6 +47,7 @@ export async function GET(req) {
     { command: "comissao", description: "Buscar só pela maior comissão" },
     { command: "categoria", description: "Melhores de uma categoria" },
     { command: "loja", description: "Buscar loja oficial pelo nome" },
+    { command: "reels", description: "Gerar Reels: /reels 105 SKU-CJ" },
     { command: "ajuda", description: "Como usar" },
   ] });
   const info = await tg("getWebhookInfo", {});
@@ -88,6 +90,7 @@ async function onText(msg) {
   if (cmd === "start" || cmd === "ajuda" || cmd === "help") return say(chat, AJUDA);
   if (!hasShopeeApi()) return say(chat, "Falta SHOPEE_APP_ID/SHOPEE_APP_SECRET na Vercel.");
 
+  if (cmd === "reels") return startReels(chat, rest);
   if (cmd === "loja" || cmd === "lojas") {
     if (!arg) return say(chat, "Ex.: /loja samsung  ou  /loja vult");
     return searchShops(chat, arg);
@@ -348,4 +351,31 @@ async function addShop(chat, q, shopId) {
       reply_markup: { inline_keyboard: [[{ text: "🛍️ Produtos da loja", callback_data: `lp:${shopId}` }, { text: `✅ Na vitrine #${row.id}`, callback_data: "noop" }]] } }).catch(() => {});
   }
   return say(chat, `✅ <b>${esc(sh.shopName)}</b> está na vitrine em "Cupons do momento" (#${row.id}, subId lojasite).\n🔗 ${link}`);
+}
+
+// ---------- Reels sob encomenda: dispara o workflow "Reels v2" no GitHub ----------
+const REPO = process.env.GITHUB_REPO || "bemyveus-prog/achadinhos";
+async function startReels(chat, parts) {
+  const args = parts.filter(Boolean);
+  const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
+  const postar = args.some((a) => /^postar$/i.test(a));
+  const sku = (args.find((a) => a !== num && a.replace("#", "") !== num && !/^postar$/i.test(a)) || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60);
+  if (!num) return say(chat, "Use assim: <b>/reels 105 CJYD2300009</b>\n(número da vitrine e, se quiser, o SKU da CJ; acrescente <i>postar</i> para postar direto)");
+  const token = (process.env.GITHUB_TOKEN || "").trim();
+  if (!token) return say(chat, "Falta a variável GITHUB_TOKEN na Vercel.");
+  if (hasDb()) {
+    const { data } = await db().from("offers").select("id,title").eq("id", Number(num)).maybeSingle();
+    if (!data) return say(chat, `Não achei o produto #${num} na vitrine.`);
+  }
+  const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/reels-v2.yml/dispatches`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "vitrine-bot" },
+    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, ...(postar ? { postar: "true" } : {}) } }),
+    cache: "no-store",
+  });
+  if (r.status !== 204) {
+    const t = await r.text().catch(() => "");
+    return say(chat, `⚠️ O GitHub recusou (${r.status}). ${r.status === 403 || r.status === 401 ? "Confira se o token tem permissão Actions: Read and write no repositório achadinhos." : esc(t.slice(0, 200))}`);
+  }
+  return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
 }

@@ -11,11 +11,15 @@ import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
 import { normalize, score } from "./lib/escolha.mjs";
-import { pickCover, categoriesWithImages } from "./lib/capas.mjs";
+import { pickCover, categoriesWithImages, coverConfig, categoryOf } from "./lib/capas.mjs";
+import { execFile } from "child_process";
+import { promisify } from "util";
+const run = promisify(execFile);
 import { renderReel2 } from "./lib/reels2.mjs";
 import { shortName, brl, salesLabel } from "./lib/textos.mjs";
 import { hasTelegram, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, postReel } from "./lib/social.mjs";
+import { hasCJ, productBySku, productVideos, bestFreeVideo, downloadVideo } from "./lib/cj.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -100,12 +104,40 @@ async function main() {
     log(`Na vitrine como #${offerId} (subId reelssite)`);
   }
 
-  const cover = await pickCover(p, { log, force: opt("--categoria") });
-  if (!cover) throw new Error("Essa categoria ainda não tem foto de capa. Mande uma pelo bot (/capa categoria) ou use --categoria");
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
   const outDir = path.join(HERE, "saida", "reels2", `${today}-${offerId}`);
+
+  // vídeo real do produto na CJ (--cj SKU)
+  let clip = null;
+  if (opt("--cj")) {
+    if (!hasCJ()) throw new Error("Falta o secret CJ_API_KEY");
+    const prod = await productBySku(opt("--cj"));
+    if (!prod) throw new Error(`Não achei o SKU ${opt("--cj")} na CJ`);
+    log(`CJ: ${prod.name}`);
+    const vids = await productVideos(prod.pid);
+    const best = bestFreeVideo(vids);
+    if (!best) throw new Error(`O produto ${opt("--cj")} tem ${vids.length} vídeo(s) na CJ, mas nenhum grátis`);
+    const { mkdir } = await import("fs/promises");
+    await mkdir(outDir, { recursive: true });
+    clip = { file: await downloadVideo(best.url, path.join(outDir, "cj.mp4")) };
+    log(`  vídeo grátis: ${best.duration.toFixed(0)} s, ${best.w}x${best.h}, ▶${best.plays}`);
+  }
   const nome = shortName(p.name, 5);
-  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, log });
+  let cover = await pickCover(p, { log, force: opt("--categoria") });
+  if (!cover && clip) {
+    // categoria sem foto de capa: usa um quadro do próprio vídeo, com faixa clara em cima para o gancho
+    const cfg = await coverConfig();
+    const slug = categoryOf(p.name || "", cfg);
+    const c = cfg[slug] || {};
+    const img = path.join(outDir, "capa-video.jpg");
+    await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "1.2", "-i", clip.file, "-frames:v", "1",
+      "-vf", "scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350,drawbox=x=0:y=0:w=iw:h=ih*0.44:color=0xFFF4EE@0.92:t=fill", img]);
+    const hooks = c.ganchos?.length ? c.ganchos : ["Eu *não acreditei* quando vi isso", "Você *precisa ver* isso funcionando"];
+    cover = { file: img, slug: slug || "geral", hook: hooks[Math.floor(Date.now() / 3600000) % hooks.length], tag: c.etiqueta || "Achadinho", accent: c.cor || "#D0306F" };
+    log(`  capa: quadro do vídeo (${cover.tag}) · "${cover.hook.replace(/\*/g, "")}"`);
+  }
+  if (!cover) throw new Error("Essa categoria ainda não tem foto de capa. Mande uma pelo bot (/capa categoria) ou use --categoria");
+  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, log });
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [
