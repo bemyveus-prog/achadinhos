@@ -3,7 +3,8 @@ import "./globals.css";
 const name = process.env.NEXT_PUBLIC_SITE_NAME || "Meus Achadinhos";
 const tagline = process.env.NEXT_PUBLIC_TAGLINE || "Os achados que eu indico nos vídeos";
 
-const PINTEREST_VERIFY = (process.env.PINTEREST_VERIFY || "").trim();
+// código do Pinterest do ofertas.achadinhosincriveis.site (outro site: troque pela variável PINTEREST_VERIFY)
+const PINTEREST_VERIFY = (process.env.PINTEREST_VERIFY || "dbbbb2ec2e332c2bdf696a71dbce2b95").trim();
 
 export const metadata = {
   title: `${name} — ofertas e cupons`,
