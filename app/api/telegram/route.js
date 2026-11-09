@@ -375,7 +375,8 @@ async function startReels(chat, parts) {
   });
   if (r.status !== 204) {
     const t = await r.text().catch(() => "");
-    return say(chat, `⚠️ O GitHub recusou (${r.status}). ${r.status === 403 || r.status === 401 ? "Confira se o token tem permissão Actions: Read and write no repositório achadinhos." : esc(t.slice(0, 200))}`);
+    let msg = t; try { msg = JSON.parse(t).message || t; } catch {}
+    return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? "Confira no token: dono = bemyveus-prog, repositório achadinhos e permissão Actions: Read and write." : ""}`);
   }
   return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
 }
