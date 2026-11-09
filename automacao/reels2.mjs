@@ -37,8 +37,11 @@ async function main() {
   } else {
     if (!hasShopeeApi()) throw new Error("Configure SHOPEE_APP_ID e SHOPEE_APP_SECRET");
     const keyword = opt("--busca") || "blusa feminina";
-    const { data: have } = await sb.from("offers").select("description").like("description", "reel:%");
-    const used = new Set((have || []).map((o) => o.description.slice(5)));
+    // não repete produto que já está na vitrine (Reels, bot, categorias ou achado do dia)
+    const { data: have } = await sb.from("offers").select("description").eq("active", true).not("description", "is", null);
+    const used = new Set((have || []).map((o) => (o.description.match(/^(?:reel|bot|cat|kit):(\d+)/) || [])[1]).filter(Boolean));
+    const { data: picks } = await sb.from("auto_picks").select("item_id");
+    for (const r of picks || []) used.add(String(r.item_id));
     const seen = new Map();
     for (const sortType of [2, 5]) for (const page of [1, 2]) {
       try {
