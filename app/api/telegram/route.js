@@ -1,7 +1,7 @@
 import { isAdmin, unauthorized } from "@/lib/auth";
 import { db, hasDb } from "@/lib/supabase";
 import { hasShopeeApi, shopeeProduct, shopeeSearch, shopeeShortLinkSub } from "@/lib/shopee";
-import { allowedChat, brl, CATEGORIAS, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
+import { allowedChat, brl, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
 import GANCHOS from "@/automacao/capas/ganchos.json";
 
 export const dynamic = "force-dynamic";
@@ -134,9 +134,9 @@ async function search(chat, { keyword = "", catId = null, label, modo, skip = 0 
   for (const p of page) {
     const caption = [
       `<b>${esc(p.name).slice(0, 200)}</b>`,
-      `💰 ${brl(p.price)}${p.originalPrice ? ` <s>${brl(p.originalPrice)}</s>` : ""}`,
-      `💸 Comissão ${pct(p.commission)} ≈ ${brl(p.price * p.commission)} por venda`,
-      `⭐ ${p.rating || "-"} · ${p.sales} vendas`,
+      `💰 ${brl(p.price)}`,
+      commissionLine(p),
+      `⭐ ${p.rating || "-"} · ${p.sales} vendas recentes`,
       `📷 ${p.productLink}`,
     ].join("\n");
     const btn = inShop.has(p.itemId)

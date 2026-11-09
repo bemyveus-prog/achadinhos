@@ -48,9 +48,9 @@ export function caption(o, p = {}, origem = "") {
   const vitrine = env("VITRINE_URL", "https://ofertas.achadinhosincriveis.site").replace(/\/$/, "");
   const linhas = [
     `🛍️ <b>#${o.id} · ${esc(o.title).slice(0, 180)}</b>`,
-    o.price ? `💰 ${brl(o.price)}${o.original_price ? ` <s>${brl(o.original_price)}</s>` : ""}` : null,
-    p.commission ? `💸 Comissão ${pct(p.commission)}${o.price ? ` ≈ ${brl(o.price * p.commission)} por venda` : ""}${p.sellerCommission ? ` (loja ${pct(p.sellerCommission)})` : ""}` : null,
-    p.sales != null || p.rating ? `⭐ ${p.rating || "-"} · ${p.sales ?? "?"} vendas` : null,
+    o.price ? `💰 ${brl(o.price)}` : null,
+    p.commission ? `💸 Comissão total ${pct(p.commission)}${o.price ? ` ≈ ${brl(o.price * p.commission)} por venda` : ""}${p.sellerCommission ? `\n     (extra da loja ${pct(p.sellerCommission)} + Shopee ${pct(Math.max(p.commission - p.sellerCommission, 0))})` : ""}` : null,
+    p.sales != null || p.rating ? `⭐ ${p.rating || "-"} · ${p.sales ?? "?"} vendas recentes` : null,
     o.category ? `📂 ${esc(o.category)}${origem ? ` · ${esc(origem)}` : ""}` : origem ? `📂 ${esc(origem)}` : null,
     "",
     `🎬 No vídeo: <b>"procura o #${o.id} no link da bio"</b>`,
