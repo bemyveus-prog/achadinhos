@@ -19,6 +19,7 @@ jobs:
     env:
       CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
       CJ_BUSCAS: ${{ inputs.buscas }}
+      CJ_DEBUG: "1"
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"

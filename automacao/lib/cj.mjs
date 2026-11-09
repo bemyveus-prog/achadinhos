@@ -20,7 +20,9 @@ async function cj(method, path, { body, query } = {}) {
     signal: AbortSignal.timeout(30000),
   });
   const j = await r.json().catch(() => ({}));
-  if (!j.result && j.code !== 200) throw new Error(`CJ ${path}: ${j.message || r.status}`);
+  const ok = j.result === true || j.success === true || String(j.code) === "200" || /^success$/i.test(j.message || "");
+  if (!ok) throw new Error(`CJ ${path}: ${j.message || r.status}`);
+  if (process.env.CJ_DEBUG && !globalThis.__cjShown?.[path]) { (globalThis.__cjShown ||= {})[path] = 1; console.log(`[CJ ${path}]`, JSON.stringify(j).slice(0, 700)); }
   return j.data;
 }
 
