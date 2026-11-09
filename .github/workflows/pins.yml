@@ -1,0 +1,36 @@
+name: Capas do Pinterest
+
+# Gera a capa vertical (imagem do pin) dos produtos da vitrine que ainda não têm.
+# Também roda todo dia junto com "Produtos por categoria".
+on:
+  push:
+    branches: [gerar-pins]
+  workflow_dispatch:
+    inputs:
+      max:
+        description: "Quantos produtos no máximo"
+        default: "120"
+
+jobs:
+  pins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: automacao
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y -qq fonts-noto-color-emoji
+      - run: node pins.mjs --max ${{ inputs.max || '120' }}

@@ -119,6 +119,10 @@ async function main() {
   ].join("\n");
   await writeFile(path.join(outDir, "legenda.txt"), legenda + "\n");
 
+  // capa vertical para o pin do Pinterest
+  const { makePinImage } = await import("./lib/pins.mjs");
+  await makePinImage({ id: offerId, title: p.name, image_url: p.imageUrl, price: p.price, sales: p.sales, rating: p.rating }, { log }).catch((e) => log(`  pin: ${e.message}`));
+
   if (hasTelegram()) {
     await sendVideo(file, `🎬 Reels #${offerId} (${seconds.toFixed(0)} s)\n\nLegenda sugerida:\n\n${legenda}`);
     log("Enviado no Telegram.");

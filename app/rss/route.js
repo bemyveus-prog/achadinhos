@@ -21,7 +21,7 @@ export async function GET(req) {
   if (hasDb()) {
     const { data } = await db()
       .from("offers")
-      .select("id,kind,title,image_url,price,category,active,expires_at,created_at")
+      .select("id,kind,title,image_url,pin_image,price,category,active,expires_at,created_at")
       .eq("active", true)
       .eq("kind", "produto")
       .not("image_url", "is", null)
@@ -32,6 +32,7 @@ export async function GET(req) {
 
   const body = items.map((o) => {
     const title = cleanTitle(o.title);
+    const img = o.pin_image || o.image_url; // capa vertical do carrossel quando existe
     // direto para a Shopee (passando pelo /r, que conta o clique): o cookie de afiliado já fica no 1º clique
     const link = `${origin}/r/${o.id}`;
     const desc = [
@@ -47,8 +48,8 @@ export async function GET(req) {
       <pubDate>${new Date(o.created_at).toUTCString()}</pubDate>
       ${o.category ? `<category>${esc(o.category)}</category>` : ""}
       <description>${esc(desc)}</description>
-      <enclosure url="${esc(o.image_url)}" type="image/jpeg" length="0"/>
-      <media:content url="${esc(o.image_url)}" medium="image" type="image/jpeg"/>
+      <enclosure url="${esc(img)}" type="image/jpeg" length="0"/>
+      <media:content url="${esc(img)}" medium="image" type="image/jpeg"/>
     </item>`;
   }).join("\n");
 

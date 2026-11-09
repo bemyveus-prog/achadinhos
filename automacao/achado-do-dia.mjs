@@ -96,6 +96,11 @@ async function main() {
   log(`Carrossel salvo em ${outDir} (estilo: ${files.themeKey})`);
 
   if (writeDb) await recordPick(p, { offerId: offer?.id, outDir, link, capa: cover?.id || null });
+  // capa do carrossel vira a imagem do pin no Pinterest (feed /rss)
+  if (writeDb && offer?.id) {
+    const { savePinImage } = await import("./lib/pins.mjs");
+    await savePinImage(offer.id, files[0]).catch((e) => log(`  pin: ${e.message}`));
+  }
 
   // 6. Prévia no Telegram
   if (hasTelegram()) {
