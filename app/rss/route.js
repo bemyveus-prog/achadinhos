@@ -1,7 +1,7 @@
 import { db, hasDb, isLive } from "@/lib/supabase";
 
 // Feed RSS dos produtos da vitrine, para o Pinterest publicar sozinho ("Publicar automaticamente" via RSS).
-// Cada produto novo vira um item com foto, título e link para a vitrine já filtrada no número dele.
+// Cada produto novo vira um item com foto, título e link que leva direto ao produto na Shopee (via /r/ID).
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -32,10 +32,11 @@ export async function GET(req) {
 
   const body = items.map((o) => {
     const title = cleanTitle(o.title);
-    const link = `${origin}/?p=${o.id}&utm_source=pinterest`;
+    // direto para a Shopee (passando pelo /r, que conta o clique): o cookie de afiliado já fica no 1º clique
+    const link = `${origin}/r/${o.id}`;
     const desc = [
       `${title}${o.price ? ` por ${brl(o.price)}` : ""}.`,
-      `Achadinho da Shopee com link na vitrine: procure o #${o.id}.`,
+      "Achadinho da Shopee: toque para ver o preço de hoje.",
       o.category ? `Categoria: ${o.category}.` : "",
       "#achadinhos #shopee #achadosdashopee",
     ].filter(Boolean).join(" ");
