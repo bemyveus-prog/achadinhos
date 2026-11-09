@@ -107,8 +107,19 @@ async function main() {
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
   const outDir = path.join(HERE, "saida", "reels2", `${today}-${offerId}`);
 
-  // vídeo real do produto na CJ (--cj SKU)
+  // vídeo real do produto na CJ (--cj SKU) ou enviado pelo bot (REELS_VIDEO)
   let clip = null;
+  const own = (process.env.REELS_VIDEO || "").trim();
+  if (own) {
+    const { mkdir } = await import("fs/promises");
+    await mkdir(outDir, { recursive: true });
+    const { data, error } = await sb.storage.from("reels-videos").download(own);
+    if (error) throw new Error(`Vídeo enviado (${own}): ${error.message}`);
+    const f = path.join(outDir, "seu-video" + path.extname(own));
+    await writeFile(f, Buffer.from(await data.arrayBuffer()));
+    clip = { file: f, maxSec: 12 }; // o seu vídeo pode aparecer mais tempo
+    log(`Usando o seu vídeo (${own})`);
+  }
   if (opt("--cj")) {
     if (!hasCJ()) throw new Error("Falta o secret CJ_API_KEY");
     const prod = await productBySku(opt("--cj"));
@@ -119,8 +130,18 @@ async function main() {
     if (!best) throw new Error(`O produto ${opt("--cj")} tem ${vids.length} vídeo(s) na CJ, mas nenhum grátis`);
     const { mkdir } = await import("fs/promises");
     await mkdir(outDir, { recursive: true });
-    clip = { file: await downloadVideo(best.url, path.join(outDir, "cj.mp4")) };
+    const cjFile = await downloadVideo(best.url, path.join(outDir, "cj.mp4"));
     log(`  vídeo grátis: ${best.duration.toFixed(0)} s, ${best.w}x${best.h}, ▶${best.plays}`);
+    if (clip) {
+      // seu vídeo + vídeo da CJ emendados (até 6 s de cada), já no formato do quadro do Reels
+      const both = path.join(outDir, "seu-video+cj.mp4");
+      const fit = "scale=780:1180:force_original_aspect_ratio=increase,crop=780:1180,fps=30,setsar=1,setpts=PTS-STARTPTS";
+      await run("ffmpeg", ["-y", "-loglevel", "error", "-i", clip.file, "-i", cjFile, "-filter_complex",
+        `[0:v]trim=0:6,${fit}[a];[1:v]trim=0.5:6.5,${fit}[b];[a][b]concat=n=2:v=1:a=0[v]`,
+        "-map", "[v]", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", both]);
+      clip = { file: both, maxSec: 12 };
+      log("  seu vídeo + vídeo da CJ emendados");
+    } else clip = { file: cjFile };
   }
   const nome = shortName(p.name, 5);
   let cover = await pickCover(p, { log, force: opt("--categoria") });

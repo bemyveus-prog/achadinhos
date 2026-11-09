@@ -62,6 +62,7 @@ export async function POST(req) {
   const update = await req.json().catch(() => ({}));
   try {
     if (update.callback_query) await onButton(update.callback_query);
+    else if (update.message?.video || /^video\//.test(update.message?.document?.mime_type || "")) await onVideo(update.message);
     else if (update.message?.photo || update.message?.document) await onPhoto(update.message);
     else if (update.message?.text) await onText(update.message);
   } catch (e) {
@@ -91,11 +92,7 @@ async function onText(msg) {
   if (!hasShopeeApi()) return say(chat, "Falta SHOPEE_APP_ID/SHOPEE_APP_SECRET na Vercel.");
 
   if (cmd === "reels") {
-    // narração própria: depois de "texto:" ou nas linhas de baixo da mensagem
-    const full = text.replace(/^\/reels(@\S+)?/i, "").trim();
-    const m = full.match(/^(.*?)(?:\btexto:|\n)([\s\S]*)$/i);
-    const head = (m ? m[1] : full).trim().split(/\s+/).filter(Boolean);
-    const fala = m ? m[2].replace(/\s+/g, " ").trim() : "";
+    const { head, fala } = parseReels(text);
     return startReels(chat, head, fala);
   }
   if (cmd === "loja" || cmd === "lojas") {
@@ -362,7 +359,7 @@ async function addShop(chat, q, shopId) {
 
 // ---------- Reels sob encomenda: dispara o workflow "Reels v2" no GitHub ----------
 const REPO = process.env.GITHUB_REPO || "bemyveus-prog/achadinhos";
-async function startReels(chat, parts, fala = "") {
+async function startReels(chat, parts, fala = "", video = "") {
   const args = parts.filter(Boolean);
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
@@ -378,7 +375,7 @@ async function startReels(chat, parts, fala = "") {
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/reels-v2.yml/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "vitrine-bot" },
-    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, ...(postar ? { postar: "true" } : {}) } }),
+    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, ...(postar ? { postar: "true" } : {}) } }),
     cache: "no-store",
   });
   if (r.status !== 204) {
@@ -386,5 +383,37 @@ async function startReels(chat, parts, fala = "") {
     let msg = t; try { msg = JSON.parse(t).message || t; } catch {}
     return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? "Confira no token: dono = bemyveus-prog, repositório achadinhos e permissão Actions: Read and write." : ""}`);
   }
-  return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " com a sua narração" : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
+  return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${video && sku ? ` com o seu vídeo + o vídeo da CJ (<code>${esc(sku)}</code>)` : video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " com a sua narração" : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
+}
+
+// "/reels 123 SKU texto: narração" (o texto também pode vir nas linhas de baixo)
+function parseReels(text) {
+  const full = String(text || "").replace(/^\/?reels(@\S+)?/i, "").trim();
+  const m = full.match(/^(.*?)(?:\btexto:|\n)([\s\S]*)$/i);
+  const head = (m ? m[1] : full).trim().split(/\s+/).filter(Boolean);
+  const fala = m ? m[2].replace(/\s+/g, " ").trim() : "";
+  return { head, fala };
+}
+
+// vídeo do próprio usuário: guarda no Storage e gera o Reels com ele no lugar do vídeo da CJ
+async function onVideo(msg) {
+  const chat = msg.chat.id;
+  if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
+  const cap = (msg.caption || "").trim();
+  if (!/^\/?reels\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
+  const v = msg.video || msg.document;
+  if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "O Telegram só deixa o bot baixar vídeos de até 20 MB. Mande uma versão menor (ex.: cortada ou em 720p).");
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  await tg("sendChatAction", { chat_id: chat, action: "upload_video" }).catch(() => {});
+  const f = await tg("getFile", { file_id: v.file_id });
+  const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
+  if (!res.ok) return say(chat, "Não consegui baixar o vídeo do Telegram.");
+  const buf = Buffer.from(await res.arrayBuffer());
+  const ext = (f.file_path.split(".").pop() || "mp4").toLowerCase();
+  const type = ext === "mov" ? "video/quicktime" : ext === "webm" ? "video/webm" : "video/mp4";
+  const name = `${Date.now()}.${["mov", "webm"].includes(ext) ? ext : "mp4"}`;
+  const { error } = await db().storage.from("reels-videos").upload(name, buf, { contentType: type });
+  if (error) return say(chat, `Erro ao guardar o vídeo: ${esc(error.message)}`);
+  const { head, fala } = parseReels(cap);
+  return startReels(chat, head, fala, name);
 }

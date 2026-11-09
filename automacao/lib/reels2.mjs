@@ -192,7 +192,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   // com vídeo do produto, a cena "produto" dura mais (até 5 s) para o vídeo aparecer
   let clipDur = 0;
   if (clip?.file) {
-    try { clipDur = Math.max(0, Math.min(5, (await audioDuration(clip.file)) - 0.6)); } catch { clipDur = 4; }
+    try { clipDur = Math.max(0, Math.min(clip.maxSec || 5, (await audioDuration(clip.file)) - 0.6)); } catch { clipDur = 4; }
   }
   scenes.forEach((s, i) => {
     const min = s.key === "produto" && clipDur ? Math.max(s.min, clipDur) : s.min;

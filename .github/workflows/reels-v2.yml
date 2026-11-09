@@ -17,6 +17,9 @@ on:
       cj_sku:
         description: "SKU da CJ para usar o vídeo real do produto (opcional)"
         default: ""
+      video:
+        description: "Vídeo enviado pelo bot (nome no Storage reels-videos), opcional"
+        default: ""
       fala:
         description: "Texto narrado na parte do produto (opcional)"
         default: ""
@@ -58,6 +61,7 @@ jobs:
         env:
           CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
           REELS_FALA: ${{ inputs.fala }}
+          REELS_VIDEO: ${{ inputs.video }}
           SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
           SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
