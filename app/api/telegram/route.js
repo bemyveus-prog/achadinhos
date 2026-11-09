@@ -1,6 +1,6 @@
 import { isAdmin, unauthorized } from "@/lib/auth";
 import { db, hasDb } from "@/lib/supabase";
-import { hasShopeeApi, shopeeProduct, shopeeSearch, shopeeShortLinkSub } from "@/lib/shopee";
+import { hasShopeeApi, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
 import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
 import GANCHOS from "@/automacao/capas/ganchos.json";
 
@@ -18,6 +18,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/buscar</b> fone bluetooth → produtos de maior comissão (com vendas e nota boas)
 <b>/comissao</b> fone bluetooth → só pela maior comissão, mesmo com poucas vendas
 <b>/categoria</b> motos → os melhores da categoria
+<b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
 Também dá para só escrever o produto (ex.: <i>air fryer</i>).
@@ -44,6 +45,7 @@ export async function GET(req) {
     { command: "buscar", description: "Buscar produto (comissão + vendas)" },
     { command: "comissao", description: "Buscar só pela maior comissão" },
     { command: "categoria", description: "Melhores de uma categoria" },
+    { command: "loja", description: "Buscar loja oficial pelo nome" },
     { command: "ajuda", description: "Como usar" },
   ] });
   const info = await tg("getWebhookInfo", {});
@@ -86,6 +88,10 @@ async function onText(msg) {
   if (cmd === "start" || cmd === "ajuda" || cmd === "help") return say(chat, AJUDA);
   if (!hasShopeeApi()) return say(chat, "Falta SHOPEE_APP_ID/SHOPEE_APP_SECRET na Vercel.");
 
+  if (cmd === "loja" || cmd === "lojas") {
+    if (!arg) return say(chat, "Ex.: /loja samsung  ou  /loja vult");
+    return searchShops(chat, arg);
+  }
   if (cmd === "capa") return say(chat, `Mande a <b>foto</b> com a legenda <b>/capa categoria</b>.\nCategorias: ${CAPA_SLUGS.join(", ")}`);
   if (cmd === "capas") return listCovers(chat);
 
@@ -107,7 +113,7 @@ async function onText(msg) {
 }
 
 // modo "b" = comissão + vendas/nota; "c" = só comissão
-async function search(chat, { keyword = "", catId = null, label, modo, skip = 0 }) {
+async function search(chat, { keyword = "", catId = null, shopId = null, label, modo, skip = 0 }) {
   await tg("sendChatAction", { chat_id: chat, action: "typing" }).catch(() => {});
   const seen = new Map();
   let failed = 0;
@@ -115,7 +121,7 @@ async function search(chat, { keyword = "", catId = null, label, modo, skip = 0 
   const pages = modo === "c" ? [1] : [1, 2];
   for (const sortType of sorts) for (const page of pages) {
     try {
-      const { nodes = [] } = await shopeeSearch({ keyword, catId, sortType, page, limit: 50 });
+      const { nodes = [] } = await shopeeSearch({ keyword, catId, shopId, sortType, page, limit: 50 });
       for (const n of nodes) { const p = normalize(n); if (!seen.has(p.itemId)) seen.set(p.itemId, p); }
     } catch { failed++; /* a API às vezes falha numa página; segue com o resto */ }
   }
@@ -162,7 +168,7 @@ async function search(chat, { keyword = "", catId = null, label, modo, skip = 0 
     catch { await say(chat, caption, extra); }
   }
   if (list.length > skip + POR_BUSCA) {
-    const ref = catId ? `c${catId}` : keyword.slice(0, 40);
+    const ref = shopId ? `s${shopId}` : catId ? `c${catId}` : keyword.slice(0, 40);
     await say(chat, "Quer mais?", { reply_markup: { inline_keyboard: [[{ text: "➡️ Ver mais 5", callback_data: `more:${modo}:${skip + POR_BUSCA}:${ref}`.slice(0, 64) }]] } });
   }
 }
@@ -174,10 +180,17 @@ async function onButton(q) {
 
   if (data === "noop") return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Esse já está na vitrine" });
 
+  if (data.startsWith("lp:")) { // produtos da loja
+    await tg("answerCallbackQuery", { callback_query_id: q.id });
+    return search(chat, { shopId: data.split(":")[1], label: "Produtos da loja", modo: "b" });
+  }
+  if (data.startsWith("ls:")) return addShop(chat, q, data.split(":")[1]);
+
   if (data.startsWith("more:")) {
     await tg("answerCallbackQuery", { callback_query_id: q.id });
     const [, modo, skip, ...r] = data.split(":");
     const ref = r.join(":");
+    if (/^s\d+$/.test(ref)) return search(chat, { shopId: ref.slice(1), label: "Produtos da loja", modo, skip: Number(skip) });
     const catEntry = ref.startsWith("c") && /^c\d+$/.test(ref) ? Object.values(CATEGORIAS).find(([id]) => `c${id}` === ref) : null;
     return search(chat, catEntry
       ? { catId: catEntry[0], label: catEntry[1], modo, skip: Number(skip) }
@@ -266,4 +279,73 @@ async function listCovers(chat) {
     linhas.push(`${n ? "✅" : "⬜"} ${slug}: ${n}`);
   }
   return say(chat, `🖼️ <b>Capas por categoria</b>\n${linhas.join("\n")}\n\nCategoria sem imagem usa a capa antiga.`);
+}
+
+// ---------- lojas ----------
+const SHOP_TYPE = (t) => {
+  const v = Array.isArray(t) ? t : t == null ? [] : [t];
+  if (v.includes(1)) return "🏬 Loja oficial";
+  if (v.includes(4)) return "⭐ Indicada Plus";
+  if (v.includes(2)) return "⭐ Loja indicada";
+  return "";
+};
+
+async function searchShops(chat, name) {
+  await tg("sendChatAction", { chat_id: chat, action: "typing" }).catch(() => {});
+  let nodes = [];
+  try { ({ nodes = [] } = await shopeeShops({ keyword: name, limit: 10 })); }
+  catch (e) { return say(chat, `⚠️ A Shopee não respondeu a busca de lojas: ${esc(e.message).slice(0, 200)}`); }
+  if (!nodes.length) return say(chat, `Nenhuma loja com oferta de afiliado encontrada para "${esc(name)}".\nDica: tente só a marca (ex.: /loja samsung).`);
+  // oficiais primeiro, depois maior comissão
+  nodes.sort((a, b) => (SHOP_TYPE(b.shopType).includes("oficial") - SHOP_TYPE(a.shopType).includes("oficial")) || (Number(b.commissionRate) - Number(a.commissionRate)));
+  await say(chat, `🏬 <b>Lojas para "${esc(name)}"</b>: ${nodes.length} encontradas`);
+  for (const sh of nodes.slice(0, 6)) {
+    const caption = [
+      `<b>${esc(sh.shopName)}</b>`,
+      SHOP_TYPE(sh.shopType),
+      sh.commissionRate ? `💸 Comissão até ${pct(Number(sh.commissionRate))} na loja` : null,
+      sh.ratingStar ? `⭐ ${Number(sh.ratingStar).toFixed(1)}` : null,
+      sh.periodEndTime && Number(sh.periodEndTime) < 32503651199 ? `⏳ Oferta até ${new Date(Number(sh.periodEndTime) * 1000).toLocaleDateString("pt-BR")}` : null,
+    ].filter(Boolean).join("\n");
+    const extra = { reply_markup: { inline_keyboard: [[
+      { text: "🛍️ Produtos da loja", callback_data: `lp:${sh.shopId}` },
+      { text: "➕ Loja na vitrine", callback_data: `ls:${sh.shopId}` },
+    ]] } };
+    if (sh.imageUrl) {
+      try { await tg("sendPhoto", { chat_id: chat, photo: sh.imageUrl, caption, parse_mode: "HTML", ...extra }); continue; } catch { /* sem foto */ }
+    }
+    await say(chat, caption, extra);
+  }
+}
+
+// coloca o link da loja na faixa "Cupons do momento" da vitrine
+async function addShop(chat, q, shopId) {
+  await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Colocando a loja na vitrine..." });
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  const { data: dup } = await db().from("offers").select("id").eq("description", `loja:${shopId}`).eq("active", true).limit(1);
+  if (dup?.length) return say(chat, `Essa loja já está na vitrine como <b>#${dup[0].id}</b>.`);
+  const { nodes = [] } = await shopeeShops({ shopId, limit: 1 });
+  const sh = nodes.find((n) => String(n.shopId) === String(shopId)) || nodes[0];
+  if (!sh) return say(chat, "Não achei mais essa loja na API.");
+  let link = sh.offerLink;
+  try { link = (await shopeeShortLinkSub(sh.originalLink || sh.offerLink, "loja")) || link; } catch { /* usa o link da API */ }
+  const dias = Number(process.env.DIAS_NA_VITRINE || 15);
+  const tipo = SHOP_TYPE(sh.shopType).replace(/^\S+\s/, "");
+  const { data: row, error } = await db().from("offers").insert({
+    kind: "cupom",
+    title: `${tipo === "Loja oficial" ? "Loja oficial " : ""}${sh.shopName}`.slice(0, 120),
+    description: `loja:${shopId}`,
+    image_url: sh.imageUrl || null,
+    link,
+    platform: "shopee",
+    category: "Lojas",
+    active: true,
+    expires_at: dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null,
+  }).select("id").single();
+  if (error) return say(chat, `Erro ao gravar: ${esc(error.message)}`);
+  if (q.message?.message_id) {
+    await tg("editMessageReplyMarkup", { chat_id: chat, message_id: q.message.message_id,
+      reply_markup: { inline_keyboard: [[{ text: "🛍️ Produtos da loja", callback_data: `lp:${shopId}` }, { text: `✅ Na vitrine #${row.id}`, callback_data: "noop" }]] } }).catch(() => {});
+  }
+  return say(chat, `✅ <b>${esc(sh.shopName)}</b> está na vitrine em "Cupons do momento" (#${row.id}, subId lojasite).\n🔗 ${link}`);
 }
