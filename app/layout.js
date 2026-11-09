@@ -3,10 +3,15 @@ import "./globals.css";
 const name = process.env.NEXT_PUBLIC_SITE_NAME || "Meus Achadinhos";
 const tagline = process.env.NEXT_PUBLIC_TAGLINE || "Os achados que eu indico nos vídeos";
 
+const PINTEREST_VERIFY = (process.env.PINTEREST_VERIFY || "").trim();
+
 export const metadata = {
   title: `${name} — ofertas e cupons`,
   description: tagline,
   openGraph: { title: name, description: tagline, type: "website" },
+  alternates: { types: { "application/rss+xml": "/rss" } },
+  // verificação do site no Pinterest (código de "Reivindicar site", etiqueta HTML)
+  ...(PINTEREST_VERIFY ? { other: { "p:domain_verify": PINTEREST_VERIFY } } : {}),
 };
 
 export const viewport = {
