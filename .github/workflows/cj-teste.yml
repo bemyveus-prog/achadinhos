@@ -1,0 +1,33 @@
+name: Teste CJ (vídeos de produto)
+
+on:
+  push:
+    branches: [cj-teste]
+  workflow_dispatch:
+    inputs:
+      buscas:
+        description: "Buscas em inglês separadas por |"
+        default: "kitchen organizer|silicone spatula set|drawer organizer|car phone holder|led strip light"
+
+jobs:
+  cj:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: automacao
+    env:
+      CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
+      CJ_BUSCAS: ${{ inputs.buscas }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: npm ci
+      - run: node cj-teste.mjs
