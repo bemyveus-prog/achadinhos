@@ -2,11 +2,9 @@ name: Achado do dia
 
 on:
   schedule:
-    # 10 achados por dia, a cada 1h30 (Brasília = UTC-3; o GitHub costuma atrasar uns 30 min)
-    # 07:17 10:17 13:17 16:17 19:17 (Brasília)
-    - cron: "17 10,13,16,19,22 * * *"
-    # 08:47 11:47 14:47 17:47 20:47 (Brasília)
-    - cron: "47 11,14,17,20,23 * * *"
+    # 3 carrosséis por dia (horário de Brasília, o GitHub costuma atrasar ~30 min):
+    # 09:17, 14:17 e 19:17. Os Reels saem em horários intercalados (workflow Reels v2).
+    - cron: "17 12,17,22 * * *"
   workflow_dispatch:
     inputs:
       sem_vitrine:

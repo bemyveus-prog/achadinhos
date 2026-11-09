@@ -52,6 +52,16 @@ async function materialize(img) {
   return file;
 }
 
+// categorias que já têm pelo menos uma imagem de capa
+export async function categoriesWithImages() {
+  const cfg = await coverConfig();
+  const out = [];
+  for (const slug of Object.keys(cfg).filter((k) => !k.startsWith("_"))) {
+    if ((await listImages(slug).catch(() => [])).length) out.push(slug);
+  }
+  return out;
+}
+
 // número que muda a cada postagem (hora), para girar imagem, gancho e selo
 const turn = (d = new Date()) => Math.floor(d.getTime() / 3600000);
 

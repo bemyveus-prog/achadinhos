@@ -11,7 +11,7 @@ import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
 import { normalize, score } from "./lib/escolha.mjs";
-import { pickCover } from "./lib/capas.mjs";
+import { pickCover, categoriesWithImages } from "./lib/capas.mjs";
 import { renderReel2 } from "./lib/reels2.mjs";
 import { shortName, brl, salesLabel } from "./lib/textos.mjs";
 import { hasTelegram, sendVideo } from "./lib/telegram.mjs";
@@ -23,6 +23,27 @@ const opt = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : un
 const env = (k, d) => (process.env[k] ?? "").trim() || d;
 const log = (...m) => console.log(new Date().toLocaleTimeString("pt-BR"), ...m);
 const pct = (v) => (v * 100).toFixed(1).replace(".", ",") + "%";
+
+// o que buscar na Shopee para cada categoria de capa (no modo automático)
+const BUSCAS = {
+  "moda-feminina": ["blusa feminina", "vestido feminino", "conjunto feminino", "cropped feminino", "calça feminina"],
+  "moda-masculina": ["camiseta masculina", "bermuda masculina", "camisa masculina"],
+  maquiagem: ["maquiagem", "batom", "rímel", "paleta de sombras", "pincel de maquiagem"],
+  skincare: ["skincare", "sérum facial", "protetor solar facial", "hidratante facial"],
+  cabelo: ["máscara capilar", "escova secadora", "acessório de cabelo"],
+  calcados: ["sandália feminina", "tênis feminino", "chinelo feminino"],
+  acessorios: ["bolsa feminina", "óculos de sol feminino", "brinco feminino"],
+  infantil: ["roupa infantil", "brinquedo educativo"],
+  pet: ["brinquedo pet", "cama pet"],
+  celular: ["fone bluetooth", "carregador turbo", "suporte celular"],
+  fitness: ["roupa academia feminina", "garrafa academia"],
+  organizador: ["organizador", "organizador de gaveta"],
+  cozinha: ["utensílio de cozinha", "pote hermético", "air fryer acessório"],
+  banheiro: ["organizador banheiro", "tapete banheiro"],
+  ferramentas: ["kit ferramentas", "parafusadeira"],
+  decoracao: ["decoração quarto", "luminária led"],
+  casa: ["limpeza casa", "mop"],
+};
 
 async function main() {
   const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -36,7 +57,18 @@ async function main() {
     p = { name: data.title, imageUrl: data.image_url, price: Number(data.price), sales: pick?.sales || 0, rating: pick?.rating || 0 };
   } else {
     if (!hasShopeeApi()) throw new Error("Configure SHOPEE_APP_ID e SHOPEE_APP_SECRET");
-    const keyword = opt("--busca") || "blusa feminina";
+    let keyword = opt("--busca") || "blusa feminina";
+    if (args.includes("--auto")) {
+      // gira entre as categorias que já têm foto de capa, e entre as buscas de cada uma
+      const cats = (await categoriesWithImages()).filter((c) => BUSCAS[c]);
+      if (!cats.length) throw new Error("Nenhuma categoria tem foto de capa ainda (mande pelo bot: /capa categoria)");
+      const turn = Math.floor(Date.now() / 3600000);
+      const cat = cats[turn % cats.length];
+      const list = BUSCAS[cat];
+      keyword = list[Math.floor(turn / cats.length) % list.length];
+      args.push("--categoria", cat);
+      log(`Modo automático: categoria ${cat}, busca "${keyword}"`);
+    }
     // não repete produto que já está na vitrine (Reels, bot, categorias ou achado do dia)
     const { data: have } = await sb.from("offers").select("description").eq("active", true).not("description", "is", null);
     const used = new Set((have || []).map((o) => (o.description.match(/^(?:reel|bot|cat|kit):(\d+)/) || [])[1]).filter(Boolean));

@@ -3,8 +3,9 @@ name: Reels v2 (adivinha o preço)
 # Vídeo curto com a foto da categoria, "quanto você acha que custa?" e chamada para comentar.
 # O vídeo chega no Telegram com a legenda sugerida. Com "postar", vai direto para o Instagram.
 on:
-  push:
-    branches: [reels-teste]   # teste: um push nesta branch gera um vídeo
+  schedule:
+    # 3 Reels por dia, postados no Instagram (Brasília): 11:37, 17:37 e 20:37
+    - cron: "37 14,20,23 * * *"
   workflow_dispatch:
     inputs:
       busca:
@@ -44,7 +45,8 @@ jobs:
       - name: Gerar o Reels
         run: >
           node reels2.mjs
-          ${{ inputs.oferta && format('--oferta {0}', inputs.oferta) || format('--busca "{0}"', inputs.busca || 'blusa feminina') }}
+          ${{ github.event_name == 'schedule' && '--auto --postar' || '' }}
+          ${{ github.event_name != 'schedule' && (inputs.oferta && format('--oferta {0}', inputs.oferta) || format('--busca "{0}"', inputs.busca || 'blusa feminina')) || '' }}
           ${{ inputs.postar && '--postar' || '' }}
         env:
           SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
