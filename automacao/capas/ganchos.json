@@ -125,7 +125,7 @@
   "cozinha": {
     "etiqueta": "Cozinha",
     "cor": "#C2410C",
-    "detecta": "panela|frigideira|cozinha|air ?fryer|liquidificador|\\bfaca|\\bpote|garrafa|\\bcopo|x[ií]cara|talher|t[aá]bua|forma de|assadeira|mixer|batedeira|cafeteira|chaleira|escorredor|ralador|utens[ií]lio",
+    "detecta": "panela|frigideira|cozinha|air ?fryer|liquidificador|\\bfaca|\\bpote|garrafa|\\bcopo|x[ií]cara|talher|t[aá]bua|forma de|assadeira|mixer|batedeira|cafeteira|chaleira|escorredor|ralador|utens[ií]lio|gelo|forminha|marmita|lancheira|tupperware|garrafa t[eé]rmica",
     "ganchos": [
       "Quem cozinha *precisa conhecer isso*",
       "Isso *facilitou muito* minha cozinha",

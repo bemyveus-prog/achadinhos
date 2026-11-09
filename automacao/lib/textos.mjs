@@ -18,8 +18,12 @@ export function shortName(name, maxWords = 6) {
     .replace(/[|/+]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const words = clean.split(" ");
-  return words.slice(0, maxWords).join(" ");
+  let words = clean.split(" ").slice(0, maxWords);
+  // não termina no meio de uma expressão ("2 em", "Kit de", "com")
+  const loose = /^(de|da|do|das|dos|em|e|com|para|pra|p|a|o|as|os|no|na|ao|à|\d+|x|kit|\+|-)$/i;
+  if (/^\d+$/.test(words.at(-1) || "") && /^em$/i.test(clean.split(" ")[words.length] || "")) words = words.slice(0, -1); // "2" de "2 em 1"
+  while (words.length > 2 && loose.test(words.at(-1))) words.pop();
+  return words.join(" ");
 }
 
 export function templateTexts(p) {
