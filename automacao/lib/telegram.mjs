@@ -97,3 +97,13 @@ export async function notify(o, p, origem, log = console.log) {
   try { await sendOffer(o, p, origem); }
   catch (e) { log(`  Telegram: ${e.message}`); }
 }
+
+// Manda um vídeo (ex.: Reels) com legenda
+export async function sendVideo(file, caption = "") {
+  const form = new FormData();
+  form.append("chat_id", String(await getChatId()));
+  form.append("video", new Blob([await readFile(file)], { type: "video/mp4" }), path.basename(file));
+  form.append("supports_streaming", "true");
+  if (caption) form.append("caption", caption.slice(0, 1024));
+  return call("sendVideo", form);
+}
