@@ -1,7 +1,7 @@
 import { isAdmin, unauthorized } from "@/lib/auth";
 import { db, hasDb } from "@/lib/supabase";
 import { hasShopeeApi, shopeeProduct, shopeeSearch, shopeeShortLinkSub } from "@/lib/shopee";
-import { allowedChat, brl, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
+import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
 import GANCHOS from "@/automacao/capas/ganchos.json";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 
 <b>/buscar</b> fone bluetooth → produtos de maior comissão (com vendas e nota boas)
 <b>/comissao</b> fone bluetooth → só pela maior comissão, mesmo com poucas vendas
-<b>/categoria</b> moda → os melhores da categoria
+<b>/categoria</b> motos → os melhores da categoria
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
 Também dá para só escrever o produto (ex.: <i>air fryer</i>).
@@ -90,9 +90,11 @@ async function onText(msg) {
   if (cmd === "capas") return listCovers(chat);
 
   if (cmd === "categoria") {
-    const key = arg.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(" ")[0];
-    const cat = CATEGORIAS[key];
-    if (!cat) return say(chat, `Categorias: ${Object.keys(CATEGORIAS).join(", ")}\nEx.: /categoria moda`);
+    if (!arg) return say(chat, `Categorias: ${Object.keys(CATEGORIAS).join(", ")}\nEx.: /categoria moda`);
+    const key = arg.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/\s+/g, "-");
+    const cat = CATEGORIAS[key] || CATEGORIAS[CAT_ALIAS[key]]; // "decoração festa" não é categoria: vira busca
+    // não é uma categoria da Shopee (ex.: "decoração festa"): busca pelo texto
+    if (!cat) return search(chat, { keyword: arg, label: arg, modo: "b" });
     return search(chat, { catId: cat[0], label: cat[1], modo: "b" });
   }
   if (cmd === "comissao" || cmd === "comissão") {
@@ -108,17 +110,27 @@ async function onText(msg) {
 async function search(chat, { keyword = "", catId = null, label, modo, skip = 0 }) {
   await tg("sendChatAction", { chat_id: chat, action: "typing" }).catch(() => {});
   const seen = new Map();
+  let failed = 0;
   const sorts = modo === "c" ? [5] : [5, 2];
   const pages = modo === "c" ? [1] : [1, 2];
   for (const sortType of sorts) for (const page of pages) {
     try {
       const { nodes = [] } = await shopeeSearch({ keyword, catId, sortType, page, limit: 50 });
       for (const n of nodes) { const p = normalize(n); if (!seen.has(p.itemId)) seen.set(p.itemId, p); }
-    } catch { /* a API às vezes falha numa página; segue com o resto */ }
+    } catch { failed++; /* a API às vezes falha numa página; segue com o resto */ }
   }
   let list = [...seen.values()].filter((p) => p.imageUrl && p.price);
   if (modo === "c") list = list.filter((p) => !p.rating || p.rating >= 4).sort((a, b) => b.commission - a.commission);
-  else list = list.filter((p) => p.rating >= MIN_NOTA && p.sales >= MIN_VENDAS).sort((a, b) => score(b) - score(a));
+  else {
+    const all = list;
+    list = all.filter((p) => p.rating >= MIN_NOTA && p.sales >= MIN_VENDAS);
+    // nicho pequeno (ex.: motos, festa): se ninguém passar, aceita nota 4+ e qualquer número de vendas
+    if (!list.length) {
+      list = all.filter((p) => !p.rating || p.rating >= 4);
+      if (list.length && !skip) await say(chat, "ℹ️ Poucos produtos com muitas vendas aqui, então mostrei com filtros mais leves (nota 4+).");
+    }
+    list.sort((a, b) => score(b) - score(a));
+  }
 
   // o que já está na vitrine
   const inShop = new Set();
@@ -128,7 +140,10 @@ async function search(chat, { keyword = "", catId = null, label, modo, skip = 0 
   }
 
   const page = list.slice(skip, skip + POR_BUSCA);
-  if (!page.length) return say(chat, skip ? "Acabaram os resultados dessa busca." : `Nada bom encontrado para "${esc(label)}". Tente outra palavra ou /comissao ${esc(label)}.`);
+  if (!page.length) {
+    if (!skip && failed && !seen.size) return say(chat, "⚠️ A Shopee não respondeu agora (erro do lado dela). Tenta de novo em 1 minuto.");
+    return say(chat, skip ? "Acabaram os resultados dessa busca." : `Nada encontrado para "${esc(label)}". Tente outra palavra ou /comissao ${esc(label)}.`);
+  }
   await say(chat, `🔎 <b>${esc(label)}</b>: ${list.length} produtos bons · mostrando ${skip + 1}–${skip + page.length}`);
 
   for (const p of page) {
