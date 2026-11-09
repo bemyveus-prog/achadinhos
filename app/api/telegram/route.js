@@ -18,7 +18,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/buscar</b> fone bluetooth → produtos de maior comissão (com vendas e nota boas)
 <b>/comissao</b> fone bluetooth → só pela maior comissão, mesmo com poucas vendas
 <b>/categoria</b> motos → os melhores da categoria
-<b>/reels</b> 105 SKU-da-CJ → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
+<b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
@@ -90,7 +90,14 @@ async function onText(msg) {
   if (cmd === "start" || cmd === "ajuda" || cmd === "help") return say(chat, AJUDA);
   if (!hasShopeeApi()) return say(chat, "Falta SHOPEE_APP_ID/SHOPEE_APP_SECRET na Vercel.");
 
-  if (cmd === "reels") return startReels(chat, rest);
+  if (cmd === "reels") {
+    // narração própria: depois de "texto:" ou nas linhas de baixo da mensagem
+    const full = text.replace(/^\/reels(@\S+)?/i, "").trim();
+    const m = full.match(/^(.*?)(?:\btexto:|\n)([\s\S]*)$/i);
+    const head = (m ? m[1] : full).trim().split(/\s+/).filter(Boolean);
+    const fala = m ? m[2].replace(/\s+/g, " ").trim() : "";
+    return startReels(chat, head, fala);
+  }
   if (cmd === "loja" || cmd === "lojas") {
     if (!arg) return say(chat, "Ex.: /loja samsung  ou  /loja vult");
     return searchShops(chat, arg);
@@ -355,12 +362,13 @@ async function addShop(chat, q, shopId) {
 
 // ---------- Reels sob encomenda: dispara o workflow "Reels v2" no GitHub ----------
 const REPO = process.env.GITHUB_REPO || "bemyveus-prog/achadinhos";
-async function startReels(chat, parts) {
+async function startReels(chat, parts, fala = "") {
   const args = parts.filter(Boolean);
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
   const sku = (args.find((a) => a !== num && a.replace("#", "") !== num && !/^postar$/i.test(a)) || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60);
-  if (!num) return say(chat, "Use assim: <b>/reels 105 CJYD2300009</b>\n(número da vitrine e, se quiser, o SKU da CJ; acrescente <i>postar</i> para postar direto)");
+  if (!num) return say(chat, "Use assim: <b>/reels 105 CJYD2300009</b>\n(número da vitrine e, se quiser, o SKU da CJ; acrescente <i>postar</i> para postar direto)\nPara narrar o seu texto: <b>/reels 105 CJYD2300009 texto: seu texto aqui</b>");
+  if (fala.length > 400) return say(chat, `O texto ficou com ${fala.length} letras. Use até 400 (uns 25 segundos de fala).`);
   const token = (process.env.GITHUB_TOKEN || "").trim();
   if (!token) return say(chat, "Falta a variável GITHUB_TOKEN na Vercel.");
   if (hasDb()) {
@@ -370,7 +378,7 @@ async function startReels(chat, parts) {
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/reels-v2.yml/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "vitrine-bot" },
-    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, ...(postar ? { postar: "true" } : {}) } }),
+    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, ...(postar ? { postar: "true" } : {}) } }),
     cache: "no-store",
   });
   if (r.status !== 204) {
@@ -378,5 +386,5 @@ async function startReels(chat, parts) {
     let msg = t; try { msg = JSON.parse(t).message || t; } catch {}
     return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? "Confira no token: dono = bemyveus-prog, repositório achadinhos e permissão Actions: Read and write." : ""}`);
   }
-  return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
+  return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " com a sua narração" : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
 }

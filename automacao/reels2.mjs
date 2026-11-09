@@ -137,7 +137,9 @@ async function main() {
     log(`  capa: quadro do vídeo (${cover.tag}) · "${cover.hook.replace(/\*/g, "")}"`);
   }
   if (!cover) throw new Error("Essa categoria ainda não tem foto de capa. Mande uma pelo bot (/capa categoria) ou use --categoria");
-  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, log });
+  const fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
+  if (fala) log(`Narração própria: "${fala}"`);
+  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, log });
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [

@@ -22,12 +22,12 @@ const reais = (v) => {
   return c ? `${r} reais e ${c}` : `${r} reais`;
 };
 
-export function buildScenes2(p, { hook, nome, number, comment }) {
+export function buildScenes2(p, { hook, nome, number, comment, fala = "" }) {
   const n = number ? String(number).replace("#", "") : "";
   const prova = [p.rating >= 4.5 ? `nota ${num(Number(p.rating).toFixed(1))}` : "", p.sales >= 100 ? `mais de ${salesLabel(p.sales).replace("+", "")} vendidos` : ""].filter(Boolean).join(", ");
   return [
     { key: "gancho", say: hook.replace(/\*/g, ""), min: 2.2 },
-    { key: "produto", say: `${nome}.${prova ? ` ${prova[0].toUpperCase() + prova.slice(1)}.` : ""}`, min: 2.2 },
+    { key: "produto", say: fala || `${nome}.${prova ? ` ${prova[0].toUpperCase() + prova.slice(1)}.` : ""}`, min: 2.2 },
     { key: "palpite", say: "Quanto você acha que custa?", min: 2.0 },
     { key: "preco", say: `Só ${reais(p.price)}!`, min: 1.8 },
     { key: "cta", say: `${comment} Link na bio${n ? `, número ${n}` : ""}.`, min: 3.0 },
@@ -147,7 +147,7 @@ window.renderClip=(t)=>{
   const k=on?Math.min(1,lt/0.25)*Math.min(1,(dur-lt)/0.2):0;
   $("clip").style.opacity=k;
   $("clip").style.transform="scale("+(0.92+0.08*Math.min(1,lt/0.4))+")";
-  if(on){const f=Math.min(D.clip.length-1,Math.floor(lt*30));if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}}
+  if(on){const f=Math.floor(lt*30)%D.clip.length;if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}}
   // com vídeo, o cartão da foto e o nome ficam escondidos nessa cena
   if(on){$("card").style.opacity=0;$("name").style.opacity=0;$("chips").style.top="1490px"}
   else{$("chips").style.top="1290px"}
@@ -169,13 +169,13 @@ async function clipFrames(file, maxSec, dir) {
   return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
 }
 
-export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, log = console.log }) {
+export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", log = console.log }) {
   const { chromium } = await import("playwright");
   await mkdir(outDir, { recursive: true });
   const tmp = path.join(outDir, "_tmp");
   await mkdir(tmp, { recursive: true });
   comment = comment || "Quanto você chutou? Comenta aí!";
-  const scenes = buildScenes2(p, { hook: cover.hook, nome, number, comment });
+  const scenes = buildScenes2(p, { hook: cover.hook, nome, number, comment, fala });
   // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)
   process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
   const voice = await narrate(scenes.map((s) => s.say), tmp, log);
