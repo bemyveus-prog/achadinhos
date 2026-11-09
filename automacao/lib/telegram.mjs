@@ -99,11 +99,12 @@ export async function notify(o, p, origem, log = console.log) {
 }
 
 // Manda um vídeo (ex.: Reels) com legenda
-export async function sendVideo(file, caption = "") {
+export async function sendVideo(file, caption = "", markup = null) {
   const form = new FormData();
   form.append("chat_id", String(await getChatId()));
   form.append("video", new Blob([await readFile(file)], { type: "video/mp4" }), path.basename(file));
   form.append("supports_streaming", "true");
   if (caption) form.append("caption", caption.slice(0, 1024));
+  if (markup) form.append("reply_markup", JSON.stringify(markup));
   return call("sendVideo", form);
 }

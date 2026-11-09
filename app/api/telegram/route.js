@@ -192,6 +192,7 @@ async function onButton(q) {
     return search(chat, { shopId: data.split(":")[1], label: "Produtos da loja", modo: "b" });
   }
   if (data.startsWith("ls:")) return addShop(chat, q, data.split(":")[1]);
+  if (data.startsWith("pub:") || data.startsWith("nopub:")) return approveReels(chat, q, data);
 
   if (data.startsWith("more:")) {
     await tg("answerCallbackQuery", { callback_query_id: q.id });
@@ -416,4 +417,44 @@ async function onVideo(msg) {
   if (error) return say(chat, `Erro ao guardar o vídeo: ${esc(error.message)}`);
   const { head, fala } = parseReels(cap);
   return startReels(chat, head, fala, name);
+}
+
+// ---------- aprovação de Reels ----------
+async function dispatchWorkflow(file, inputs) {
+  const token = (process.env.GITHUB_TOKEN || "").trim();
+  if (!token) throw new Error("Falta GITHUB_TOKEN na Vercel");
+  const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${file}/dispatches`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "vitrine-bot" },
+    body: JSON.stringify({ ref: "main", inputs }),
+    cache: "no-store",
+  });
+  if (r.status !== 204) {
+    let m = await r.text().catch(() => ""); try { m = JSON.parse(m).message || m; } catch {}
+    throw new Error(`GitHub ${r.status}: ${String(m).slice(0, 150)}`);
+  }
+}
+
+async function approveReels(chat, q, data) {
+  const [action, id] = data.split(":");
+  const { data: r } = await db().from("reels_pendentes").select("id,status,offer_id,ig_url").eq("id", Number(id)).maybeSingle();
+  if (!r) return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Não achei esse Reels" });
+  const setButton = (text) => q.message?.message_id && tg("editMessageReplyMarkup", { chat_id: chat, message_id: q.message.message_id,
+    reply_markup: { inline_keyboard: [[{ text, callback_data: "noop" }]] } }).catch(() => {});
+  if (r.status === "postado") { await setButton("✅ Já postado"); return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Esse já foi postado" }); }
+  if (r.status === "postando") return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Já está postando…" });
+  if (action === "nopub") {
+    await db().from("reels_pendentes").update({ status: "descartado" }).eq("id", r.id);
+    await setButton("🗑️ Descartado");
+    return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Descartado" });
+  }
+  try {
+    await dispatchWorkflow("publicar-reels.yml", { id: String(r.id) });
+  } catch (e) {
+    await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Erro ao postar" });
+    return say(chat, `⚠️ ${esc(e.message)}`);
+  }
+  await db().from("reels_pendentes").update({ status: "postando" }).eq("id", r.id);
+  await setButton("⏳ Postando no Instagram…");
+  await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Postando! Te aviso aqui quando sair." });
 }

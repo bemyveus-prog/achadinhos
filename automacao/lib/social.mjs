@@ -105,9 +105,14 @@ export async function publishSocial(files, { folder, caption, link, targets }) {
 // Reels: o vídeo sobe no Storage e o Instagram baixa pela URL. O processamento de vídeo
 // demora mais que o de foto (até alguns minutos), por isso a espera é maior.
 export async function postReel(videoFile, caption, folder) {
+  const [video_url] = await uploadPublic([videoFile], folder, "video/mp4");
+  return postReelUrl(video_url, caption);
+}
+
+// Reels a partir de um vídeo que já está no Storage público (usado na aprovação pelo Telegram)
+export async function postReelUrl(video_url, caption) {
   const ig = process.env.META_IG_USER_ID;
   if (!ig) throw new Error("Falta META_IG_USER_ID");
-  const [video_url] = await uploadPublic([videoFile], folder, "video/mp4");
   const c = await graph("POST", `${ig}/media`, {
     media_type: "REELS",
     video_url,

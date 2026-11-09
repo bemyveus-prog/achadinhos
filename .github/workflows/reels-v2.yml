@@ -54,7 +54,7 @@ jobs:
       - name: Gerar o Reels
         run: >
           node reels2.mjs
-          ${{ github.event_name == 'schedule' && '--auto --postar' || '' }}
+          ${{ github.event_name == 'schedule' && (vars.REELS_APROVAR == 'sim' && '--auto' || '--auto --postar') || '' }}
           ${{ github.event_name != 'schedule' && (inputs.oferta && format('--oferta {0}', inputs.oferta) || format('--busca "{0}"', inputs.busca || 'blusa feminina')) || '' }}
           ${{ inputs.cj_sku && format('--cj "{0}"', inputs.cj_sku) || '' }}
           ${{ inputs.postar && '--postar' || '' }}

@@ -18,7 +18,7 @@ const run = promisify(execFile);
 import { renderReel2 } from "./lib/reels2.mjs";
 import { shortName, brl, salesLabel } from "./lib/textos.mjs";
 import { hasTelegram, sendVideo } from "./lib/telegram.mjs";
-import { hasMeta, postReel } from "./lib/social.mjs";
+import { hasMeta, postReel, uploadPublic } from "./lib/social.mjs";
 import { hasCJ, productBySku, productVideos, bestFreeVideo, downloadVideo } from "./lib/cj.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -178,11 +178,22 @@ async function main() {
   const { makePinImage } = await import("./lib/pins.mjs");
   await makePinImage({ id: offerId, title: p.name, image_url: p.imageUrl, price: p.price, sales: p.sales, rating: p.rating }, { log }).catch((e) => log(`  pin: ${e.message}`));
 
+  const postarJa = args.includes("--postar");
   if (hasTelegram()) {
-    await sendVideo(file, `🎬 Reels #${offerId} (${seconds.toFixed(0)} s)\n\nLegenda sugerida:\n\n${legenda}`);
+    // sem "postar": guarda o vídeo e manda com o botão de aprovação
+    let markup = null;
+    if (!postarJa && hasMeta()) {
+      try {
+        const [video_url] = await uploadPublic([file], `reels2-${offerId}-${Date.now()}`, "video/mp4");
+        const { data, error } = await sb.from("reels_pendentes").insert({ offer_id: offerId, video_url, caption: legenda }).select("id").single();
+        if (error) throw new Error(error.message);
+        markup = { inline_keyboard: [[{ text: "📤 Postar no Instagram", callback_data: `pub:${data.id}` }], [{ text: "🗑️ Descartar", callback_data: `nopub:${data.id}` }]] };
+      } catch (e) { log(`  aprovação: ${e.message}`); }
+    }
+    await sendVideo(file, `🎬 Reels #${offerId} (${seconds.toFixed(0)} s)${postarJa ? " · postando no Instagram…" : ""}\n\nLegenda:\n\n${legenda}`.slice(0, 1024), markup);
     log("Enviado no Telegram.");
   }
-  if (args.includes("--postar")) {
+  if (postarJa) {
     if (!hasMeta()) throw new Error("Falta META_PAGE_TOKEN para postar.");
     const url = await postReel(file, legenda, `reels2-${offerId}`);
     log(`Postado: ${url}`);
