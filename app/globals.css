@@ -353,3 +353,30 @@ a { color: inherit; text-decoration: none; }
 .bn-item .bn-meta small { color: var(--muted); font-size: 12px; }
 .bn-item .btns { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .bn-item.is-off { opacity: .5; }
+
+/* ===== Compartilhar ===== */
+.cardw { position: relative; display: flex; container-type: inline-size; }
+.cardw > .card { flex: 1; }
+.share {
+  position: absolute; right: 8px; top: calc(100cqw - 42px);
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(255, 255, 255, .95); color: var(--ink); box-shadow: 0 2px 10px rgba(0, 0, 0, .18); z-index: 2;
+}
+.share svg { width: 17px; height: 17px; }
+.sheet-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { width: 100%; max-width: 560px; background: #fff; border-radius: 20px 20px 0 0; padding: 18px 16px 26px; }
+.sheet h4 { margin: 0 0 12px; font-size: 15px; }
+.sheet-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.sheet-grid a, .sheet-grid button { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 10px 4px; border-radius: 12px; background: #f6f2ec; }
+.sheet-grid i { font-style: normal; font-size: 22px; }
+
+/* ===== Página do produto ===== */
+.pp { padding-top: 16px; }
+.pp-back { display: inline-block; font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 12px; }
+.pp-card { background: #fff; border-radius: 22px; border: 1px solid var(--line); box-shadow: var(--shadow); padding: 14px; }
+.pp-img { position: relative; aspect-ratio: 1; border-radius: 16px; overflow: hidden; background: #f3ede6; }
+.pp-img img { width: 100%; height: 100%; object-fit: contain; }
+.pp-title { font-size: 18px; line-height: 1.3; margin: 14px 2px 8px; }
+.pp-prices strong { font-size: 24px; }
+.pp-cta { height: 48px; font-size: 16px; margin-top: 12px; }
+.pp-note { font-size: 11.5px; color: var(--muted); text-align: center; margin: 10px 0 0; }

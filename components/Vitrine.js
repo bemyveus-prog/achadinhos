@@ -53,6 +53,32 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
     toastTimer.current = setTimeout(() => setToast(""), 2200);
   }
 
+  // Compartilhar um produto: no celular abre a janela do sistema (Stories, WhatsApp, TikTok...)
+  // com a imagem vertical do produto; o link é copiado para colar no adesivo de link do Stories.
+  const [sheet, setSheet] = useState(null);
+  async function share(p) {
+    const url = `${window.location.origin}/p/${p.id}`;
+    const text = `${p.title}${p.price != null ? ` por ${brl(p.price)}` : ""} 🛍️ Achei na Shopee:`;
+    try { await navigator.clipboard?.writeText(url); } catch {}
+    try {
+      if (navigator.canShare) {
+        const r = await fetch(`/api/story/${p.id}`);
+        if (r.ok) {
+          const file = new File([await r.blob()], `achadinho-${p.id}.png`, { type: "image/png" });
+          if (navigator.canShare({ files: [file] })) {
+            flash("Link copiado! No Stories, cole no adesivo de link 🔗");
+            await navigator.share({ files: [file], text: `${text} ${url}` });
+            return;
+          }
+        }
+      }
+      if (navigator.share) { await navigator.share({ title: p.title, text, url }); return; }
+    } catch (e) {
+      if (e?.name === "AbortError") return; // a pessoa fechou a janela
+    }
+    setSheet({ p, url, text }); // computador: escolhe a rede
+  }
+
   function openCoupon(c) {
     if (c.coupon_code) {
       navigator.clipboard?.writeText(c.coupon_code).catch(() => {});
@@ -178,7 +204,7 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
           ) : (
             <div className={`grid ${isNum ? "single" : ""}`}>
               {filtered.map((p, i) => (
-                <ProductCard key={p.id} p={p} eager={i < 4} />
+                <ProductCard key={p.id} p={p} eager={i < 4} onShare={() => share(p)} />
               ))}
             </div>
           )}
@@ -190,11 +216,42 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
       </footer>
 
       <div className={`toast ${toast ? "show" : ""}`} role="status">{toast}</div>
+      {sheet && <ShareSheet {...sheet} onClose={() => setSheet(null)} onCopied={() => flash("Link copiado!")} />}
     </main>
   );
 }
 
-function ProductCard({ p, eager }) {
+function ShareSheet({ p, url, text, onClose, onCopied }) {
+  const t = encodeURIComponent(`${text} ${url}`);
+  const u = encodeURIComponent(url);
+  const items = [
+    { label: "WhatsApp", icon: "💬", href: `https://wa.me/?text=${t}` },
+    { label: "Facebook", icon: "📘", href: `https://www.facebook.com/sharer/sharer.php?u=${u}` },
+    { label: "Telegram", icon: "✈️", href: `https://t.me/share/url?url=${u}&text=${encodeURIComponent(text)}` },
+    { label: "X", icon: "✖️", href: `https://twitter.com/intent/tweet?text=${t}` },
+    { label: "Pinterest", icon: "📌", href: `https://pinterest.com/pin/create/button/?url=${u}&media=${encodeURIComponent(p.image_url || "")}&description=${encodeURIComponent(text)}` },
+    { label: "Imagem p/ Stories", icon: "🖼️", href: `/api/story/${p.id}`, download: `achadinho-${p.id}.png` },
+  ];
+  return (
+    <div className="sheet-bg" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <h4>Compartilhar #{p.id}</h4>
+        <div className="sheet-grid">
+          {items.map((i) => (
+            <a key={i.label} href={i.href} target="_blank" rel="noopener" download={i.download}><i>{i.icon}</i>{i.label}</a>
+          ))}
+          <button onClick={async () => { try { await navigator.clipboard.writeText(url); } catch {} onCopied(); onClose(); }}><i>🔗</i>Copiar link</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>;
+}
+
+function ProductCard({ p, eager, onShare }) {
   const [err, setErr] = useState(false);
   const off =
     p.original_price && p.price && p.original_price > p.price
@@ -203,6 +260,7 @@ function ProductCard({ p, eager }) {
   const plat = PLATFORM[p.platform] || PLATFORM.outro;
 
   return (
+    <div className="cardw">
     <a className="card" href={`/r/${p.id}`} rel="nofollow sponsored noopener">
       <div className="thumb">
         {p.image_url && !err ? (
@@ -232,6 +290,12 @@ function ProductCard({ p, eager }) {
         </span>
       </div>
     </a>
+    {onShare && (
+      <button className="share" type="button" aria-label={`Compartilhar #${p.id}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onShare(); }}>
+        <ShareIcon />
+      </button>
+    )}
+    </div>
   );
 }
 
