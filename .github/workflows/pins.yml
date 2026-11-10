@@ -31,6 +31,5 @@ jobs:
           cache-dependency-path: automacao/package-lock.json
       - run: |
           npm ci
-          npx playwright install --with-deps chromium
-          sudo apt-get install -y -qq fonts-noto-color-emoji
+          bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
       - run: node pins.mjs --max ${{ inputs.max || '120' }}

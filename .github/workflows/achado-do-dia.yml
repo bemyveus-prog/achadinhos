@@ -39,8 +39,7 @@ jobs:
       - name: Instalar
         run: |
           npm ci
-          npx playwright install --with-deps chromium
-          sudo apt-get install -y -qq fonts-noto-color-emoji
+          bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
 
       - name: Escolher produto, publicar na vitrine e gerar carrossel
         # Postar exige o produto na vitrine, então "postar" ignora "só gerar o carrossel"

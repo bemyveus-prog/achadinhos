@@ -40,8 +40,7 @@ jobs:
       - name: Instalar
         run: |
           npm ci
-          npx playwright install --with-deps chromium
-          sudo apt-get install -y -qq fonts-noto-color-emoji ffmpeg
+          bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
 
       - name: Separar os itens do kit na vitrine
         if: ${{ !inputs.so_video }}

@@ -33,8 +33,7 @@ jobs:
       - name: Instalar
         run: |
           npm ci
-          npx playwright install --with-deps chromium
-          sudo apt-get install -y -qq fonts-noto-color-emoji ffmpeg
+          bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
 
       - name: Gerar o Reels
         run: node reels.mjs ${{ inputs.oferta && format('--oferta {0}', inputs.oferta) || '' }} ${{ inputs.postar && '--postar' || '' }}
