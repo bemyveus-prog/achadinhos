@@ -19,6 +19,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/comissao</b> fone bluetooth → só pela maior comissão, mesmo com poucas vendas
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
+<b>/top</b> título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
@@ -49,6 +50,7 @@ export async function GET(req) {
     { command: "categoria", description: "Melhores de uma categoria" },
     { command: "loja", description: "Buscar loja oficial pelo nome" },
     { command: "reels", description: "Gerar Reels: /reels 105 SKU-CJ" },
+    { command: "top", description: "Reels com vários produtos (Top N)" },
     { command: "ajuda", description: "Como usar" },
   ] });
   const info = await tg("getWebhookInfo", {});
@@ -92,6 +94,7 @@ async function onText(msg) {
   if (cmd === "start" || cmd === "ajuda" || cmd === "help") return say(chat, AJUDA);
   if (!hasShopeeApi()) return say(chat, "Falta SHOPEE_APP_ID/SHOPEE_APP_SECRET na Vercel.");
 
+  if (cmd === "top") return startTop(chat, text);
   if (cmd === "reels") {
     const { head, fala } = parseReels(text);
     return startReels(chat, head, fala);
@@ -479,4 +482,38 @@ async function saveAvatar(chat, msg) {
     { contentType: ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg" });
   if (error) return say(chat, `Erro ao guardar: ${esc(error.message)}`);
   return say(chat, "✅ Foto do perfil guardada. Ela aparece no final dos próximos Reels, no botão \"Seguir\".");
+}
+
+// ---------- Reels "Top N" ----------
+// /top 5 coisas que parecem bobas mas facilitam a vida
+// 136 Esse organizador acaba com a bagunça
+// 137 CJYD2300009 Esse prendedor segura o saco aberto
+async function startTop(chat, text) {
+  const lines = String(text).split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  let title = (lines.shift() || "").replace(/^\/top(@\S+)?/i, "").trim();
+  const postar = /\bpostar\b/i.test(title);
+  title = title.replace(/\bpostar\b/i, "").trim();
+  const looksSku = (a) => /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
+  const items = [];
+  for (const l of lines) {
+    const m = l.match(/^#?(\d+)[\s:.)-]+(.*)$/);
+    if (!m) continue;
+    const words = m[2].trim().split(/\s+/);
+    const sku = words[0] && looksSku(words[0]) ? words.shift().replace(/[^A-Za-z0-9_-]/g, "") : "";
+    items.push({ id: Number(m[1]), sku, fala: words.join(" ").slice(0, 300) });
+  }
+  if (!title || items.length < 2) {
+    return say(chat, "Use assim (cada produto numa linha):\n<b>/top 5 coisas que parecem bobas mas facilitam a vida\n136 Esse organizador acaba com a bagunça\n137 Esse prendedor segura o saco aberto\n138 ...</b>\n\nDe 2 a 8 produtos. Pode pôr o SKU da CJ depois do número. Escreva <i>postar</i> no título para postar direto.");
+  }
+  if (items.length > 8) return say(chat, "No máximo 8 produtos por vídeo.");
+  if (hasDb()) {
+    const { data } = await db().from("offers").select("id").in("id", items.map((i) => i.id));
+    const have = new Set((data || []).map((o) => o.id));
+    const miss = items.filter((i) => !have.has(i.id)).map((i) => "#" + i.id);
+    if (miss.length) return say(chat, `Não achei na vitrine: ${miss.join(", ")}`);
+  }
+  const roteiro = JSON.stringify({ title: title.slice(0, 120), items, postar });
+  try { await dispatchWorkflow("reels-top.yml", { roteiro }); }
+  catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+  return say(chat, `🎬 Gerando o Top ${items.length}: <b>${esc(title)}</b>\n${items.map((i, k) => `${k + 1}. #${i.id}${i.sku ? " (vídeo CJ)" : ""}`).join("\n")}\nChega aqui em uns 3 minutos.`);
 }

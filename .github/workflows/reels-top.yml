@@ -1,0 +1,47 @@
+name: Reels Top N
+
+# Disparado pelo bot (/top). O roteiro vem em JSON (título + produtos da vitrine + narração de cada um).
+on:
+  workflow_dispatch:
+    inputs:
+      roteiro:
+        description: 'JSON: {"title":"...","items":[{"id":136,"sku":"","fala":"..."}],"postar":false}'
+        required: true
+
+concurrency:
+  group: reels-top
+  cancel-in-progress: false
+
+jobs:
+  top:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: automacao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - name: Instalar
+        run: |
+          npm ci
+          bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
+      - name: Gerar o Reels
+        run: node top.mjs
+        env:
+          REELS_TOP: ${{ inputs.roteiro }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
+          CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
+          FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
+          FISH_VOICE_ID: ${{ vars.FISH_VOICE_ID }}
+          EDGE_VOICE: ${{ vars.EDGE_VOICE }}
+          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
