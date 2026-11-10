@@ -366,7 +366,11 @@ async function startReels(chat, parts, fala = "", video = "") {
   const args = parts.filter(Boolean);
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
-  const sku = (args.find((a) => a !== num && a.replace("#", "") !== num && !/^postar$/i.test(a)) || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60);
+  // depois do número: SKU da CJ (tem letras e números, ex.: CJYD2300009) e, sem "texto:", o resto vira narração
+  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a));
+  const looksSku = (a) => /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
+  const sku = rest[0] && looksSku(rest[0]) ? rest[0] : "";
+  if (!fala) fala = rest.slice(sku ? 1 : 0).join(" ").trim();
   if (!num) return say(chat, "Use assim: <b>/reels 105 CJYD2300009</b>\n(número da vitrine e, se quiser, o SKU da CJ; acrescente <i>postar</i> para postar direto)\nPara narrar o seu texto: <b>/reels 105 CJYD2300009 texto: seu texto aqui</b>");
   if (fala.length > 400) return say(chat, `O texto ficou com ${fala.length} letras. Use até 400 (uns 25 segundos de fala).`);
   const token = (process.env.GITHUB_TOKEN || "").trim();

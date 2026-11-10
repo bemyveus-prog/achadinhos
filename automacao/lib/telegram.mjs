@@ -13,13 +13,13 @@ const pct = (v) => (v * 100).toFixed(1).replace(".", ",").replace(",0", "") + "%
 
 export const hasTelegram = () => Boolean(env("TELEGRAM_BOT_TOKEN"));
 
-async function call(method, body) {
+async function call(method, body, timeoutMs = 60000) {
   const form = body instanceof FormData;
   const res = await fetch(`${API()}/${method}`, {
     method: "POST",
     ...(form ? {} : { headers: { "Content-Type": "application/json" } }),
     body: form ? body : JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const json = await res.json().catch(() => ({}));
   if (!json.ok) throw new Error(`Telegram ${method}: ${json.description || res.status}`);
@@ -106,5 +106,7 @@ export async function sendVideo(file, caption = "", markup = null) {
   form.append("supports_streaming", "true");
   if (caption) form.append("caption", caption.slice(0, 1024));
   if (markup) form.append("reply_markup", JSON.stringify(markup));
-  return call("sendVideo", form);
+  // vídeo demora mais para subir: até 5 min, e tenta mais uma vez se cair
+  try { return await call("sendVideo", form, 300000); }
+  catch (e) { if (!/timeout|aborted|fetch failed/i.test(e.message)) throw e; return call("sendVideo", form, 300000); }
 }

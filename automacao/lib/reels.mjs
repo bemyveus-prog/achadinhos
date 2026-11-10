@@ -224,7 +224,7 @@ export async function encodeFrames(page, totalSec, outFile) {
   const frames = Math.ceil(totalSec * FPS);
   const ff = spawn("ffmpeg", [
     "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "mjpeg", "-i", "-",
-    "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-r", String(FPS), outFile,
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-maxrate", "6M", "-bufsize", "12M", "-pix_fmt", "yuv420p", "-r", String(FPS), outFile,
   ], { stdio: ["pipe", "inherit", "inherit"] });
   const done = new Promise((res, rej) => ff.on("close", (c) => (c === 0 ? res() : rej(new Error("FFmpeg falhou ao montar o vídeo")))));
   for (let f = 0; f < frames; f++) {
