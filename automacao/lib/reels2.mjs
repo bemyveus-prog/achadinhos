@@ -1,9 +1,6 @@
-// Reels v2 (curto, ~12 s, feito para reter e gerar comentário):
-//   1. GANCHO  foto da categoria (as mesmas imagens das capas) em tela cheia + frase falada
-//   2. PRODUTO a foto do produto "pula" na tela com nota e vendas
-//   3. PALPITE "Quanto você acha que custa?" (contagem 3-2-1)
-//   4. PREÇO   revelação grande
-//   5. CHAMADA "Quanto você chutou? Comenta aí" + link na bio com o número da vitrine
+// Reels v2 (curto e direto):
+//   1. PRODUTO o vídeo do produto em tela cheia (ou a foto, se não houver vídeo) com a narração e legenda
+//   2. CHAMADA "Me segue" (animação do botão Seguir) + link na bio, citando o cupom quando há cupom ativo
 import { mkdir, writeFile, rm } from "fs/promises";
 import path from "path";
 import { imageDataUri } from "./carrossel.mjs";
@@ -25,11 +22,9 @@ const reais = (v) => {
 export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false }) {
   const n = number ? String(number).replace("#", "") : "";
   const prova = [p.rating >= 4.5 ? `nota ${num(Number(p.rating).toFixed(1))}` : "", p.sales >= 100 ? `mais de ${salesLabel(p.sales).replace("+", "")} vendidos` : ""].filter(Boolean).join(", ");
+  const padrao = `${hook ? hook.replace(/\*/g, "").replace(/[.!?]*$/, "") + ". " : ""}${nome}.${prova ? ` ${prova[0].toUpperCase() + prova.slice(1)}.` : ""}`;
   return [
-    { key: "gancho", say: hook.replace(/\*/g, ""), min: 2.2 },
-    { key: "produto", say: fala || `${nome}.${prova ? ` ${prova[0].toUpperCase() + prova.slice(1)}.` : ""}`, min: 2.2 },
-    { key: "palpite", say: "Quanto você acha que custa?", min: 2.0 },
-    { key: "preco", say: `Só ${reais(p.price)}!`, min: 1.8 },
+    { key: "produto", say: fala || padrao, min: 3.0 },
     { key: "cta", say: `Me segue que todo dia tem achado novo abaixo de 50 reais! E corre no link da bio, ${cupom ? "que tem cupom da Shopee te esperando!" : `procura o número ${n}!`}`, min: 4.2 },
   ];
 }
@@ -55,7 +50,9 @@ function pageHtml() {
   #dark{inset:0;background:radial-gradient(circle at 50% 40%,rgba(40,10,25,.55),rgba(20,5,12,.88))}
   #card{left:140px;top:420px;width:800px;height:800px;background:#fff;border-radius:56px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.6)}
   #card img{width:100%;height:100%;object-fit:contain}
-  #clip{left:150px;top:250px;width:780px;height:1180px;border-radius:48px;overflow:hidden;background:#000;box-shadow:0 40px 100px rgba(0,0,0,.6);opacity:0}
+  #clip{left:0;top:0;width:${W}px;height:${H}px;overflow:hidden;background:#000;opacity:0}
+  #sub{left:70px;right:70px;top:1180px;text-align:center;color:#fff;font-weight:800;font-size:62px;line-height:1.15;letter-spacing:-1px;
+       text-shadow:0 0 6px #000,0 0 14px #000,0 4px 24px rgba(0,0,0,.8);-webkit-text-stroke:2px rgba(0,0,0,.55);paint-order:stroke fill}
   #clip img{width:100%;height:100%;object-fit:cover}
   #cliptag{left:0;right:0;top:1470px;text-align:center;color:#fff;font-weight:800;font-size:44px;opacity:0;text-shadow:0 4px 20px rgba(0,0,0,.6)}
   #chips{left:0;right:0;top:1290px;display:flex;justify-content:center;gap:22px}
@@ -89,7 +86,7 @@ function pageHtml() {
 <div id="dark" class="abs"></div>
 <div id="name" class="abs"></div><div id="guess" class="abs">Quanto você acha<br>que custa? 🤔</div>
 <div id="card" class="abs"><img id="photo"></div>
-<div id="clip" class="abs"><img id="clipimg"></div><div id="cliptag" class="abs"></div>
+<div id="clip" class="abs"><img id="clipimg"></div><div id="sub" class="abs"></div><div id="cliptag" class="abs"></div>
 <div id="chips" class="abs"></div><div id="count" class="abs"></div>
 <div id="price" class="abs"><small>só</small><b id="pv"></b></div>
 <div id="prof" class="abs"><div id="ava"></div><div id="pinfo"><div id="phandle"></div><div id="ptag">Achadinhos todo dia</div><div id="follow">Seguir</div></div></div>
@@ -103,7 +100,7 @@ const back=(x)=>{x=clamp(x);const c=1.8;return 1+(c+1)*Math.pow(x-1,3)+c*Math.po
 let D, starts=[];
 function show(el,k,dy=40,s=1){el.style.opacity=k;el.style.transform="translateY("+(1-k)*dy+"px) scale("+s+")"}
 window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
-  $("cover").style.backgroundImage="url("+d.cover+")";$("coverbg").style.backgroundImage="url("+d.cover+")";$("photo").src=d.img;
+  $("cover").style.display="none";$("veil").style.display="none";$("coverbg").style.backgroundImage="url("+d.img+")";$("photo").src=d.img;
   $("tag").textContent=d.tag;$("hook").innerHTML=d.hookHtml;$("name").textContent=d.nome;
   $("chips").innerHTML=d.chips.map(c=>'<div class="chip">'+c+'</div>').join("");
   $("pv").textContent=d.price;$("ctah").textContent="Me segue! Todo dia tem achado novo abaixo de R$ 50";$("num").textContent=d.number||"";
@@ -122,17 +119,16 @@ window.render=(t)=>{
   show($("tag"),g*ease((lt-0.05)/0.3),20);
   show($("hook"),g*ease((lt-0.15)/0.35),40);
   // escurece a partir do produto (a foto da categoria continua ao fundo)
-  $("dark").style.opacity=i===0?clamp((lt-(dur-0.25))/0.25):1;
-  $("veil").style.opacity=i===0?1:0.4;
+  $("dark").style.opacity=1;
   // flash na troca de cena
   $("flash").style.opacity=i>0&&lt<0.12?0.55*(1-lt/0.12):0;
   // 2. produto
-  const onCard=i>=1;
-  const pk=i===1?back(lt/0.45):1;
+  const onCard=key==="produto"||key==="cta";
+  const pk=key==="produto"?back(lt/0.45):1;
   const cardS=key==="preco"||key==="cta"?0.78:key==="palpite"?0.9:1;
   const cardY=key==="cta"?300:key==="preco"?340:420;
   $("card").style.opacity=onCard?1:0;
-  $("card").style.transform="translateY("+(cardY-420)+"px) scale("+(cardS*(0.5+0.5*pk))+") rotate("+(key==="palpite"?Math.sin(lt*18)*1.2*(1-clamp(lt/1.2)):0)+"deg)";
+  $("card").style.transform="translateY("+(cardY-420)+"px) scale("+(cardS*(0.5+0.5*pk)*(key==="produto"?1+0.05*clamp(lt/dur):1))+") rotate("+(key==="palpite"?Math.sin(lt*18)*1.2*(1-clamp(lt/1.2)):0)+"deg)";
   show($("name"),key==="produto"?ease((lt-0.25)/0.35):0,30);
   show($("chips"),key==="produto"?ease((lt-0.6)/0.35):0,40);
   // 3. palpite com contagem
@@ -169,6 +165,11 @@ window.render=(t)=>{
   $("cta").querySelector(".emo").style.opacity=isC?ease((lt-1.6)/0.3):0;
   show($("bio"),isC?ease((lt-1.8)/0.35):0,30,isC?1+0.04*Math.sin(t*6):1);
   show($("coupon"),isC?ease((lt-2.3)/0.35):0,30,isC?1+0.05*Math.sin(t*7):1);
+  // legenda da narração, em blocos curtos (muita gente assiste sem som)
+  const subs=D.subs||[];const vs=0.18, vd=D.voiceDur||dur;
+  $("sub").style.top=(D.clip&&D.clip.length?1180:1420)+"px";
+  if(key==="produto"&&subs.length){const k=Math.min(subs.length-1,Math.floor(clamp((lt-vs)/vd,0,0.999)*subs.length));$("sub").textContent=subs[k];$("sub").style.opacity=lt>vs?1:0}
+  else $("sub").style.opacity=0;
   if(window.renderClip)window.renderClip(t); // por último: o vídeo do produto manda na cena "produto"
 };
 </script>
@@ -179,12 +180,11 @@ window.renderClip=(t)=>{
   let i=0;while(i<starts.length-1&&t>=starts[i+1])i++;
   const key=D.scenes[i].key, lt=t-starts[i], dur=D.scenes[i].dur;
   const on=key==="produto";
-  const k=on?Math.min(1,lt/0.25)*Math.min(1,(dur-lt)/0.2):0;
+  const k=on?Math.min(1,(dur-lt)/0.2):0;
   $("clip").style.opacity=k;
-  $("clip").style.transform="scale("+(0.92+0.08*Math.min(1,lt/0.4))+")";
   if(on){const f=Math.floor(lt*30)%D.clip.length;if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}}
   // com vídeo, o cartão da foto e o nome ficam escondidos nessa cena
-  if(on){$("card").style.opacity=0;$("name").style.opacity=0;$("chips").style.top="1490px"}
+  if(on){$("card").style.opacity=0;$("name").style.opacity=0;$("chips").style.top="1560px"}
   else{$("chips").style.top="1290px"}
   $("cliptag").style.opacity=0;
 };
@@ -197,9 +197,9 @@ async function clipFrames(file, maxSec, dir) {
   const { readdir, readFile } = await import("fs/promises");
   const fdir = path.join(dir, "clip");
   await mkdir(fdir, { recursive: true });
-  // pula o primeiro 0,5 s (costuma ter tela preta ou logo) e enquadra vertical 780x1180
+  // pula o primeiro 0,5 s (costuma ter tela preta ou logo) e enquadra em tela cheia 1080x1920
   await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "0.5", "-i", file, "-t", String(maxSec),
-    "-vf", "fps=30,scale=780:1180:force_original_aspect_ratio=increase,crop=780:1180", "-q:v", "4", path.join(fdir, "%04d.jpg")]);
+    "-vf", "fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920", "-q:v", "5", path.join(fdir, "%04d.jpg")]);
   const names = (await readdir(fdir)).filter((f) => f.endsWith(".jpg")).sort();
   return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
 }
@@ -210,7 +210,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   const tmp = path.join(outDir, "_tmp");
   await mkdir(tmp, { recursive: true });
   comment = comment || "Quanto você chutou? Comenta aí!";
-  const scenes = buildScenes2(p, { hook: cover.hook, nome, number, comment, fala, cupom });
+  const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom });
   // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)
   process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
   const voice = await narrate(scenes.map((s) => s.say), tmp, log);
@@ -240,11 +240,14 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   if (p.rating) chips.push(`⭐ ${num(Number(p.rating).toFixed(1))}`);
   if (p.sales >= 100) chips.push(`🛒 ${salesLabel(p.sales)} vendidos`);
   const data = {
-    cover: await imageDataUri(cover.file), img: await imageDataUri(p.imageUrl),
-    tag: cover.tag, accent: cover.accent || "#D0306F", hookHtml: hookHtml(cover.hook), nome,
+    cover: null, img: await imageDataUri(p.imageUrl),
+    tag: "", accent: cover?.accent || "#D0306F", hookHtml: "", nome,
     chips, price: brl(p.price), comment, number: number ? String(number).startsWith("#") ? number : `#${number}` : "",
     scenes: scenes.map(({ key, dur }) => ({ key, dur })),
     clip: [],
+    // legenda: a fala do produto em blocos de ~5 palavras
+    subs: (() => { const w = scenes[0].say.split(/\s+/).filter(Boolean); const out = []; for (let i = 0; i < w.length; i += 5) out.push(w.slice(i, i + 5).join(" ")); return out; })(),
+    voiceDur: voice[0]?.duration || 0,
     handle: handle || "@minh.asofertas",
     avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null,
     cupom,

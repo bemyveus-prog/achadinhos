@@ -144,20 +144,12 @@ async function main() {
     } else clip = { file: cjFile };
   }
   const nome = shortName(p.name, 5);
-  let cover = await pickCover(p, { log, force: opt("--categoria") });
-  if (!cover && clip) {
-    // categoria sem foto de capa: usa um quadro do próprio vídeo, com faixa clara em cima para o gancho
-    const cfg = await coverConfig();
-    const slug = categoryOf(p.name || "", cfg);
-    const c = cfg[slug] || {};
-    const img = path.join(outDir, "capa-video.jpg");
-    await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "1.2", "-i", clip.file, "-frames:v", "1",
-      "-vf", "scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350,drawbox=x=0:y=0:w=iw:h=ih*0.44:color=0xFFF4EE@0.92:t=fill", img]);
-    const hooks = c.ganchos?.length ? c.ganchos : ["Eu *não acreditei* quando vi isso", "Você *precisa ver* isso funcionando"];
-    cover = { file: img, slug: slug || "geral", hook: hooks[Math.floor(Date.now() / 3600000) % hooks.length], tag: c.etiqueta || "Achadinho", accent: c.cor || "#D0306F" };
-    log(`  capa: quadro do vídeo (${cover.tag}) · "${cover.hook.replace(/\*/g, "")}"`);
-  }
-  if (!cover) throw new Error("Essa categoria ainda não tem foto de capa. Mande uma pelo bot (/capa categoria) ou use --categoria");
+  // sem capa no Reels: só o gancho da categoria entra na narração padrão (quando não há texto próprio)
+  const cfg = await coverConfig();
+  const slug = opt("--categoria") || categoryOf(p.name || "", cfg);
+  const c = cfg[slug] || {};
+  const ganchos = c.ganchos?.length ? c.ganchos : ["Eu *não acreditei* quando vi isso"];
+  const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || "#D0306F" };
   const fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
   if (fala) log(`Narração própria: "${fala}"`);
   // final: "me segue" + link da bio; o cupom só é citado se a vitrine tiver cupom ativo agora
@@ -182,9 +174,9 @@ async function main() {
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [
-    `${cover.hook.replace(/\*/g, "")} 👀`,
+    `${(fala || cover.hook).replace(/\*/g, "").slice(0, 150)} 👀`,
     "",
-    "Quanto você chutou? Comenta aí 👇",
+    "Você usaria? Comenta aqui 👇",
     "",
     "✅ Me segue que todo dia tem achado novo abaixo de R$ 50!",
     `🔎 Link na bio! Procura o #${offerId} na busca da vitrine${cupom ? " (e tem cupom da Shopee lá 🎟️)" : ""}.`,
