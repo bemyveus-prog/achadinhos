@@ -15,7 +15,7 @@ fi
 mkdir -p "$HOME/.local/share/fonts"
 if [ ! -s "$HOME/.local/share/fonts/NotoColorEmoji.ttf" ]; then
   curl -fsSL --retry 3 -o "$HOME/.local/share/fonts/NotoColorEmoji.ttf" \
-    https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoColorEmoji.ttf \
+    https://raw.githubusercontent.com/google/fonts/main/ofl/notocoloremoji/NotoColorEmoji-Regular.ttf \
     || (timeout 300 sudo apt-get install -y -qq --no-install-recommends fonts-noto-color-emoji || true)
 fi
 fc-cache -f >/dev/null 2>&1 || true
