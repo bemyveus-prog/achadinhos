@@ -216,8 +216,34 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
       </footer>
 
       <div className={`toast ${toast ? "show" : ""}`} role="status">{toast}</div>
+      <Atividade onPick={(id) => { setQ(String(id)); window.scrollTo({ top: 0, behavior: "smooth" }); }} hidden={!!toast} />
       {sheet && <ShareSheet {...sheet} onClose={() => setSheet(null)} onCopied={() => flash("Link copiado!")} />}
     </main>
+  );
+}
+
+// Aviso no rodapé com atividade REAL da vitrine (cliques únicos das últimas horas)
+function Atividade({ onPick, hidden }) {
+  const [msgs, setMsgs] = useState([]);
+  const [i, setI] = useState(-1);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/atividade").then((r) => r.json()).then((d) => { if (alive) setMsgs(d.msgs || []); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    if (!msgs.length) return;
+    const first = setTimeout(() => setI(0), 4000);
+    const t = setInterval(() => setI((x) => (x + 1) % (msgs.length * 2)), 5000); // aparece 5 s, some 5 s
+    return () => { clearTimeout(first); clearInterval(t); };
+  }, [msgs]);
+  if (!msgs.length || i < 0) return null;
+  const visible = i % 2 === 0 && !hidden;
+  const m = msgs[Math.floor(i / 2) % msgs.length];
+  return (
+    <button type="button" className={`ativ ${visible ? "show" : ""}`} onClick={() => onPick(m.id)} aria-live="polite">
+      {m.text}
+    </button>
   );
 }
 

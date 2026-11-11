@@ -380,3 +380,13 @@ a { color: inherit; text-decoration: none; }
 .pp-prices strong { font-size: 24px; }
 .pp-cta { height: 48px; font-size: 16px; margin-top: 12px; }
 .pp-note { font-size: 11.5px; color: var(--muted); text-align: center; margin: 10px 0 0; }
+
+/* ===== Atividade real (rodapé) ===== */
+.ativ {
+  position: fixed; left: 50%; bottom: 16px; transform: translate(-50%, 24px); opacity: 0; z-index: 40;
+  max-width: calc(100% - 32px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: rgba(28, 25, 23, .92); color: #fff; padding: 11px 16px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; box-shadow: 0 10px 28px rgba(0, 0, 0, .25);
+  transition: opacity .35s, transform .35s; pointer-events: none;
+}
+.ativ.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }

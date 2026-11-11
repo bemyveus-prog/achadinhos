@@ -1,4 +1,5 @@
 import { db, hasDb } from "@/lib/supabase";
+import { clickDecision } from "@/lib/clicks";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,14 @@ export async function GET(req, { params }) {
   const { data } = await db().from("banners").select("link").eq("id", id).maybeSingle();
   if (!data?.link) return Response.redirect(home, 302);
 
-  await db().rpc("increment_banner_clicks", { banner_id: Number(id) }).then(() => {}, () => {});
-
-  return new Response(null, {
-    status: 302,
-    headers: { Location: data.link, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" },
-  });
+  const d = await clickDecision(req, `b${id}`);
+  if (d.count) {
+    await Promise.all([
+      db().rpc("increment_banner_clicks", { banner_id: Number(id) }).then(() => {}, () => {}),
+      db().from("click_events").insert({ banner_id: Number(id) }).then(() => {}, () => {}),
+    ]);
+  }
+  const headers = { Location: data.link, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" };
+  if (d.setCookie) headers["Set-Cookie"] = d.setCookie;
+  return new Response(null, { status: 302, headers });
 }

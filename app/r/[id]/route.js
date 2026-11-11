@@ -1,5 +1,6 @@
 import { db, hasDb } from "@/lib/supabase";
 import { DEMO_OFFERS } from "@/lib/demo";
+import { clickDecision } from "@/lib/clicks";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +18,15 @@ export async function GET(req, { params }) {
   const { data } = await db().from("offers").select("link").eq("id", id).maybeSingle();
   if (!data?.link) return Response.redirect(home, 302);
 
-  // conta o clique (rápido; feito antes de responder para não se perder em serverless)
-  await db().rpc("increment_clicks", { offer_id: Number(id) }).then(() => {}, () => {});
-
-  return new Response(null, {
-    status: 302,
-    headers: { Location: data.link, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" },
-  });
+  // conta o clique só se for gente de verdade, 1 vez por pessoa a cada 24 h (e não conta o admin)
+  const d = await clickDecision(req, `o${id}`);
+  if (d.count) {
+    await Promise.all([
+      db().rpc("increment_clicks", { offer_id: Number(id) }).then(() => {}, () => {}),
+      db().from("click_events").insert({ offer_id: Number(id) }).then(() => {}, () => {}),
+    ]);
+  }
+  const headers = { Location: data.link, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" };
+  if (d.setCookie) headers["Set-Cookie"] = d.setCookie;
+  return new Response(null, { status: 302, headers });
 }
