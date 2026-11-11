@@ -1,0 +1,36 @@
+name: Limpeza do Storage
+
+# Todo dia de madrugada apaga imagens e vídeos com mais de 7 dias (o espaço grátis do Supabase é de 1 GB).
+on:
+  schedule:
+    - cron: "41 6 * * *"   # ~03:41 (Brasília)
+  push:
+    branches: [limpeza-teste]   # teste em modo simulação
+  workflow_dispatch:
+    inputs:
+      simular:
+        description: "Só mostrar o que apagaria"
+        type: boolean
+        default: false
+
+jobs:
+  limpeza:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: automacao
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      LIMPEZA_DIAS: ${{ vars.LIMPEZA_DIAS }}
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: npm ci
+      - run: node limpeza.mjs ${{ (github.event_name == 'push' || inputs.simular) && '--simular' || '' }}
