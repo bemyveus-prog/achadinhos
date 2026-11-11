@@ -19,13 +19,15 @@ const reais = (v) => {
   return c ? `${r} reais e ${c}` : `${r} reais`;
 };
 
-export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false }) {
+export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false, modo = "instagram" }) {
   const n = number ? String(number).replace("#", "") : "";
   const prova = [p.rating >= 4.5 ? `nota ${num(Number(p.rating).toFixed(1))}` : "", p.sales >= 100 ? `mais de ${salesLabel(p.sales).replace("+", "")} vendidos` : ""].filter(Boolean).join(", ");
   const padrao = `${hook ? hook.replace(/\*/g, "").replace(/[.!?]*$/, "") + ". " : ""}${nome}.${prova ? ` ${prova[0].toUpperCase() + prova.slice(1)}.` : ""}`;
   return [
     { key: "produto", say: fala || padrao, min: 3.0 },
-    { key: "cta", say: `Me segue que todo dia tem achado novo abaixo de 50 reais! E corre no link da bio, ${cupom ? "que tem cupom da Shopee te esperando!" : `procura o número ${n}!`}`, min: 4.2 },
+    modo === "shopee"
+      ? { key: "cta", say: "Gostou? Toca no produto aqui embaixo e garante o seu!", min: 3.4 }
+      : { key: "cta", say: `Me segue que todo dia tem achado novo abaixo de 50 reais! E corre no link da bio, ${cupom ? "que tem cupom da Shopee te esperando!" : `procura o número ${n}!`}`, min: 4.2 },
   ];
 }
 
@@ -80,6 +82,16 @@ function pageHtml() {
   #bio{margin:34px auto 0;display:inline-flex;align-items:center;gap:20px;background:#fff;color:#2E1020;font-weight:800;font-size:56px;padding:22px 40px;border-radius:999px}
   #bio i{font-style:normal;background:var(--ac);color:#fff;padding:4px 22px;border-radius:999px}
   #flash{inset:0;background:#fff;opacity:0}
+  #shp{left:60px;right:60px;top:820px;text-align:center;color:#fff;opacity:0}
+  #shp h2{font-weight:800;font-size:76px;line-height:1.08;letter-spacing:-2px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
+  #shp h2 span{color:#FFD54A}
+  #shparrow{font-size:130px;margin-top:20px}
+  #shpcard{margin:30px auto 0;display:flex;align-items:center;gap:22px;background:#fff;color:#222;border-radius:26px;padding:18px 22px;width:900px;text-align:left;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+  #shpcard img{width:130px;height:130px;object-fit:contain;border-radius:14px;background:#f3f3f3}
+  #shpcard div{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+  #shpcard b{font-size:36px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #shpcard i{font-style:normal;font-size:44px;font-weight:800;color:#EE4D2D}
+  #shpcard em{font-style:normal;background:#EE4D2D;color:#fff;font-weight:800;font-size:38px;padding:16px 26px;border-radius:16px}
 </style></head><body>
 <div id="coverbg" class="abs"></div><div id="cover" class="abs"></div><div id="veil" class="abs"></div>
 <div id="tag" class="abs"></div><div id="hook" class="abs"></div>
@@ -92,6 +104,8 @@ function pageHtml() {
 <div id="prof" class="abs"><div id="ava"></div><div id="pinfo"><div id="phandle"></div><div id="ptag">Achadinhos todo dia</div><div id="follow">Seguir</div></div></div>
 <div id="ring" class="abs"></div><div id="finger" class="abs">👆</div>
 <div id="cta" class="abs"><h2 id="ctah"></h2><span class="emo">👆</span><div id="bio">Link na bio <i id="num"></i></div><br><div id="coupon">🎟️ Cupom da Shopee hoje</div></div>
+<div id="shp" class="abs"><h2>Gostou? <span>Toque no produto</span> aqui embaixo</h2><div id="shparrow">⬇️</div>
+  <div id="shpcard"><img id="shpimg"><div><b id="shpname"></b><i id="shpprice"></i></div><em>Comprar</em></div></div>
 <div id="flash" class="abs"></div>
 <script>
 const $=(i)=>document.getElementById(i);
@@ -107,6 +121,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   $("phandle").textContent=d.handle||"@minh.asofertas";
   if(d.avatar){$("ava").style.backgroundImage="url("+d.avatar+")"}else{$("ava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
   $("coupon").style.display=d.cupom?"inline-block":"none";
+  $("shpimg").src=d.img;$("shpname").textContent=d.nome||"";$("shpprice").textContent=d.price||"";
   if(!d.number)$("num").style.display="none";
   let a=0;starts=d.scenes.map(s=>{const v=a;a+=s.dur;return v});
   return document.fonts.ready.then(()=>new Promise(r=>$("photo").complete?r():($("photo").onload=r)));};
@@ -142,7 +157,14 @@ window.render=(t)=>{
   $("price").querySelector("small").style.opacity=key==="preco"?ease(lt/0.2):0;
   $("pv").style.transform="scale("+(key==="preco"?0.3+0.7*back((lt-0.1)/0.4):0)+") rotate(-3deg)";
   // 5. chamada
-  const isC=key==="cta";
+  const shopee=D.modo==="shopee";
+  const isC=key==="cta"&&!shopee;
+  // modo Shopee Vídeo: chama para o produto vinculado embaixo do vídeo (sem "seguir" nem "link na bio")
+  const isS=key==="cta"&&shopee;
+  show($("shp"),isS?ease(lt/0.35):0,40);
+  $("shparrow").style.transform="translateY("+(isS?Math.abs(Math.sin(t*5))*30:0)+"px)";
+  $("shpcard").style.transform="scale("+(isS?1+0.03*Math.sin(t*6):1)+")";
+  if(isS){$("card").style.opacity=1-ease(lt/0.3)}
   // 1) cartão do perfil entra e o dedo toca em "Seguir" (vira "Seguindo ✓")
   show($("prof"),isC?ease(lt/0.35):0,60);
   if(isC){$("card").style.opacity=1-ease(lt/0.3)}
@@ -204,13 +226,13 @@ async function clipFrames(file, maxSec, dir) {
   return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
 }
 
-export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, log = console.log }) {
+export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, modo = "instagram", log = console.log }) {
   const { chromium } = await import("playwright");
   await mkdir(outDir, { recursive: true });
   const tmp = path.join(outDir, "_tmp");
   await mkdir(tmp, { recursive: true });
   comment = comment || "Quanto você chutou? Comenta aí!";
-  const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom });
+  const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom, modo });
   // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)
   process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
   const voice = await narrate(scenes.map((s) => s.say), tmp, log);
@@ -249,6 +271,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     subs: (() => { const w = scenes[0].say.split(/\s+/).filter(Boolean); const out = []; for (let i = 0; i < w.length; i += 5) out.push(w.slice(i, i + 5).join(" ")); return out; })(),
     voiceDur: voice[0]?.duration || 0,
     handle: handle || "@minh.asofertas",
+    modo,
     avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null,
     cupom,
   };

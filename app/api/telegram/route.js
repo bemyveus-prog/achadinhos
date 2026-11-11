@@ -19,6 +19,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/comissao</b> fone bluetooth → só pela maior comissão, mesmo com poucas vendas
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
+<b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
 <b>/top</b> título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
@@ -51,6 +52,7 @@ export async function GET(req) {
     { command: "loja", description: "Buscar loja oficial pelo nome" },
     { command: "reels", description: "Gerar Reels: /reels 105 SKU-CJ" },
     { command: "top", description: "Reels com vários produtos (Top N)" },
+    { command: "shopee", description: "Vídeo para o Shopee Vídeo: /shopee 131 SKU texto" },
     { command: "ajuda", description: "Como usar" },
   ] });
   const info = await tg("getWebhookInfo", {});
@@ -95,9 +97,9 @@ async function onText(msg) {
   if (!hasShopeeApi()) return say(chat, "Falta SHOPEE_APP_ID/SHOPEE_APP_SECRET na Vercel.");
 
   if (cmd === "top") return startTop(chat, text);
-  if (cmd === "reels") {
+  if (cmd === "reels" || cmd === "shopee") {
     const { head, fala } = parseReels(text);
-    return startReels(chat, head, fala);
+    return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : "instagram");
   }
   if (cmd === "loja" || cmd === "lojas") {
     if (!arg) return say(chat, "Ex.: /loja samsung  ou  /loja vult");
@@ -365,7 +367,7 @@ async function addShop(chat, q, shopId) {
 
 // ---------- Reels sob encomenda: dispara o workflow "Reels v2" no GitHub ----------
 const REPO = process.env.GITHUB_REPO || "bemyveus-prog/achadinhos";
-async function startReels(chat, parts, fala = "", video = "") {
+async function startReels(chat, parts, fala = "", video = "", modo = "instagram") {
   const args = parts.filter(Boolean);
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
@@ -385,7 +387,7 @@ async function startReels(chat, parts, fala = "", video = "") {
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/reels-v2.yml/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "vitrine-bot" },
-    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, ...(postar ? { postar: "true" } : {}) } }),
+    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, modo, ...(postar ? { postar: "true" } : {}) } }),
     cache: "no-store",
   });
   if (r.status !== 204) {
@@ -393,12 +395,13 @@ async function startReels(chat, parts, fala = "", video = "") {
     let msg = t; try { msg = JSON.parse(t).message || t; } catch {}
     return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? "Confira no token: dono = bemyveus-prog, repositório achadinhos e permissão Actions: Read and write." : ""}`);
   }
+  if (modo === "shopee") return say(chat, `🛍️ Gerando o vídeo do <b>#${num}</b> para o <b>Shopee Vídeo</b>${video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " e a sua narração" : ""}.\nChega aqui em uns 2 minutos.`);
   return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${video && sku ? ` com o seu vídeo + o vídeo da CJ (<code>${esc(sku)}</code>)` : video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " com a sua narração" : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
 }
 
 // "/reels 123 SKU texto: narração" (o texto também pode vir nas linhas de baixo)
 function parseReels(text) {
-  const full = String(text || "").replace(/^\/?reels(@\S+)?/i, "").trim();
+  const full = String(text || "").replace(/^\/?(reels|shopee)(@\S+)?/i, "").trim();
   const m = full.match(/^(.*?)(?:\btexto:|\n)([\s\S]*)$/i);
   const head = (m ? m[1] : full).trim().split(/\s+/).filter(Boolean);
   const fala = m ? m[2].replace(/\s+/g, " ").trim() : "";
@@ -410,7 +413,7 @@ async function onVideo(msg) {
   const chat = msg.chat.id;
   if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
   const cap = (msg.caption || "").trim();
-  if (!/^\/?reels\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
+  if (!/^\/?(reels|shopee)\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
   const v = msg.video || msg.document;
   if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "O Telegram só deixa o bot baixar vídeos de até 20 MB. Mande uma versão menor (ex.: cortada ou em 720p).");
   if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
@@ -425,7 +428,7 @@ async function onVideo(msg) {
   const { error } = await db().storage.from("reels-videos").upload(name, buf, { contentType: type });
   if (error) return say(chat, `Erro ao guardar o vídeo: ${esc(error.message)}`);
   const { head, fala } = parseReels(cap);
-  return startReels(chat, head, fala, name);
+  return startReels(chat, head, fala, name, /^\/?shopee\b/i.test(cap) ? "shopee" : "instagram");
 }
 
 // ---------- aprovação de Reels ----------

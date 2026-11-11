@@ -20,6 +20,9 @@ on:
       video:
         description: "Vídeo enviado pelo bot (nome no Storage reels-videos), opcional"
         default: ""
+      modo:
+        description: "instagram (final com Seguir + link da bio) ou shopee (final chamando para o produto do Shopee Vídeo)"
+        default: "instagram"
       fala:
         description: "Texto narrado na parte do produto (opcional)"
         default: ""
@@ -60,6 +63,7 @@ jobs:
         env:
           CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
           REELS_FALA: ${{ inputs.fala }}
+          REELS_MODO: ${{ inputs.modo }}
           REELS_VIDEO: ${{ inputs.video }}
           INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
           SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}

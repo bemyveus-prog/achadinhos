@@ -170,7 +170,9 @@ async function main() {
     }
   } catch (e) { log(`  avatar: ${e.message}`); }
   log(`  final: ${cupom ? `com cupom (${cupons} ativos)` : "sem cupom ativo"} · ${avatar ? "com foto do perfil" : "sem foto do perfil (mande /avatar no bot)"}`);
-  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), log });
+  const modo = env("REELS_MODO", "instagram") === "shopee" ? "shopee" : "instagram";
+  if (modo === "shopee") log("Modo Shopee Vídeo: final chamando para o produto vinculado");
+  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, modo, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), log });
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [
@@ -188,6 +190,25 @@ async function main() {
   // capa vertical para o pin do Pinterest
   const { makePinImage } = await import("./lib/pins.mjs");
   await makePinImage({ id: offerId, title: p.name, image_url: p.imageUrl, price: p.price, sales: p.sales, rating: p.rating }, { log }).catch((e) => log(`  pin: ${e.message}`));
+
+  // Shopee Vídeo: não tem postagem automática; o vídeo vai para o Telegram para você subir no app
+  if (modo === "shopee") {
+    const { data: off } = await sb.from("offers").select("link").eq("id", offerId).maybeSingle();
+    const legShopee = [
+      `${(fala || cover.hook).replace(/\*/g, "").slice(0, 120)}`,
+      "",
+      "👇 Toque no produto aqui embaixo para ver o preço de hoje!",
+      "",
+      "#achadinhos #achadosdashopee #shopee #comprinhas #oferta",
+    ].join("\n");
+    await writeFile(path.join(outDir, "legenda-shopee.txt"), legShopee + "\n");
+    if (hasTelegram()) {
+      await sendVideo(file, `🛍️ Shopee Vídeo #${offerId} (${seconds.toFixed(0)} s)\n\nNo app Shopee: Vídeo → postar → vincule o produto #${offerId}${off?.link ? ` (${off.link})` : ""}.\n\nLegenda:\n\n${legShopee}`.slice(0, 1024));
+      log("Enviado no Telegram (Shopee Vídeo).");
+    }
+    console.log(scenes.map((x, i) => `${i + 1}. [${x.key}] ${x.say}`).join("\n"));
+    return;
+  }
 
   const postarJa = args.includes("--postar");
   if (hasTelegram()) {
