@@ -14,6 +14,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: |
+          npm ci
+          npx playwright install chromium
       - run: node sv-teste.mjs
         env:
           SV_LINK: "https://shopee.com.br/universal-link?redir=https%3A%2F%2Fsv.shopee.com.br%2Fshare-video%2FiaERDIBQCgBn4kAvAAAAAA%3D%3D%3FfromSource%3Dcopy_link%26fromShareLink%3Dshare-marker%26shareUserId%3D792781415%26contentType%3D0%26jumpType%3Dshare%26pid%3Dsv%26c%3Dshare_web%26share_obj%3Dvideo%26myVideo%3Dtrue&deep_and_web=1&smtt=0.0.9"
