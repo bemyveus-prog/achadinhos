@@ -26,6 +26,12 @@ on:
       fala:
         description: "Texto narrado na parte do produto (opcional)"
         default: ""
+      gerar_fala:
+        description: "1 = criar a narração a partir do produto (vídeos do grupo)"
+        default: ""
+      contexto:
+        description: "Texto que veio com o vídeo (ajuda a criar a narração)"
+        default: ""
       postar:
         description: "Postar no Instagram"
         type: boolean
@@ -64,6 +70,10 @@ jobs:
           CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
           REELS_FALA: ${{ inputs.fala }}
           REELS_MODO: ${{ inputs.modo }}
+          REELS_GERAR_FALA: ${{ inputs.gerar_fala }}
+          REELS_CONTEXTO: ${{ inputs.contexto }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL_NARRACAO: ${{ vars.ANTHROPIC_MODEL_NARRACAO }}
           REELS_VIDEO: ${{ inputs.video }}
           INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
           SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}

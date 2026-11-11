@@ -1,4 +1,5 @@
 import { isAdmin, unauthorized } from "@/lib/auth";
+import { importFromUrl } from "@/lib/importer";
 import { db, hasDb } from "@/lib/supabase";
 import { hasShopeeApi, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
 import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
@@ -20,6 +21,8 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
+📲 <b>Vídeos do grupo do WhatsApp</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
+<b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 <b>/top</b> título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
@@ -52,6 +55,7 @@ export async function GET(req) {
     { command: "loja", description: "Buscar loja oficial pelo nome" },
     { command: "reels", description: "Gerar Reels: /reels 105 SKU-CJ" },
     { command: "top", description: "Reels com vários produtos (Top N)" },
+    { command: "modo", description: "Formato dos vídeos encaminhados: shopee, reels ou ambos" },
     { command: "shopee", description: "Vídeo para o Shopee Vídeo: /shopee 131 SKU texto" },
     { command: "ajuda", description: "Como usar" },
   ] });
@@ -88,6 +92,18 @@ async function onText(msg) {
     return;
   }
   const text = msg.text.trim();
+  // texto do grupo com link da Shopee logo depois de um vídeo sem legenda
+  if (!text.startsWith("/") && hasDb()) {
+    const url = (text.match(/https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
+    if (url) {
+      const { data: pend } = await db().from("bot_config").select("value").eq("key", "video_pendente").maybeSingle();
+      let pv = null; try { pv = JSON.parse(pend?.value || "null"); } catch {}
+      if (pv && Date.now() - pv.at < 10 * 60000) {
+        await db().from("bot_config").delete().eq("key", "video_pendente");
+        return importGroupVideo({ chat: msg.chat, video: { file_id: pv.file_id, file_size: pv.file_size } }, text, url);
+      }
+    }
+  }
   const [cmdRaw, ...rest] = text.split(/\s+/);
   const cmd = cmdRaw.startsWith("/") ? cmdRaw.slice(1).split("@")[0].toLowerCase() : null;
   const arg = (cmd ? rest.join(" ") : text).trim();
@@ -97,6 +113,7 @@ async function onText(msg) {
   if (!hasShopeeApi()) return say(chat, "Falta SHOPEE_APP_ID/SHOPEE_APP_SECRET na Vercel.");
 
   if (cmd === "top") return startTop(chat, text);
+  if (cmd === "modo") return setModo(chat, arg);
   if (cmd === "reels" || cmd === "shopee") {
     const { head, fala } = parseReels(text);
     return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : "instagram");
@@ -367,7 +384,7 @@ async function addShop(chat, q, shopId) {
 
 // ---------- Reels sob encomenda: dispara o workflow "Reels v2" no GitHub ----------
 const REPO = process.env.GITHUB_REPO || "bemyveus-prog/achadinhos";
-async function startReels(chat, parts, fala = "", video = "", modo = "instagram") {
+async function startReels(chat, parts, fala = "", video = "", modo = "instagram", extra = {}) {
   const args = parts.filter(Boolean);
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
@@ -387,7 +404,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/reels-v2.yml/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "vitrine-bot" },
-    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, modo, ...(postar ? { postar: "true" } : {}) } }),
+    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, modo, ...(extra.gerarFala ? { gerar_fala: "1", contexto: String(extra.contexto || "").slice(0, 900) } : {}), ...(postar ? { postar: "true" } : {}) } }),
     cache: "no-store",
   });
   if (r.status !== 204) {
@@ -413,6 +430,14 @@ async function onVideo(msg) {
   const chat = msg.chat.id;
   if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
   const cap = (msg.caption || "").trim();
+  const shopeeUrl = (cap.match(/https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
+  if (!/^\/?(reels|shopee)\b/i.test(cap) && shopeeUrl) return importGroupVideo(msg, cap, shopeeUrl);
+  if (!cap) {
+    // encaminhado do WhatsApp às vezes chega com o texto separado: guarda e espera a mensagem com o link
+    const v = msg.video || msg.document;
+    await db().from("bot_config").upsert({ key: "video_pendente", value: JSON.stringify({ file_id: v.file_id, file_size: v.file_size || 0, at: Date.now() }), updated_at: new Date().toISOString() });
+    return say(chat, "🎥 Recebi o vídeo. Agora manda (ou encaminha) o texto com o link da Shopee.");
+  }
   if (!/^\/?(reels|shopee)\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
   const v = msg.video || msg.document;
   if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "O Telegram só deixa o bot baixar vídeos de até 20 MB. Mande uma versão menor (ex.: cortada ou em 720p).");
@@ -519,4 +544,61 @@ async function startTop(chat, text) {
   try { await dispatchWorkflow("reels-top.yml", { roteiro }); }
   catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
   return say(chat, `🎬 Gerando o Top ${items.length}: <b>${esc(title)}</b>\n${items.map((i, k) => `${k + 1}. #${i.id}${i.sku ? " (vídeo CJ)" : ""}`).join("\n")}\nChega aqui em uns 3 minutos.`);
+}
+
+// ---------- vídeos encaminhados do grupo do WhatsApp ----------
+async function getModo() {
+  const { data } = await db().from("bot_config").select("value").eq("key", "modo_grupo").maybeSingle();
+  return ["shopee", "reels", "ambos"].includes(data?.value) ? data.value : "shopee";
+}
+async function setModo(chat, arg) {
+  const v = String(arg || "").toLowerCase().trim();
+  if (!["shopee", "reels", "ambos"].includes(v)) return say(chat, `Formato atual dos vídeos encaminhados: <b>${await getModo()}</b>\nUse: /modo shopee · /modo reels · /modo ambos`);
+  await db().from("bot_config").upsert({ key: "modo_grupo", value: v, updated_at: new Date().toISOString() });
+  return say(chat, `✅ Vídeos encaminhados agora viram: <b>${v === "ambos" ? "Shopee Vídeo + Reels" : v === "reels" ? "Reels do Instagram" : "Shopee Vídeo"}</b>`);
+}
+
+async function importGroupVideo(msg, cap, shopeeUrl) {
+  const chat = msg.chat.id;
+  const v = msg.video || msg.document;
+  if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "Esse vídeo passa de 20 MB (limite do Telegram para o bot baixar).");
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  await tg("sendChatAction", { chat_id: chat, action: "upload_video" }).catch(() => {});
+
+  // 1) produto com o SEU link de afiliado (o link do grupo é de outra pessoa)
+  let info;
+  try { info = await importFromUrl(shopeeUrl, { forceOwnLink: true, subId: "grupo" }); }
+  catch (e) { return say(chat, `Não consegui ler o link da Shopee: ${esc(e.message)}`); }
+  if (!info?.title || !info?.item_id) return say(chat, "Não achei esse produto na API de afiliados da Shopee (talvez ele não pague comissão). Pulei.");
+
+  // não duplica: se o produto já está na vitrine, usa o mesmo número
+  let offerId;
+  const { data: dup } = await db().from("offers").select("id").eq("description", `grupo:${info.shop_id}:${info.item_id}`).eq("active", true).limit(1);
+  if (dup?.length) offerId = dup[0].id;
+  else {
+    const dias = Number(process.env.DIAS_NA_VITRINE || 15);
+    const { data: row, error } = await db().from("offers").insert({
+      kind: "produto", title: String(info.title).slice(0, 120), description: `grupo:${info.shop_id}:${info.item_id}`,
+      image_url: info.image_url, price: info.price, original_price: info.original_price, link: info.link,
+      platform: "shopee", active: true, expires_at: dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null,
+    }).select("id").single();
+    if (error) return say(chat, `Erro ao gravar na vitrine: ${esc(error.message)}`);
+    offerId = row.id;
+  }
+
+  // 2) guarda o vídeo
+  const f = await tg("getFile", { file_id: v.file_id });
+  const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
+  if (!res.ok) return say(chat, "Não consegui baixar o vídeo do Telegram.");
+  const name = `${Date.now()}.mp4`;
+  const { error: upErr } = await db().storage.from("reels-videos").upload(name, Buffer.from(await res.arrayBuffer()), { contentType: "video/mp4" });
+  if (upErr) return say(chat, `Erro ao guardar o vídeo: ${esc(upErr.message)}`);
+
+  // 3) gera o(s) vídeo(s) com narração criada a partir do produto e do texto do grupo
+  const modo = await getModo();
+  const contexto = cap.replace(shopeeUrl, "").trim();
+  const extra = { gerarFala: true, contexto };
+  const modos = modo === "ambos" ? ["shopee", "instagram"] : [modo === "reels" ? "instagram" : "shopee"];
+  for (const m of modos) await startReels(chat, [String(offerId)], "", name, m, extra);
+  return say(chat, `📥 <b>#${offerId}</b> ${esc(String(info.title).slice(0, 80))}\n${info.price ? `💰 ${brl(info.price)} · ` : ""}${info.commission ? `💸 ${info.commission}%` : ""}\n🔗 seu link: ${esc(info.link)}`);
 }

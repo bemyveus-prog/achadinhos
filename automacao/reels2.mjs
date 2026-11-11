@@ -9,7 +9,8 @@ import path from "path";
 import { writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
-import { hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
+import { gql, hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
+import { gerarNarracao } from "./lib/narracao.mjs";
 import { normalize, score } from "./lib/escolha.mjs";
 import { pickCover, categoriesWithImages, coverConfig, categoryOf } from "./lib/capas.mjs";
 import { execFile } from "child_process";
@@ -59,6 +60,15 @@ async function main() {
     if (error) throw new Error(`Oferta #${offerId}: ${error.message}`);
     const { data: pick } = await sb.from("auto_picks").select("sales,rating").eq("offer_id", offerId).maybeSingle();
     p = { name: data.title, imageUrl: data.image_url, price: Number(data.price), sales: pick?.sales || 0, rating: pick?.rating || 0 };
+    // produto que veio do grupo: busca nota e vendas na API (description = "grupo:shopId:itemId")
+    const g = String(data.description || "").match(/^grupo:(\d+):(\d+)$/);
+    if (g && hasShopeeApi()) {
+      try {
+        const d = await gql(`{ productOfferV2(shopId: ${g[1]}, itemId: ${g[2]}, limit: 1) { nodes { sales ratingStar } } }`);
+        const n = d?.productOfferV2?.nodes?.[0];
+        if (n) { p.sales = Number(n.sales) || 0; p.rating = Number(n.ratingStar) || 0; }
+      } catch {}
+    }
   } else {
     if (!hasShopeeApi()) throw new Error("Configure SHOPEE_APP_ID e SHOPEE_APP_SECRET");
     let keyword = opt("--busca") || "blusa feminina";
@@ -150,7 +160,8 @@ async function main() {
   const c = cfg[slug] || {};
   const ganchos = c.ganchos?.length ? c.ganchos : ["Eu *não acreditei* quando vi isso"];
   const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || "#D0306F" };
-  const fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
+  let fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
+  if (!fala && env("REELS_GERAR_FALA", "") === "1") fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), log });
   if (fala) log(`Narração própria: "${fala}"`);
   // final: "me segue" + link da bio; o cupom só é citado se a vitrine tiver cupom ativo agora
   const agora = new Date().toISOString();
