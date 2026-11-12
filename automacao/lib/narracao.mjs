@@ -104,7 +104,7 @@ Narração do vídeo (para combinar o tom): """${String(fala).slice(0, 300)}"""
 Regras:
 - TOTAL com as hashtags: no máximo 140 caracteres (conte espaços e #).
 - 1 frase curta e chamativa (pode ter 1 emoji) + de 3 a 5 hashtags.
-- Hashtags = palavras-chave que um cliente digitaria na busca da Shopee para achar ESTE produto (ex.: para um escorredor de louça: #escorredordelouca #escorredorinox #organizacaocozinha). Tudo minúsculo, sem acento, sem espaço. No máximo 1 hashtag genérica.
+- Hashtags em PORTUGUÊS DO BRASIL = palavras-chave que um cliente digitaria na busca da Shopee Brasil para achar ESTE produto (ex.: para um escorredor de louça: #escorredordelouca #escorredorinox #organizacaocozinha). Tudo minúsculo, sem acento, sem espaço. No máximo 1 hashtag genérica.
 - Não fale de preço, nota, vendas, link ou bio.
 Responda só com a legenda pronta.`;
   try {
