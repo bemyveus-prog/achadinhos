@@ -6,6 +6,7 @@ import { mkdir, writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { renderTop } from "./lib/reelstop.mjs";
+import { gerarNarracao } from "./lib/narracao.mjs";
 import { shortName } from "./lib/textos.mjs";
 import { hasTelegram, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, postReel, uploadPublic } from "./lib/social.mjs";
@@ -39,7 +40,9 @@ async function main() {
         else log(`#${it.id}: SKU ${it.sku} sem vídeo grátis; vai com a foto`);
       } catch (e) { log(`#${it.id}: CJ ${e.message}; vai com a foto`); }
     }
-    items.push({ id: o.id, name: shortName(o.title, 5), imageUrl: o.image_url, price: Number(o.price) || 0, fala: (it.fala || "").slice(0, 300), clipFile });
+    let fala = (it.fala || "").slice(0, 300);
+    if (!fala && process.env.ANTHROPIC_API_KEY) fala = await gerarNarracao({ name: o.title, price: Number(o.price) || 0 }, { max: 140, log });
+    items.push({ id: o.id, name: shortName(o.title, 5), imageUrl: o.image_url, price: Number(o.price) || 0, fala, clipFile });
   }
   if (!items.length) throw new Error("Nenhum produto válido no roteiro");
 

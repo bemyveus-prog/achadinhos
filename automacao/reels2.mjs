@@ -161,7 +161,8 @@ async function main() {
   const ganchos = c.ganchos?.length ? c.ganchos : ["Eu *não acreditei* quando vi isso"];
   const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || "#D0306F" };
   let fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
-  if (!fala && env("REELS_GERAR_FALA", "") === "1") fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), log });
+  // sem texto seu: com a chave da IA, a narração é escrita para este produto (senão usa o texto padrão)
+  if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), log });
   if (fala) log(`Narração própria: "${fala}"`);
   // final: "me segue" + link da bio; o cupom só é citado se a vitrine tiver cupom ativo agora
   const agora = new Date().toISOString();

@@ -100,7 +100,8 @@ async function onText(msg) {
       let pv = null; try { pv = JSON.parse(pend?.value || "null"); } catch {}
       if (pv && Date.now() - pv.at < 10 * 60000) {
         await db().from("bot_config").delete().eq("key", "video_pendente");
-        return importGroupVideo({ chat: msg.chat, video: { file_id: pv.file_id, file_size: pv.file_size } }, text, url);
+        const fake = { chat: msg.chat, video: { file_id: pv.file_id, file_size: pv.file_size } };
+        return isVideoLink(url) ? identifyGroupVideo(fake, text) : importGroupVideo(fake, text, url);
       }
     }
   }
@@ -216,6 +217,7 @@ async function onButton(q) {
   }
   if (data.startsWith("ls:")) return addShop(chat, q, data.split(":")[1]);
   if (data.startsWith("pub:") || data.startsWith("nopub:")) return approveReels(chat, q, data);
+  if (data.startsWith("gp:") || data.startsWith("gpx:")) return chooseGroupProduct(chat, q, data);
 
   if (data.startsWith("more:")) {
     await tg("answerCallbackQuery", { callback_query_id: q.id });
@@ -431,7 +433,10 @@ async function onVideo(msg) {
   if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
   const cap = (msg.caption || "").trim();
   const shopeeUrl = (cap.match(/https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
-  if (!/^\/?(reels|shopee)\b/i.test(cap) && shopeeUrl) return importGroupVideo(msg, cap, shopeeUrl);
+  const isCmd = /^\/?(reels|shopee)\b/i.test(cap);
+  // link do Shopee Vídeo (não traz o produto) ou texto sem link: a IA identifica o produto pelo vídeo
+  if (!isCmd && (isVideoLink(shopeeUrl) || (cap && !shopeeUrl))) return identifyGroupVideo(msg, cap);
+  if (!isCmd && shopeeUrl) return importGroupVideo(msg, cap, shopeeUrl);
   if (!cap) {
     // encaminhado do WhatsApp às vezes chega com o texto separado: guarda e espera a mensagem com o link
     const v = msg.video || msg.document;
@@ -568,8 +573,9 @@ async function importGroupVideo(msg, cap, shopeeUrl) {
   // 1) produto com o SEU link de afiliado (o link do grupo é de outra pessoa)
   let info;
   try { info = await importFromUrl(shopeeUrl, { forceOwnLink: true, subId: "grupo" }); }
-  catch (e) { return say(chat, `Não consegui ler o link da Shopee: ${esc(e.message)}`); }
-  if (!info?.title || !info?.item_id) return say(chat, "Não achei esse produto na API de afiliados da Shopee (talvez ele não pague comissão). Pulei.");
+  catch { return identifyGroupVideo(msg, cap); }
+  // link curto que leva a um vídeo (não a um produto): tenta identificar pela imagem
+  if (!info?.title || !info?.item_id) return identifyGroupVideo(msg, cap);
 
   // não duplica: se o produto já está na vitrine, usa o mesmo número
   let offerId;
@@ -601,4 +607,72 @@ async function importGroupVideo(msg, cap, shopeeUrl) {
   const modos = modo === "ambos" ? ["shopee", "instagram"] : [modo === "reels" ? "instagram" : "shopee"];
   for (const m of modos) await startReels(chat, [String(offerId)], "", name, m, extra);
   return say(chat, `📥 <b>#${offerId}</b> ${esc(String(info.title).slice(0, 80))}\n${info.price ? `💰 ${brl(info.price)} · ` : ""}${info.commission ? `💸 ${info.commission}%` : ""}\n🔗 seu link: ${esc(info.link)}`);
+}
+
+// ---------- vídeo do grupo sem link de produto: identificação pela IA ----------
+const isVideoLink = (u) => Boolean(u) && /sv\.shopee|share-video|universal-link/i.test(decodeURIComponent(u));
+
+async function saveTelegramVideo(v) {
+  const f = await tg("getFile", { file_id: v.file_id });
+  const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Não consegui baixar o vídeo do Telegram.");
+  const name = `${Date.now()}.mp4`;
+  const { error } = await db().storage.from("reels-videos").upload(name, Buffer.from(await res.arrayBuffer()), { contentType: "video/mp4" });
+  if (error) throw new Error(`Erro ao guardar o vídeo: ${error.message}`);
+  return name;
+}
+
+async function identifyGroupVideo(msg, cap) {
+  const chat = msg.chat.id;
+  const v = msg.video || msg.document;
+  if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "Esse vídeo passa de 20 MB (limite do Telegram para o bot baixar).");
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  let name;
+  try { name = await saveTelegramVideo(v); } catch (e) { return say(chat, esc(e.message)); }
+  const contexto = String(cap || "").replace(/https?:\/\/\S+/g, "").trim().slice(0, 900);
+  const { data: row, error } = await db().from("grupo_pendentes").insert({ video: name, contexto }).select("id").single();
+  if (error) return say(chat, `Erro: ${esc(error.message)}`);
+  try { await dispatchWorkflow("identificar.yml", { id: String(row.id) }); }
+  catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+  return say(chat, "🔎 Esse link é de vídeo (não do produto). Vou identificar o produto pela imagem e te mando as opções em ~1 minuto.");
+}
+
+async function chooseGroupProduct(chat, q, data) {
+  const [action, id, k] = data.split(":");
+  const { data: row } = await db().from("grupo_pendentes").select("*").eq("id", Number(id)).maybeSingle();
+  if (!row) return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Não achei esse vídeo" });
+  if (row.status === "feito") return tg("answerCallbackQuery", { callback_query_id: q.id, text: `Já escolhido (#${row.offer_id})` });
+  if (action === "gpx") {
+    await db().from("grupo_pendentes").update({ status: "nenhum" }).eq("id", row.id);
+    await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Descartado" });
+    return say(chat, "Ok, descartei. Se souber o produto, mande o vídeo de novo com o link do PRODUTO (no app: toque no produto do vídeo → Compartilhar → Copiar link).");
+  }
+  const p = (row.candidatos || [])[Number(k)];
+  if (!p) return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Opção inválida" });
+  await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Boa! Gerando o vídeo…" });
+
+  // produto na vitrine com o SEU link
+  let offerId;
+  const key = `grupo:${p.shopId}:${p.itemId}`;
+  const { data: dup } = await db().from("offers").select("id").eq("description", key).eq("active", true).limit(1);
+  if (dup?.length) offerId = dup[0].id;
+  else {
+    let link = p.offerLink;
+    try { link = (await shopeeShortLinkSub(p.productLink || p.offerLink, "grupo")) || link; } catch {}
+    const dias = Number(process.env.DIAS_NA_VITRINE || 15);
+    const { data: ins, error } = await db().from("offers").insert({
+      kind: "produto", title: String(p.name).slice(0, 120), description: key, image_url: p.imageUrl, price: p.price || null,
+      original_price: p.originalPrice || null, link, platform: "shopee", active: true,
+      expires_at: dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null,
+    }).select("id").single();
+    if (error) return say(chat, `Erro ao gravar na vitrine: ${esc(error.message)}`);
+    offerId = ins.id;
+  }
+  await db().from("grupo_pendentes").update({ status: "feito", offer_id: offerId }).eq("id", row.id);
+  if (q.message?.message_id) {
+    await tg("editMessageReplyMarkup", { chat_id: chat, message_id: q.message.message_id, reply_markup: { inline_keyboard: [[{ text: `✅ Escolhido · #${offerId}`, callback_data: "noop" }]] } }).catch(() => {});
+  }
+  const modo = await getModo();
+  const modos = modo === "ambos" ? ["shopee", "instagram"] : [modo === "reels" ? "instagram" : "shopee"];
+  for (const m of modos) await startReels(chat, [String(offerId)], "", row.video, m, { gerarFala: true, contexto: [row.descricao, row.contexto].filter(Boolean).join(". ") });
 }

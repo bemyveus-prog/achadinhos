@@ -41,6 +41,8 @@ jobs:
           META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
           META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
           CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL_NARRACAO: ${{ vars.ANTHROPIC_MODEL_NARRACAO }}
           FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
           FISH_VOICE_ID: ${{ vars.FISH_VOICE_ID }}
           EDGE_VOICE: ${{ vars.EDGE_VOICE }}

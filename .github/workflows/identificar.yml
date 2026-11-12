@@ -1,0 +1,43 @@
+name: Identificar produto (vídeo do grupo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        description: "Linha da tabela grupo_pendentes"
+        required: true
+
+jobs:
+  identificar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: automacao
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+      SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_MODEL_VISAO: ${{ vars.ANTHROPIC_MODEL_VISAO }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - name: Instalar
+        run: |
+          npm ci
+          if ! command -v ffmpeg >/dev/null; then
+            mkdir -p "$HOME/ffmpeg-bin"
+            curl -fsSL --retry 3 https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
+              | tar -xJ --strip-components=2 -C "$HOME/ffmpeg-bin" --wildcards '*/bin/ffmpeg' '*/bin/ffprobe'
+            echo "$HOME/ffmpeg-bin" >> "$GITHUB_PATH"
+          fi
+      - run: node identificar.mjs --id "${{ inputs.id }}"
