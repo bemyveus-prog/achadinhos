@@ -1,6 +1,7 @@
 // Narração curta (até ~300 caracteres) a partir dos dados do produto e do texto que veio no grupo.
 // Com ANTHROPIC_API_KEY usa o Claude (padrão: Haiku, barato); sem a chave, usa um modelo de texto.
 import { brl, salesLabel, shortName } from "./textos.mjs";
+import { claude } from "./ia.mjs";
 
 const env = (k, d = "") => (process.env[k] ?? "").trim() || d;
 
@@ -28,15 +29,8 @@ Regras:
 - Não fale de link, bio, cupom, seguir ou comentar (o final do vídeo já faz isso). Não use emojis, hashtags nem travessão.
 Responda só com o texto da narração.`;
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: env("ANTHROPIC_MODEL_NARRACAO", "claude-haiku-5-5"), max_tokens: 300, messages: [{ role: "user", content: prompt }] }),
-      signal: AbortSignal.timeout(30000),
-    });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j?.error?.message || r.status);
-    let t = (j.content || []).map((c) => c.text || "").join(" ").replace(/\s+/g, " ").replace(/[—–]/g, ",").replace(/^["']|["']$/g, "").trim();
+    const raw = await claude({ model: env("ANTHROPIC_MODEL_NARRACAO", "claude-haiku-5-5"), content: prompt, max: 400 });
+    let t = raw.replace(/\s+/g, " ").replace(/[—–]/g, ",").replace(/^["']|["']$/g, "").trim();
     if (t.length > max + 30) t = t.slice(0, max + 20).replace(/[^.!?]*$/, "").trim() || t.slice(0, max + 20);
     if (!t) throw new Error("resposta vazia");
     log(`  narração (IA): "${t}"`);

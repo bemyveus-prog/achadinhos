@@ -11,6 +11,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node automacao/ia-teste.mjs
+      - run: |
+          cd automacao && npm ci --omit=dev --ignore-scripts >/dev/null 2>&1; node ia-teste.mjs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

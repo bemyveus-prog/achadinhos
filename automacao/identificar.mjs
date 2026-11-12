@@ -10,6 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 import { searchOffers } from "./lib/shopee.mjs";
 import { normalize } from "./lib/escolha.mjs";
 import { hasTelegram, sendText } from "./lib/telegram.mjs";
+import { claude as ia } from "./lib/ia.mjs";
 
 const run = promisify(execFile);
 const env = (k, d = "") => (process.env[k] ?? "").trim() || d;
@@ -20,15 +21,7 @@ const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_R
 const brl = (v) => "R$ " + Number(v).toFixed(2).replace(".", ",");
 
 async function claude(content, maxTokens = 500) {
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": env("ANTHROPIC_API_KEY"), "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: env("ANTHROPIC_MODEL_VISAO", "claude-haiku-5-5"), max_tokens: maxTokens, messages: [{ role: "user", content }] }),
-    signal: AbortSignal.timeout(60000),
-  });
-  const j = await r.json();
-  if (!r.ok) throw new Error(j?.error?.message || r.status);
-  const t = (j.content || []).map((c) => c.text || "").join("");
+  const t = await ia({ model: env("ANTHROPIC_MODEL_VISAO", "claude-haiku-5-5"), content, max: maxTokens });
   const m = t.match(/\{[\s\S]*\}/);
   return JSON.parse(m ? m[0] : t);
 }

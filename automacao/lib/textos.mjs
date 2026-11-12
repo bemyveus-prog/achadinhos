@@ -1,3 +1,4 @@
+import { claude } from "./ia.mjs";
 // Textos do carrossel. Os números (preço, vendas, nota, desconto) vêm sempre da API.
 // A IA (opcional) só escreve gancho, nome curto e destaques, a partir do nome do produto.
 
@@ -65,23 +66,7 @@ export async function aiTexts(p, log = console.log) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5",
-        max_tokens: 800,
-        messages: [{ role: "user", content: AI_PROMPT(p) }],
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error?.message || res.status);
-    const text = json.content?.map((c) => c.text || "").join("") || "";
+    const text = await claude({ model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5", content: AI_PROMPT(p), max: 1200 });
     const out = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
     const strip = (s) => String(s || "").replace(/[—–]/g, ",").trim();
     return {

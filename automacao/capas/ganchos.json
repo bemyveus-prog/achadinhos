@@ -44,7 +44,7 @@
   "cabelo": {
     "etiqueta": "Cabelo",
     "cor": "#B4469A",
-    "detecta": "cabelo|shampoo|condicionador|capilar|chapinha|prancha|secador|babyliss|modelador|escova (de cabelo|secadora|alisadora)|cachos|reparador de pontas|pente",
+    "detecta": "cabelo|shampoo|condicionador|capilar|chapinha|prancha|secador de cabelo|babyliss|modelador|escova (de cabelo|secadora|alisadora)|cachos|reparador de pontas|pente",
     "ganchos": [
       "Quem tem cabelo assim *precisa ver isso*",
       "O segredo do cabelo bonito *pode ser isso*",
@@ -125,7 +125,7 @@
   "cozinha": {
     "etiqueta": "Cozinha",
     "cor": "#C2410C",
-    "detecta": "panela|frigideira|cozinha|air ?fryer|liquidificador|\\bfaca|\\bpote|garrafa|\\bcopo|x[ií]cara|talher|t[aá]bua|forma de|assadeira|mixer|batedeira|cafeteira|chaleira|escorredor|ralador|utens[ií]lio|gelo|forminha|marmita|lancheira|tupperware|garrafa t[eé]rmica",
+    "detecta": "panela|frigideira|cozinha|air ?fryer|liquidificador|\\bfaca|\\bpote|garrafa|\\bcopo|x[ií]cara|talher|t[aá]bua|forma de|assadeira|mixer|batedeira|cafeteira|chaleira|escorredor|ralador|utens[ií]lio|gelo|forminha|marmita|lancheira|tupperware|garrafa t[eé]rmica|lou[cç]a|escorredor|pratos?\\b|porta[- ]?talher",
     "ganchos": [
       "Quem cozinha *precisa conhecer isso*",
       "Isso *facilitou muito* minha cozinha",

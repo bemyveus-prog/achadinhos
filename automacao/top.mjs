@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { renderTop } from "./lib/reelstop.mjs";
 import { gerarNarracao } from "./lib/narracao.mjs";
+import { claude } from "./lib/ia.mjs";
 import { shortName } from "./lib/textos.mjs";
 import { hasTelegram, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, postReel, uploadPublic } from "./lib/social.mjs";
@@ -42,15 +43,7 @@ TITULO: título do vídeo (até 60 caracteres)
 123 | narração do produto
 456 | narração do produto
 (5 linhas de produto, usando os ids da lista)`;
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY.trim(), "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: env("ANTHROPIC_MODEL_TOP", "claude-sonnet-5-5"), max_tokens: 900, messages: [{ role: "user", content: prompt }] }),
-    signal: AbortSignal.timeout(60000),
-  });
-  const j = await r.json();
-  if (!r.ok) throw new Error(`IA: ${j?.error?.message || r.status}`);
-  const t = (j.content || []).map((c) => c.text || "").join("");
+  const t = await claude({ model: env("ANTHROPIC_MODEL_TOP", "claude-sonnet-5-5"), content: prompt, max: 900 });
   const out = { title: ((t.match(/TITULO:\s*(.+)/i) || [])[1] || "").trim().replace(/^["']|["']$/g, ""), items: [] };
   for (const m of t.matchAll(/^\s*#?(\d+)\s*\|\s*(.+)$/gm)) out.items.push({ id: Number(m[1]), fala: m[2].trim() });
   if (!out.title) { log("Resposta da IA:", t.slice(0, 500)); throw new Error("A IA não mandou o título"); }
