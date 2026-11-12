@@ -1,0 +1,49 @@
+name: YouTube em lote (com intervalo)
+
+# Posta vários Reels já gerados (tabela reels_pendentes) só no YouTube, um de cada vez, com intervalo entre eles.
+# Não repete: quem já está no YouTube (marcador capas/yt/reels-<id>.txt) é pulado.
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "Números dos Reels, separados por vírgula, na ordem de postagem (ex.: 27,29,30)"
+        required: true
+      intervalo:
+        description: "Minutos entre um e outro"
+        default: "30"
+
+jobs:
+  lote:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    defaults:
+      run:
+        working-directory: automacao
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      YOUTUBE_PRIVACIDADE: ${{ vars.YOUTUBE_PRIVACIDADE }}
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: npm ci
+      - run: |
+          IFS=',' read -ra IDS <<< "${{ inputs.ids }}"
+          N=${#IDS[@]}; k=0
+          for id in "${IDS[@]}"; do
+            id=$(echo "$id" | tr -d ' '); k=$((k+1))
+            echo "== Reels $id ($k de $N) =="
+            node publicar-reels.mjs --id "$id" --so-youtube || echo "falhou o $id"
+            [ $k -lt $N ] && sleep $(( ${{ inputs.intervalo }} * 60 ))
+          done
+          echo "lote concluído"
