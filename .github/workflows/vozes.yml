@@ -4,6 +4,7 @@ on:
     branches: [vozes]
   workflow_dispatch:
 env:
+  MARCA: ${{ vars.MARCA }}
   MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
 
 jobs:

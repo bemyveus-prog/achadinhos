@@ -7,8 +7,9 @@ import { createClient } from "@supabase/supabase-js";
 import { postReelUrl } from "./lib/social.mjs";
 import { hasTelegram, sendText } from "./lib/telegram.mjs";
 import { hasYouTube, postShort, textosYouTube } from "./lib/youtube.mjs";
+import { BRAND } from "../lib/brand.mjs";
 
-const VITRINE = (process.env.VITRINE_URL || "https://ofertas.achadinhosincriveis.site").replace(/\/$/, "");
+const VITRINE = BRAND.site;
 
 const MARCA = (id) => `yt/reels-${id}.txt`;
 async function jaNoYouTube(id) {

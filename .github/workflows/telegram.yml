@@ -9,6 +9,7 @@ on:
         default: "3"
 
 env:
+  MARCA: ${{ vars.MARCA }}
   MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
 
 jobs:

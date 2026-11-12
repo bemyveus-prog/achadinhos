@@ -9,6 +9,7 @@ import { db, hasDb } from "@/lib/supabase";
 import { hasShopeeApi, parseShopeeIds, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
 import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
 import GANCHOS from "@/automacao/capas/ganchos.json";
+import { BRAND } from "@/lib/brand.mjs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,7 +18,7 @@ const POR_BUSCA = 5;
 const MIN_NOTA = 4.5;
 const MIN_VENDAS = 20;
 const SUB_ID = "bot"; // vira "botsite"
-const VITRINE = () => (process.env.VITRINE_URL || "https://ofertas.achadinhosincriveis.site").replace(/\/$/, "");
+const VITRINE = () => BRAND.site;
 
 const AJUDA = `🤖 <b>Bot de ofertas</b>
 
@@ -575,7 +576,7 @@ async function amazonVideo(msg, cap, url) {
 }
 
 // ---------- Reels sob encomenda: dispara o workflow "Reels v2" no GitHub ----------
-const REPO = process.env.GITHUB_REPO || "bemyveus-prog/achadinhos";
+const REPO = BRAND.repo;
 async function startReels(chat, parts, fala = "", video = "", modo = "instagram", extra = {}) {
   const args = parts.filter(Boolean);
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");

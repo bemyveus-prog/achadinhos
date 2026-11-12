@@ -15,6 +15,7 @@ import { buildTexts } from "./lib/textos.mjs";
 import { renderReel } from "./lib/reels.mjs";
 import { hasDb, getOffer, latestPickOfferId } from "./lib/vitrine.mjs";
 import { hasMeta, postReel } from "./lib/social.mjs";
+import { BRAND } from "../lib/brand.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -74,7 +75,7 @@ async function main() {
     log(`Postado no Instagram: ${url}`);
     const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
     if (hasYouTube()) {
-      try { const { url: yt } = await postShort(file, textosYouTube(texts.legenda, { link: (env("VITRINE_URL", "https://ofertas.achadinhosincriveis.site")).replace(/\/$/, "") }), log); log(`YouTube: ${yt}`); }
+      try { const { url: yt } = await postShort(file, textosYouTube(texts.legenda, { link: BRAND.site }), log); log(`YouTube: ${yt}`); }
       catch (e) { log(`  YouTube: ${e.message}`); }
     }
   }

@@ -10,6 +10,7 @@ on:
         default: "kitchen organizer|silicone spatula set|drawer organizer|car phone holder|led strip light"
 
 env:
+  MARCA: ${{ vars.MARCA }}
   MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
 
 jobs:

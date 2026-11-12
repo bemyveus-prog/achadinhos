@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { renderSlides } from "./lib/reelslides.mjs";
 import { hasTelegram, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, uploadPublic } from "./lib/social.mjs";
+import { BRAND } from "../lib/brand.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const C = (f) => path.join(HERE, "cartinhas", f);
@@ -33,7 +34,7 @@ async function main() {
     const last = (av || []).find((f) => /\.(jpe?g|png|webp)$/i.test(f.name));
     if (last) { const { data } = await sb.storage.from("capas").download(`avatar/${last.name}`); avatar = path.join(outDir, "avatar" + path.extname(last.name)); await writeFile(avatar, Buffer.from(await data.arrayBuffer())); }
   } catch {}
-  const { file, seconds } = await renderSlides({ slides, cta, outDir, handle: process.env.INSTAGRAM_HANDLE || "@minh.asofertas", avatar, log });
+  const { file, seconds } = await renderSlides({ slides, cta, outDir, handle: BRAND.handle, avatar, log });
   const legenda = [
     "Uma criança pediu uma bola de vôlei de Natal… e você pode realizar esse sonho 🎄💛",
     "",

@@ -12,6 +12,7 @@ on:
         default: "120"
 
 env:
+  MARCA: ${{ vars.MARCA }}
   MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
 
 jobs:
@@ -24,7 +25,7 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
+      INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

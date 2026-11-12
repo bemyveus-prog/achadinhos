@@ -2,6 +2,7 @@ import Vitrine from "@/components/Vitrine";
 import { db, hasDb, isLive } from "@/lib/supabase";
 import { DEMO_OFFERS } from "@/lib/demo";
 import { loadLiveBanners } from "@/lib/banners";
+import { BRAND } from "@/lib/brand.mjs";
 
 // Sem cache: a vitrine lê o banco a cada visita. Com cache (ISR), a Netlify/Vercel
 // às vezes mostravam a versão antiga logo depois de salvar uma oferta no painel.
@@ -29,10 +30,10 @@ async function getOffers() {
 export default async function Home() {
   const [{ offers, demo }, banners] = await Promise.all([getOffers(), hasDb() ? loadLiveBanners() : []]);
   const profile = {
-    name: process.env.NEXT_PUBLIC_SITE_NAME || "Minhas Ofertas",
-    handle: process.env.NEXT_PUBLIC_SITE_HANDLE || "@minh.asofertas",
-    tagline: process.env.NEXT_PUBLIC_TAGLINE || "Os achados e cupons que eu indico nos vídeos",
-    avatar: process.env.NEXT_PUBLIC_AVATAR_URL || "/avatar.jpg",
+    name: BRAND.name,
+    handle: BRAND.handle,
+    tagline: BRAND.tagline,
+    avatar: BRAND.avatar,
     socials: {
       tiktok: process.env.NEXT_PUBLIC_TIKTOK_URL || "",
       instagram: process.env.NEXT_PUBLIC_INSTAGRAM_URL || "",
@@ -40,8 +41,8 @@ export default async function Home() {
       whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_URL || "",
     },
     canais: {
-      telegram: process.env.NEXT_PUBLIC_CANAL_TELEGRAM ?? "https://t.me/minhasofertarelampago",
-      whatsapp: process.env.NEXT_PUBLIC_CANAL_WHATSAPP || "",
+      telegram: BRAND.canalTelegram,
+      whatsapp: BRAND.canalWhatsapp,
     },
   };
   return <Vitrine offers={offers} profile={profile} demo={demo} banners={banners} />;

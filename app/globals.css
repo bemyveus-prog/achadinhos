@@ -403,3 +403,73 @@ a { color: inherit; text-decoration: none; }
   transition: opacity .35s, transform .35s; pointer-events: none;
 }
 .ativ.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+/* Central de Publicações (gerador de carrossel do painel) */
+.pub-center{margin-top:16px}.pub-heading,.pub-subhead{display:flex;align-items:center;justify-content:space-between;gap:12px}.pub-eyebrow{color:var(--gold);font-size:10px;font-weight:800;letter-spacing:.12em}.pub-heading h2{margin:4px 0;font-family:var(--serif);font-size:22px}.pub-heading p,.pub-disclaimer{margin:0;color:var(--muted);font-size:12px}.pub-heading>b{border:1px solid var(--line);border-radius:30px;padding:7px 10px;font-size:11px}.pub-networks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:16px 0 8px}.pub-networks label{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:12px;padding:9px;font-size:12px;font-weight:700;cursor:pointer}.pub-networks label.selected{border-color:var(--gold);background:#fffaf2}.pub-networks input{accent-color:var(--gold)}.pub-networks small{font-size:10px;color:var(--muted);font-weight:500}.pub-disclaimer{background:#fff7e6;color:#805b20;padding:9px 11px;border-radius:10px;line-height:1.45}.pub-builder{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:14px;margin-top:16px}.pub-subhead{margin-bottom:10px}.pub-subhead h3{margin:0;font-size:14px}.pub-subhead small{color:var(--muted);font-size:11px}.pub-search,.pub-input,.pub-textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 11px;font:inherit;font-size:13px;background:#fff;outline:0}.pub-products{display:grid;gap:7px;max-height:470px;overflow:auto;margin-top:9px}.pub-products label{display:flex;align-items:center;gap:8px;padding:7px;border:1px solid var(--line);border-radius:11px;cursor:pointer}.pub-products label.chosen{border-color:var(--gold);background:#fffaf2}.pub-products input{accent-color:var(--gold)}.pub-products img{width:46px;height:46px;border-radius:8px;object-fit:cover}.pub-products span{min-width:0;display:flex;flex-direction:column;gap:3px}.pub-products b{font-size:11px;line-height:1.3}.pub-products small{font-size:10px;color:var(--muted)}.pub-label{display:block;font-size:11px;font-weight:700;margin:10px 0 5px}.pub-textarea{min-height:112px;resize:vertical;line-height:1.45}.pub-textarea.short{min-height:58px}.pub-generate{width:100%;margin-top:8px}.pub-preview-head{margin-top:17px}.pub-slides{display:flex;gap:8px;overflow:auto;padding:2px 0 7px;min-height:120px}.pub-slides article{position:relative;flex:0 0 112px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:white;padding-bottom:7px}.pub-slides img{width:100%;aspect-ratio:1;object-fit:cover}.pub-slides article small{position:absolute;top:6px;left:6px;background:#1c1917d9;color:white;border-radius:6px;padding:3px 6px}.pub-slides b,.pub-slides strong{display:block;padding:5px 7px 0;font-size:10px}.pub-slides strong{font-size:11px}.pub-actions{display:flex;gap:8px;margin-top:12px}.pub-actions .btn{flex:1}.pub-empty{color:var(--muted);font-size:12px;padding:10px 0}.pub-history{border-top:1px solid var(--line);margin-top:20px;padding-top:15px}.pub-post{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line)}.pub-post>div{min-width:0;display:flex;flex-direction:column;gap:4px}.pub-post b{font-size:12px}.pub-post small{color:var(--muted);font-size:10px}.pub-post aside{display:flex;gap:5px;flex-wrap:wrap}.pub-status{align-self:flex-start;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:700;background:#f4efe9;color:#65584b}.pub-status.scheduled{background:#fff4d8;color:#8a5a00}.pub-status.published{background:#eaf8ef;color:#15803d}.pub-status.failed{background:#fff0f0;color:#b91c1c}.pub-notice{margin-top:12px}@media(max-width:640px){.pub-builder{grid-template-columns:1fr}.pub-networks{grid-template-columns:repeat(2,minmax(0,1fr))}.pub-products{max-height:300px}}
+
+
+/* PREVIA REAL DO CARROSSEL INSTAGRAM - 4:5 */
+.pub-slide-art {
+  width: 100%;
+  max-width: 540px;
+  aspect-ratio: 4 / 5;
+  height: auto;
+  margin: 12px auto 16px;
+  padding: 7% 6%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #fff;
+  position: relative;
+}
+
+.pub-slide-art > span {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 8px 12px;
+  border-radius: 30px;
+  background: rgba(0,0,0,.48);
+  color: #fff;
+  font-size: clamp(10px, 2vw, 15px);
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.pub-slide-art > div {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 4%;
+  border-radius: 12px;
+  background: linear-gradient(0deg,rgba(0,0,0,.48),transparent);
+}
+
+.pub-slide-art strong {
+  display: block;
+  color: #fff;
+  font-size: clamp(20px, 4vw, 34px);
+  font-weight: 900;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 8px rgba(0,0,0,.55);
+}
+
+.pub-slide-art p {
+  color: #fff;
+  font-size: clamp(13px, 2.2vw, 19px);
+  line-height: 1.4;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 6px rgba(0,0,0,.7);
+}
+
+@media(max-width:640px) {
+  .pub-slide-art {
+    max-width: 100%;
+  }
+}

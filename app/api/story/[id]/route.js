@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getOfferPublic, siteUrl, brl } from "@/lib/offer";
+import { BRAND } from "@/lib/brand.mjs";
 
 // Imagem vertical 1080x1920 para compartilhar no Stories / TikTok / WhatsApp
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ export async function GET(req, { params }) {
   const { id } = await params;
   const o = await getOfferPublic(id);
   if (!o) return new Response("not found", { status: 404 });
-  const handle = process.env.NEXT_PUBLIC_SITE_HANDLE || "@minh.asofertas";
+  const handle = BRAND.handle;
   const host = siteUrl().replace(/^https?:\/\//, "");
   const title = String(o.title || "").slice(0, 90);
   // fonte em negrito servida pelo próprio site

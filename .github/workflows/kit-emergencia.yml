@@ -16,6 +16,7 @@ on:
         default: false
 
 env:
+  MARCA: ${{ vars.MARCA }}
   MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
 
 jobs:

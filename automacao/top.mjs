@@ -12,6 +12,7 @@ import { shortName } from "./lib/textos.mjs";
 import { hasTelegram, sendText, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, postReel, uploadPublic } from "./lib/social.mjs";
 import { hasCJ, productBySku, productVideos, bestFreeVideo, downloadVideo } from "./lib/cj.mjs";
+import { BRAND } from "../lib/brand.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const env = (k, d) => (process.env[k] ?? "").trim() || d;
@@ -109,7 +110,7 @@ async function main() {
     }
   } catch {}
 
-  const { file, seconds } = await renderTop({ title: r.title, items, outDir, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), avatar, cupom: (count || 0) > 0, showPrice: (process.env.VIDEO_PRECO || "").trim() === "sim", log });
+  const { file, seconds } = await renderTop({ title: r.title, items, outDir, handle: BRAND.handle, avatar, cupom: (count || 0) > 0, showPrice: (process.env.VIDEO_PRECO || "").trim() === "sim", log });
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [
@@ -145,7 +146,7 @@ async function main() {
     log(`Postado: ${await postReel(file, legenda, `top-${Date.now()}`)}`);
     const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
     if (hasYouTube()) {
-      try { const { url: yt } = await postShort(file, textosYouTube(legenda, { link: "https://ofertas.achadinhosincriveis.site" }), log); if (hasTelegram()) await sendText(`▶️ Short no YouTube: ${yt}`).catch(() => {}); }
+      try { const { url: yt } = await postShort(file, textosYouTube(legenda, { link: BRAND.site }), log); if (hasTelegram()) await sendText(`▶️ Short no YouTube: ${yt}`).catch(() => {}); }
       catch (e) { log(`  YouTube: ${e.message}`); }
     }
   }

@@ -3,6 +3,7 @@ on:
   push:
     branches: [sv-teste]
 env:
+  MARCA: ${{ vars.MARCA }}
   MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
 
 jobs:

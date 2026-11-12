@@ -4,6 +4,7 @@
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 import { rename, unlink } from "fs/promises";
+import { BRAND } from "../../lib/brand.mjs";
 
 const FONTES = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"];
 
@@ -12,7 +13,7 @@ function run(cmd, args) {
 }
 
 export async function marcaDagua(file, log = console.log) {
-  const txt = ((process.env.MARCA_DAGUA || "").trim() || (process.env.INSTAGRAM_HANDLE || "").trim() || "@minh.asofertas");
+  const txt = ((process.env.MARCA_DAGUA || "").trim() || (process.env.INSTAGRAM_HANDLE || "").trim() || BRAND.handle);
   if (/^n[aã]o$/i.test(txt)) return file;
   const fonte = FONTES.find((f) => existsSync(f));
   const esc = txt.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\u2019");

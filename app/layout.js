@@ -1,10 +1,11 @@
 import "./globals.css";
+import { BRAND } from "@/lib/brand.mjs";
 
-const name = process.env.NEXT_PUBLIC_SITE_NAME || "Minhas Ofertas";
+const name = BRAND.name;
 const tagline = process.env.NEXT_PUBLIC_TAGLINE || "Os achados que eu indico nos vídeos";
 
 // código do Pinterest do ofertas.achadinhosincriveis.site (outro site: troque pela variável PINTEREST_VERIFY)
-const PINTEREST_VERIFY = (process.env.PINTEREST_VERIFY || "dbbbb2ec2e332c2bdf696a71dbce2b95").trim();
+const PINTEREST_VERIFY = BRAND.pinterestVerify;
 
 export const metadata = {
   title: `${name} — ofertas e cupons`,

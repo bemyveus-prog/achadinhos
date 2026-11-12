@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import CarouselMaker from "@/components/CarouselMaker";
 import BannerManager from "@/components/BannerManager";
+import PublicationsCenter from "@/components/PublicationsCenter";
 
 const EMPTY = {
   kind: "produto", title: "", description: "", image_url: "", price: "", original_price: "",
@@ -19,7 +20,7 @@ const toLocal = (iso) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
-export default function AdminPanel({ dbReady, shopeeReady }) {
+export default function AdminPanel({ dbReady, shopeeReady, marca }) {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [editing, setEditing] = useState(null);
@@ -274,6 +275,8 @@ export default function AdminPanel({ dbReady, shopeeReady }) {
       </form>
 
       {dbReady && <BannerManager />}
+
+      {dbReady && <PublicationsCenter dbReady={dbReady} marca={marca} />}
 
       <div className="panel">
         <h2>Minhas ofertas ({items.length})</h2>

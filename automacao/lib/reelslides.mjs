@@ -8,6 +8,7 @@ import { imageDataUri } from "./carrossel.mjs";
 import { narrate, audioDuration } from "./voz.mjs";
 import { encodeFrames, mixAudio } from "./reels.mjs";
 import { marcaDagua } from "./marca.mjs";
+import { BRAND } from "../../lib/brand.mjs";
 
 const run = promisify(execFile);
 const W = 1080, H = 1920;
@@ -119,7 +120,7 @@ export async function renderSlides({ slides, cta, outDir, handle, avatar, bg, lo
   log(`Reels slides: ${scenes.length} cenas, ${total.toFixed(1)} s`);
   const data = {
     bg: bg || "radial-gradient(circle at 30% 20%,#E8283C,#8E0616 75%)",
-    handle: handle || "@minh.asofertas", avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null, ctaText: cta.text,
+    handle: handle || BRAND.handle, avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null, ctaText: cta.text,
     scenes: [],
   };
   for (const x of scenes) {

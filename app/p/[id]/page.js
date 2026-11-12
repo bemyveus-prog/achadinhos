@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { getOfferPublic, siteUrl, brl } from "@/lib/offer";
+import { BRAND } from "@/lib/brand.mjs";
 
 // Página de um produto: é o link que vai nos compartilhamentos (WhatsApp, Facebook, Stories...)
 // e mostra a prévia com foto, nome e preço.
 export const dynamic = "force-dynamic";
 
-const name = process.env.NEXT_PUBLIC_SITE_NAME || "Minhas Ofertas";
+const name = BRAND.name;
 
 export async function generateMetadata({ params }) {
   const { id } = await params;

@@ -11,6 +11,7 @@ on:
         default: "cartinhas.mjs"
 
 env:
+  MARCA: ${{ vars.MARCA }}
   MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
 
 jobs:
@@ -43,7 +44,7 @@ jobs:
           FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
           FISH_VOICE_ID: ${{ vars.FISH_VOICE_ID }}
           EDGE_VOICE: ${{ vars.EDGE_VOICE }}
-          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
+          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

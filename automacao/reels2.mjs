@@ -21,6 +21,7 @@ import { shortName, brl, salesLabel } from "./lib/textos.mjs";
 import { hasTelegram, sendText, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, postReel, uploadPublic } from "./lib/social.mjs";
 import { hasCJ, productBySku, productVideos, bestFreeVideo, downloadVideo } from "./lib/cj.mjs";
+import { BRAND } from "../lib/brand.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -183,7 +184,7 @@ async function main() {
   const slug = opt("--categoria") || categoryOf(p.name || "", cfg);
   const c = cfg[slug] || {};
   const ganchos = c.ganchos?.length ? c.ganchos : ["Eu *não acreditei* quando vi isso"];
-  const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || "#D0306F" };
+  const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || BRAND.accent };
   let fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
   // sem texto seu: com a chave da IA, a narração é escrita para este produto (senão usa o texto padrão)
   if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), generico: env("REELS_MODO", "").startsWith("link"), log });
@@ -218,7 +219,7 @@ async function main() {
   const headline = layout === "mascara" ? await gerarHeadline(p, { fala, log }) : "";
   if (modo === "link") log("Modo link: final genérico chamando para o link abaixo (sem citar a loja)");
   if (modo === "shopee") log("Modo Shopee Vídeo: final chamando para o produto vinculado");
-  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, modo, layout, headline, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), log });
+  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, modo, layout, headline, handle: BRAND.handle, log });
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [
@@ -278,7 +279,7 @@ async function main() {
     log(`Postado: ${url}`);
     const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
     if (hasYouTube()) {
-      const VIT = env("VITRINE_URL", "https://ofertas.achadinhosincriveis.site").replace(/\/$/, "");
+      const VIT = BRAND.site;
       try {
         const { url: yt } = await postShort(file, textosYouTube(legenda, { link: `${VIT}/r/${offerId}` }), log);
         if (hasTelegram()) await sendText(`▶️ Short no YouTube: ${yt}`).catch(() => {});

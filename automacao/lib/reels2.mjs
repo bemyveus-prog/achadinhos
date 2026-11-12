@@ -11,6 +11,7 @@ const run = promisify(execFile);
 import { encodeFrames, mixAudio } from "./reels.mjs";
 import { brl, salesLabel } from "./textos.mjs";
 import { marcaDagua } from "./marca.mjs";
+import { BRAND } from "../../lib/brand.mjs";
 
 const W = 1080, H = 1920;
 const num = (v) => String(v).replace(".", ",");
@@ -332,14 +333,14 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   if (p.sales >= 100) chips.push(`🛒 ${salesLabel(p.sales)} vendidos`);
   const data = {
     cover: null, img: await imageDataUri(p.imageUrl),
-    tag: "", accent: cover?.accent || "#D0306F", hookHtml: "", nome,
+    tag: "", accent: cover?.accent || BRAND.accent, hookHtml: "", nome,
     chips, price: (process.env.VIDEO_PRECO || "").trim() === "sim" && Number(p.price) > 0 ? brl(p.price) : "", comment, number: number ? String(number).startsWith("#") ? number : `#${number}` : "",
     scenes: scenes.map(({ key, dur }) => ({ key, dur })),
     clip: [],
     // legenda: a fala do produto em blocos de ~5 palavras
     subs: (() => { const w = scenes[0].say.split(/\s+/).filter(Boolean); const out = []; for (let i = 0; i < w.length; i += 5) out.push(w.slice(i, i + 5).join(" ")); return out; })(),
     voiceDur: voice[0]?.duration || 0,
-    handle: handle || "@minh.asofertas",
+    handle: handle || BRAND.handle,
     modo,
     ctaTela: ctaShopee.tela,
     ctaInstaTela: ctaInsta.tela,

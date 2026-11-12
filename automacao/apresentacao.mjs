@@ -9,12 +9,13 @@ import { chromium, devices } from "playwright";
 import { renderSlides } from "./lib/reelslides.mjs";
 import { hasTelegram, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, uploadPublic } from "./lib/social.mjs";
+import { BRAND } from "../lib/brand.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const log = (...m) => console.log(new Date().toLocaleTimeString("pt-BR"), ...m);
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-const SITE = (process.env.VITRINE_URL || "https://ofertas.achadinhosincriveis.site").replace(/\/$/, "");
-const CANAL = process.env.CANAL_URL || "https://t.me/s/minhasofertarelampago";
+const SITE = BRAND.site;
+const CANAL = process.env.CANAL_URL || BRAND.canalTelegram.replace("t.me/", "t.me/s/");
 const outDir = path.join(HERE, "saida", "apresentacao");
 const P = (f) => path.join(outDir, f);
 
@@ -80,7 +81,7 @@ async function main() {
     const last = (av || []).find((f) => /\.(jpe?g|png|webp)$/i.test(f.name));
     if (last) { const { data } = await sb.storage.from("capas").download(`avatar/${last.name}`); avatar = P("avatar" + path.extname(last.name)); await writeFile(avatar, Buffer.from(await data.arrayBuffer())); }
   } catch {}
-  const { file, seconds } = await renderSlides({ slides, cta, outDir, handle: process.env.INSTAGRAM_HANDLE || "@minh.asofertas", avatar,
+  const { file, seconds } = await renderSlides({ slides, cta, outDir, handle: BRAND.handle, avatar,
     bg: "radial-gradient(circle at 30% 20%,#FF8A00,#B33A00 75%)", log });
   const legenda = [
     "O truque de quem compra mais barato na Shopee, Amazon e Shein 👀",

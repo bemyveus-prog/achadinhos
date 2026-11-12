@@ -21,6 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  MARCA: ${{ vars.MARCA }}
   MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
 
 jobs:
@@ -62,7 +63,7 @@ jobs:
           POSTAR: ${{ vars.POSTAR }}
           # Ajustes opcionais em Settings > Secrets and variables > Actions > Variables
           SHOPEE_SUB_ID: ${{ vars.SHOPEE_SUB_ID }}
-          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
+          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE }}
           ESTILO: ${{ vars.ESTILO }}
           PALAVRAS_CHAVE: ${{ vars.PALAVRAS_CHAVE }}
           PALAVRAS_BLOQUEADAS: ${{ vars.PALAVRAS_BLOQUEADAS }}

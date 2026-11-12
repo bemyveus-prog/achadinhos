@@ -20,6 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  MARCA: ${{ vars.MARCA }}
   MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
 
 jobs:
@@ -60,4 +61,4 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
           node pins.mjs --max 60
         env:
-          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || '@minh.asofertas' }}
+          INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE }}

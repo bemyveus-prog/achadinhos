@@ -1,5 +1,6 @@
 import { readFile } from "fs/promises";
 import path from "path";
+import { BRAND } from "../../lib/brand.mjs";
 
 // Manda os produtos novos da vitrine para o Telegram (para gravar os vídeos).
 // Precisa de TELEGRAM_BOT_TOKEN (do @BotFather) e TELEGRAM_CHAT_ID.
@@ -45,7 +46,7 @@ export async function getChatId() {
 // o = { id, title, price, original_price, image_url, link, category }
 // p (opcional, dados da API) = { commission, sellerCommission, sales, rating, productLink }
 export function caption(o, p = {}, origem = "") {
-  const vitrine = env("VITRINE_URL", "https://ofertas.achadinhosincriveis.site").replace(/\/$/, "");
+  const vitrine = BRAND.site;
   const linhas = [
     `🛍️ <b>#${o.id} · ${esc(o.title).slice(0, 180)}</b>`,
     o.price ? `💰 ${brl(o.price)}` : null,

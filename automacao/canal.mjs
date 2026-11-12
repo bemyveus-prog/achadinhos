@@ -10,6 +10,7 @@ import { hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
 import { normalize, DEFAULT_KEYWORDS } from "./lib/escolha.mjs";
 import { brl, salesLabel, shortName } from "./lib/textos.mjs";
 import { claude, hasIA } from "./lib/ia.mjs";
+import { BRAND } from "../lib/brand.mjs";
 
 const env = (k, d = "") => (process.env[k] ?? "").trim() || d;
 const args = process.argv.slice(2);
@@ -18,8 +19,8 @@ const teste = args.includes("--teste");
 const N = Math.max(1, Math.min(5, Number(opt("--n") || 1)));
 const log = (...a) => console.log(...a);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const CANAL = env("TELEGRAM_CANAL", "@minhasofertarelampago");
-const VITRINE = env("VITRINE_URL", "https://ofertas.achadinhosincriveis.site").replace(/\/$/, "");
+const CANAL = BRAND.canalChat;
+const VITRINE = BRAND.site;
 const TG = (m) => `https://api.telegram.org/bot${env("TELEGRAM_BOT_TOKEN")}/${m}`;
 
 async function tg(method, body) {
@@ -44,6 +45,7 @@ async function frase(p) {
 }
 
 async function main() {
+  if (!CANAL && !teste) { log("Sem canal configurado (TELEGRAM_CANAL); nada a fazer."); return; }
   if (!hasShopeeApi()) throw new Error("Faltam SHOPEE_APP_ID/SHOPEE_APP_SECRET");
   const sb = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
 

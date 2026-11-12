@@ -11,6 +11,7 @@ import { narrate, audioDuration } from "./voz.mjs";
 import { encodeFrames, mixAudio } from "./reels.mjs";
 import { brl } from "./textos.mjs";
 import { marcaDagua } from "./marca.mjs";
+import { BRAND } from "../../lib/brand.mjs";
 
 const run = promisify(execFile);
 const W = 1080, H = 1920;
@@ -171,7 +172,7 @@ export async function renderTop({ title, items, outDir, handle, avatar, cupom, a
 
   const data = {
     titleHtml: esc(title).replace(/\*([^*]+)\*/g, "<mark>$1</mark>").replace(/^(\d+)/, "<mark>$1</mark>"),
-    handle: handle || "@minh.asofertas", avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null, cupom, accent, showPrice,
+    handle: handle || BRAND.handle, avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null, cupom, accent, showPrice,
     scenes: scenes.map(({ key, dur, item, voiceDur }) => ({ key, dur, item, voiceDur })),
     items: [],
   };
