@@ -1,0 +1,12 @@
+name: Teste Amazon
+on:
+  push:
+    branches: [amazon-teste]
+jobs:
+  t:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cp lib/amazon.js a.mjs
+          node -e 'import("./a.mjs").then(async m=>{for(const u of ["https://www.amazon.com.br/dp/B0G7MDQ8G5/ref=cm_sw_r_as_gl_apa_gl_i_NJBFEHFGDM7P5VSB78AN?linkCode=ml1&tag=ofertasama02b-20&linkId=598ea08a6f17f1da044aedf798a2524f","https://www.amazon.com.br/dp/B0CJMQJF3B"]) console.log(JSON.stringify(await m.amazonProduct(u)))})'
