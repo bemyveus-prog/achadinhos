@@ -10,6 +10,7 @@ import { promisify } from "util";
 const run = promisify(execFile);
 import { encodeFrames, mixAudio } from "./reels.mjs";
 import { brl, salesLabel } from "./textos.mjs";
+import { marcaDagua } from "./marca.mjs";
 
 const W = 1080, H = 1920;
 const num = (v) => String(v).replace(".", ",");
@@ -364,5 +365,6 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   await mixAudio(silent, voice, scenes, null, total, file);
   await writeFile(path.join(outDir, "roteiro.txt"), scenes.map((s, i) => `${i + 1}. [${s.key}] ${s.say}`).join("\n") + "\n");
   await rm(tmp, { recursive: true, force: true });
+  await marcaDagua(file, typeof log === "function" ? log : console.log);
   return { file, seconds: total, scenes };
 }

@@ -8,6 +8,7 @@ import path from "path";
 import { imageDataUri } from "./carrossel.mjs";
 import { narrate } from "./voz.mjs";
 import { brl, salesLabel } from "./textos.mjs";
+import { marcaDagua } from "./marca.mjs";
 
 const run = promisify(execFile);
 const FPS = 30;
@@ -318,5 +319,6 @@ export async function renderReel(p, texts, { outDir, number, handle, music, log 
   await mixAudio(silent, voice, scenes, music, total, file);
   await writeFile(path.join(outDir, "reels-roteiro.txt"), scenes.map((s, i) => `${i + 1}. [${s.key}] ${s.say}`).join("\n") + "\n");
   await rm(tmp, { recursive: true, force: true });
+  await marcaDagua(file, typeof log === "function" ? log : console.log);
   return { file, seconds: total, scenes };
 }

@@ -10,6 +10,7 @@ import { imageDataUri } from "./carrossel.mjs";
 import { narrate, audioDuration } from "./voz.mjs";
 import { encodeFrames, mixAudio } from "./reels.mjs";
 import { brl } from "./textos.mjs";
+import { marcaDagua } from "./marca.mjs";
 
 const run = promisify(execFile);
 const W = 1080, H = 1920;
@@ -194,5 +195,6 @@ export async function renderTop({ title, items, outDir, handle, avatar, cupom, a
   await mixAudio(silent, voice, scenes, null, total, file);
   await writeFile(path.join(outDir, "roteiro.txt"), scenes.map((s, i) => `${i + 1}. [${s.key}] ${s.say}`).join("\n") + "\n");
   await rm(tmp, { recursive: true, force: true });
+  await marcaDagua(file, typeof log === "function" ? log : console.log);
   return { file, seconds: total, scenes };
 }

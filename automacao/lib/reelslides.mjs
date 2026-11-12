@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { imageDataUri } from "./carrossel.mjs";
 import { narrate, audioDuration } from "./voz.mjs";
 import { encodeFrames, mixAudio } from "./reels.mjs";
+import { marcaDagua } from "./marca.mjs";
 
 const run = promisify(execFile);
 const W = 1080, H = 1920;
@@ -140,5 +141,6 @@ export async function renderSlides({ slides, cta, outDir, handle, avatar, bg, lo
   await mixAudio(silent, voice, scenes, null, total, file);
   await writeFile(path.join(outDir, "roteiro.txt"), scenes.map((x, i) => `${i + 1}. ${x.say}`).join("\n") + "\n");
   await rm(tmp, { recursive: true, force: true });
+  await marcaDagua(file, typeof log === "function" ? log : console.log);
   return { file, seconds: total };
 }
