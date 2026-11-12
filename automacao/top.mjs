@@ -37,7 +37,11 @@ Escolha UM tema que agrupe bem 5 desses produtos e que chame atenção (ex.: "5 
 Regras:
 - O título deve ser verdadeiro para os produtos escolhidos (se disser "abaixo de R$ 30", todos precisam custar menos que isso).
 - Para cada produto, uma narração de 1 frase (até 110 caracteres), animada, usando só o que dá para saber pelo nome. Sem inventar medidas, materiais ou promessas. Sem travessão, sem emoji.
-Responda só com JSON: {"title": "título do vídeo (até 60 caracteres)", "items": [{"id": 123, "fala": "..."}]}`;
+Responda EXATAMENTE neste formato de texto, sem nada antes ou depois:
+TITULO: título do vídeo (até 60 caracteres)
+123 | narração do produto
+456 | narração do produto
+(5 linhas de produto, usando os ids da lista)`;
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY.trim(), "anthropic-version": "2023-06-01" },
@@ -47,7 +51,9 @@ Responda só com JSON: {"title": "título do vídeo (até 60 caracteres)", "item
   const j = await r.json();
   if (!r.ok) throw new Error(`IA: ${j?.error?.message || r.status}`);
   const t = (j.content || []).map((c) => c.text || "").join("");
-  const out = JSON.parse((t.match(/\{[\s\S]*\}/) || [t])[0]);
+  const out = { title: ((t.match(/TITULO:\s*(.+)/i) || [])[1] || "").trim().replace(/^["']|["']$/g, ""), items: [] };
+  for (const m of t.matchAll(/^\s*#?(\d+)\s*\|\s*(.+)$/gm)) out.items.push({ id: Number(m[1]), fala: m[2].trim() });
+  if (!out.title) { log("Resposta da IA:", t.slice(0, 500)); throw new Error("A IA não mandou o título"); }
   const valid = new Set(prods.map((p) => p.id));
   out.items = (out.items || []).filter((i) => valid.has(Number(i.id))).slice(0, 5).map((i) => ({ id: Number(i.id), fala: String(i.fala || "").replace(/[—–]/g, ",") }));
   if (out.items.length < 3) throw new Error("A IA não escolheu produtos suficientes");
