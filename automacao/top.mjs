@@ -109,7 +109,7 @@ async function main() {
     }
   } catch {}
 
-  const { file, seconds } = await renderTop({ title: r.title, items, outDir, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), avatar, cupom: (count || 0) > 0, log });
+  const { file, seconds } = await renderTop({ title: r.title, items, outDir, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), avatar, cupom: (count || 0) > 0, showPrice: (process.env.VIDEO_PRECO || "").trim() === "sim", log });
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [

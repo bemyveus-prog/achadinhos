@@ -130,6 +130,30 @@ async function main() {
     clip = { file: f, maxSec: 12 }; // o seu vídeo pode aparecer mais tempo
     log(`Usando o seu vídeo (${own})`);
   }
+  // várias fotos mandadas pelo bot (pasta no Storage reels-videos): viram o vídeo do produto
+  const pastaFotos = (process.env.REELS_FOTOS || "").trim();
+  if (pastaFotos && !clip) {
+    const { mkdir } = await import("fs/promises");
+    await mkdir(outDir, { recursive: true });
+    const { data: lista } = await sb.storage.from("reels-videos").list(pastaFotos, { limit: 20, sortBy: { column: "name", order: "asc" } });
+    const fotos = [];
+    for (const f of (lista || []).filter((x) => /\.(jpe?g|png|webp)$/i.test(x.name))) {
+      const { data } = await sb.storage.from("reels-videos").download(`${pastaFotos}/${f.name}`);
+      if (!data) continue;
+      const file = path.join(outDir, `foto-${fotos.length + 1}${path.extname(f.name)}`);
+      await writeFile(file, Buffer.from(await data.arrayBuffer()));
+      fotos.push(file);
+    }
+    if (fotos.length) {
+      const { fotosParaVideo } = await import("./lib/fotosvideo.mjs");
+      // tempo de cada foto acompanha mais ou menos a narração (~15 letras por segundo)
+      const falaPrev = (process.env.REELS_FALA || "").length || 230;
+      const porFoto = Math.min(3.5, Math.max(1.6, falaPrev / 15 / fotos.length));
+      const v = await fotosParaVideo(fotos, path.join(outDir, "fotos.mp4"), { porFoto, log });
+      clip = { file: v.file, maxSec: 60 };
+      log(`Usando ${fotos.length} fotos enviadas (${pastaFotos})`);
+    } else log(`  pasta de fotos vazia: ${pastaFotos}`);
+  }
   if (opt("--cj")) {
     if (!hasCJ()) throw new Error("Falta o secret CJ_API_KEY");
     const prod = await productBySku(opt("--cj"));

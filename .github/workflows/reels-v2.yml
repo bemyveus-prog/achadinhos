@@ -20,6 +20,9 @@ on:
       video:
         description: "Vídeo enviado pelo bot (nome no Storage reels-videos), opcional"
         default: ""
+      fotos:
+        description: "Pasta de fotos enviadas pelo bot (Storage reels-videos), opcional"
+        default: ""
       modo:
         description: "instagram (final com Seguir + link da bio), shopee (final chamando para o produto do Shopee Vídeo) ou link (final genérico: clique no link abaixo)"
         default: "instagram"
@@ -68,6 +71,8 @@ jobs:
           CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
           REELS_FALA: ${{ inputs.fala }}
           REELS_MODO: ${{ inputs.modo }}
+          REELS_FOTOS: ${{ inputs.fotos }}
+          VIDEO_PRECO: ${{ vars.VIDEO_PRECO }}
           REELS_GERAR_FALA: ${{ inputs.gerar_fala }}
           REELS_CONTEXTO: ${{ inputs.contexto }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

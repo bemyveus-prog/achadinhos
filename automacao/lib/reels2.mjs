@@ -158,7 +158,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   $("phandle").textContent=d.handle||"@minh.asofertas";
   if(d.avatar){$("ava").style.backgroundImage="url("+d.avatar+")"}else{$("ava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
   $("coupon").style.display=d.cupom?"inline-block":"none";
-  $("shph").innerHTML=d.ctaTela||"Gostou? <span>Toque no produto</span> aqui embaixo";$("shpimg").src=d.img;$("shpname").textContent=d.nome||"";$("shpprice").textContent=d.price||"";
+  $("shph").innerHTML=d.ctaTela||"Gostou? <span>Toque no produto</span> aqui embaixo";$("shpimg").src=d.img;$("shpname").textContent=d.nome||"";$("shpprice").textContent=d.price||(D.modo==="link"?"Veja o preço no link":"Toque para ver o preço");
   if(!d.number)$("num").style.display="none";
   let a=0;starts=d.scenes.map(s=>{const v=a;a+=s.dur;return v});
   return document.fonts.ready.then(()=>new Promise(r=>$("photo").complete?r():($("photo").onload=r)));};
@@ -304,7 +304,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   const data = {
     cover: null, img: await imageDataUri(p.imageUrl),
     tag: "", accent: cover?.accent || "#D0306F", hookHtml: "", nome,
-    chips, price: brl(p.price), comment, number: number ? String(number).startsWith("#") ? number : `#${number}` : "",
+    chips, price: (process.env.VIDEO_PRECO || "").trim() === "sim" && Number(p.price) > 0 ? brl(p.price) : "", comment, number: number ? String(number).startsWith("#") ? number : `#${number}` : "",
     scenes: scenes.map(({ key, dur }) => ({ key, dur })),
     clip: [],
     // legenda: a fala do produto em blocos de ~5 palavras

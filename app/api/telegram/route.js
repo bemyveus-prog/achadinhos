@@ -1,6 +1,10 @@
 import { isAdmin, unauthorized } from "@/lib/auth";
 import { importFromUrl } from "@/lib/importer";
-import { AMAZON_RE, amazonProduct } from "@/lib/amazon";
+import { AMAZON_RE as AMZ_RE, amazonProduct } from "@/lib/amazon";
+import { SHEIN_RE, isShein, sheinProduct } from "@/lib/shein";
+// links de lojas sem API (Amazon e Shein): mesmo caminho, final genérico nos vídeos
+const AMAZON_RE = new RegExp(`${AMZ_RE.source}|${SHEIN_RE.source}`, "i");
+const lojaNome = (u) => (isShein(u) ? "Shein" : "Amazon");
 import { db, hasDb } from "@/lib/supabase";
 import { hasShopeeApi, parseShopeeIds, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
 import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
@@ -22,11 +26,12 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
+🖼️ <b>Fotos → vídeo</b>: mande várias fotos de uma vez (álbum) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Vira vídeo com zoom nas fotos, narração e o final.
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
-🛒 <b>Amazon</b>: cole o seu link de associado (amzn.to/… ou amazon.com.br/dp/…) e o produto entra na vitrine com etiqueta Amazon. Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
+🛒 <b>Amazon / Shein</b>: cole o seu link de afiliado (amzn.to/…, amazon.com.br/dp/…, onelink.shein.com/…) e o produto entra na vitrine com a etiqueta da loja. Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
@@ -291,6 +296,8 @@ async function onPhoto(msg) {
   if (/^\/?avatar\b/i.test(cap)) return saveAvatar(chat, msg);
   const fm = cap.match(/^\/?foto\s+#?(\d+)/i);
   if (fm) return saveOfferPhoto(chat, msg, Number(fm[1]));
+  // várias fotos (álbum) ou foto com link/comando: vira vídeo do produto
+  if (!/^\/?capas?\b/i.test(cap) && (msg.media_group_id || SHOPEE_RE.test(cap) || AMAZON_RE.test(cap) || /^\/?(reels|shopee|link)\b/i.test(cap))) return fotosProduto(msg, cap);
   const m = cap.match(/^\/?capas?\s+(.+)$/i);
   if (!m) return say(chat, `Para usar como capa, mande a foto com a legenda <b>/capa categoria</b>.\nCategorias: ${CAPA_SLUGS.join(", ")}`);
   const slug = toSlug(m[1]);
@@ -335,6 +342,71 @@ async function saveOfferPhoto(chat, msg, id) {
   const url = db().storage.from("carrosseis").getPublicUrl(name).data.publicUrl;
   await db().from("offers").update({ image_url: url }).eq("id", id);
   return say(chat, `✅ Foto do <b>#${id}</b> atualizada (${esc(off.title)}).`);
+}
+
+// ---------- fotos do produto -> vídeo ----------
+// Mande várias fotos de uma vez (álbum) com o link do produto (Shopee, Amazon ou Shein) na legenda,
+// ou "/link 227", "/shopee 227", "/reels 227". As fotos sem legenda do mesmo álbum só são guardadas.
+async function fotosProduto(msg, cap) {
+  const chat = msg.chat.id;
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  const grupo = msg.media_group_id || `m${msg.message_id}`;
+  const pasta = `fotos/${grupo}`;
+  const doc = msg.document && /^image\//.test(msg.document.mime_type || "") ? msg.document : null;
+  const fileId = doc ? doc.file_id : msg.photo?.[msg.photo.length - 1]?.file_id;
+  if (fileId) {
+    try {
+      const f = await tg("getFile", { file_id: fileId });
+      const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
+      const ext = (f.file_path.split(".").pop() || "jpg").toLowerCase().replace("jpeg", "jpg");
+      await db().storage.from("reels-videos").upload(`${pasta}/${String(msg.message_id).padStart(12, "0")}.${["png", "webp"].includes(ext) ? ext : "jpg"}`, Buffer.from(await res.arrayBuffer()), { contentType: ext === "png" ? "image/png" : "image/jpeg", upsert: true });
+    } catch (e) { if (cap) return say(chat, `Erro ao guardar a foto: ${esc(e.message)}`); }
+  }
+  if (!cap) return; // demais fotos do álbum: só guarda
+
+  await tg("sendChatAction", { chat_id: chat, action: "upload_video" }).catch(() => {});
+  // 1) comando com o número da vitrine
+  const cm = cap.match(/^\/?(reels|shopee|link)\b/i);
+  if (cm) {
+    const { head, fala } = parseReels(cap);
+    const modo = cm[1].toLowerCase() === "reels" ? "instagram" : cm[1].toLowerCase();
+    return startReels(chat, head, fala, "", modo, { fotos: pasta, ...(fala ? {} : { gerarFala: true }) });
+  }
+  // 2) link de loja sem API (Amazon / Shein): final genérico
+  const loja = (cap.match(AMAZON_RE) || [])[0];
+  if (loja) {
+    const resto = cap.replace(loja, "").trim();
+    const r = await addAmazon(loja, /\|/.test(resto) ? resto : "");
+    if (r.erro) return say(chat, r.erro);
+    await say(chat, `📥 <b>${lojaNome(loja)} #${r.id}</b> ${esc(String(r.a.title).slice(0, 80))}${r.dup ? " (já estava na vitrine)" : ""}\n🔗 ${esc(r.a.link)}`);
+    return startReels(chat, [String(r.id)], "", "", "link", { fotos: pasta, gerarFala: true, contexto: /\|/.test(resto) ? "" : resto });
+  }
+  // 3) link da Shopee: produto com o SEU link e o modo escolhido em /modo
+  const url = (cap.match(SHOPEE_RE) || [])[0];
+  if (url) {
+    let info;
+    try { info = await importFromUrl(url, { forceOwnLink: true, subId: "fotos" }); } catch (e) { return say(chat, `Não consegui ler o produto: ${esc(e.message)}`); }
+    if (!info?.title || !info?.item_id) return say(chat, "Não reconheci o produto desse link. Use o link do PRODUTO (no app: produto → Compartilhar → Copiar link).");
+    let offerId;
+    const { data: dup } = await db().from("offers").select("id").eq("description", `grupo:${info.shop_id}:${info.item_id}`).eq("active", true).limit(1);
+    if (dup?.length) offerId = dup[0].id;
+    else {
+      const dias = Number(process.env.DIAS_NA_VITRINE || 15);
+      const { data: row, error } = await db().from("offers").insert({
+        kind: "produto", title: String(info.title).slice(0, 120), description: `grupo:${info.shop_id}:${info.item_id}`,
+        image_url: info.image_url, price: info.price, original_price: info.original_price, link: info.link,
+        platform: "shopee", active: true, expires_at: dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null,
+      }).select("id").single();
+      if (error) return say(chat, `Erro ao gravar na vitrine: ${esc(error.message)}`);
+      offerId = row.id;
+    }
+    const modo = await getModo();
+    const modos = modo === "ambos" ? ["shopee", "instagram"] : [modo === "reels" ? "instagram" : "shopee"];
+    await say(chat, `📥 <b>#${offerId}</b> ${esc(String(info.title).slice(0, 80))}\n🔗 seu link: ${esc(info.link)}`);
+    for (const m of modos) await startReels(chat, [String(offerId)], "", "", m, { fotos: pasta, gerarFala: true, contexto: cap.replace(url, "").trim() });
+    return;
+  }
+  return say(chat, "Para virar vídeo, mande as fotos com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>.");
 }
 
 async function listCovers(chat) {
@@ -422,15 +494,15 @@ async function addShop(chat, q, shopId) {
 // e depois a foto com a legenda /foto NUMERO.
 async function importAmazon(chat, url, resto = "") {
   if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
-  await say(chat, "🔎 Lendo o produto na Amazon...");
+  await say(chat, `🔎 Lendo o produto na ${lojaNome(url)}...`);
   const r = await addAmazon(url, resto);
   if (r.erro) return say(chat, r.erro);
   const { a, id, dias, dup } = r;
   if (dup) return say(chat, `Já está na vitrine como <b>#${id}</b>.`);
-  const preco = a.price ? `R$ ${a.price.toFixed(2).replace(".", ",")}` : "sem preço";
-  const faltou = [!a.price && "preço", !a.image_url && "foto"].filter(Boolean);
+  const preco = a.price ? `R$ ${a.price.toFixed(2).replace(".", ",")}` : "sem preço (o cliente vê no link)";
+  const faltou = [!a.image_url && "foto"].filter(Boolean);
   const msg = [
-    `✅ <b>Amazon</b> na vitrine como <b>#${id}</b> (sai em ${dias} dias)`,
+    `✅ <b>${lojaNome(url)}</b> na vitrine como <b>#${id}</b> (sai em ${dias} dias)`,
     `📦 ${esc(a.title)}`,
     `💰 ${preco}`,
     `🔗 ${a.link}`,
@@ -448,14 +520,15 @@ const AMAZON_BLOQUEOU = [
 
 // lê o produto e grava na vitrine (ou devolve o que já existe)
 async function addAmazon(url, resto = "") {
-  const a = await amazonProduct(url);
+  const shein = isShein(url);
+  const a = shein ? await sheinProduct(url) : await amazonProduct(url);
   const [precoTxt, ...nomeTxt] = String(resto).split("|").map((x) => x.trim());
   const precoManual = Number(String(precoTxt || "").replace(/[^\d,]/g, "").replace(",", "."));
   if (nomeTxt.join(" ").trim() && isFinite(precoManual) && precoManual > 0) a.price = precoManual;
   if (nomeTxt.join(" ").trim()) a.title = nomeTxt.join(" ").trim();
-  if (!a.title) return { erro: AMAZON_BLOQUEOU };
+  if (!a.title) return { erro: shein ? "⚠️ A Shein bloqueou a leitura desta vez. Mande de novo assim: <b>link | nome do produto</b> e depois a foto com a legenda <b>/foto NÚMERO</b>." : AMAZON_BLOQUEOU };
   const dias = Number(process.env.DIAS_NA_VITRINE || 15);
-  const desc = a.asin ? `amazon:${a.asin}` : null;
+  const desc = shein ? (a.goods_id ? `shein:${a.goods_id}` : null) : a.asin ? `amazon:${a.asin}` : null;
   if (desc) {
     const { data: dup } = await db().from("offers").select("id").eq("description", desc).eq("active", true).limit(1);
     if (dup?.length) return { a, id: dup[0].id, dias, dup: true };
@@ -468,7 +541,7 @@ async function addAmazon(url, resto = "") {
     price: a.price || null,
     original_price: a.original_price,
     link: a.link,
-    platform: "amazon",
+    platform: shein ? "shein" : "amazon",
     active: true,
     expires_at: dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null,
   }).select("id").single();
@@ -494,7 +567,7 @@ async function amazonVideo(msg, cap, url) {
   const name = `${Date.now()}.mp4`;
   const { error: upErr } = await db().storage.from("reels-videos").upload(name, Buffer.from(await res.arrayBuffer()), { contentType: "video/mp4" });
   if (upErr) return say(chat, `Erro ao guardar o vídeo: ${esc(upErr.message)}`);
-  await say(chat, `📥 <b>Amazon #${r.id}</b> ${esc(String(r.a.title).slice(0, 80))}${r.dup ? " (já estava na vitrine)" : ""}\n${r.a.price ? `💰 ${brl(r.a.price)}\n` : ""}🔗 ${esc(r.a.link)}`);
+  await say(chat, `📥 <b>${lojaNome(url)} #${r.id}</b> ${esc(String(r.a.title).slice(0, 80))}${r.dup ? " (já estava na vitrine)" : ""}\n${r.a.price ? `💰 ${brl(r.a.price)}\n` : ""}🔗 ${esc(r.a.link)}`);
   return startReels(chat, [String(r.id)], "", name, "link", { gerarFala: true, contexto: manual ? "" : resto });
 }
 
@@ -520,7 +593,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/reels-v2.yml/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "vitrine-bot" },
-    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, modo, ...(extra.gerarFala ? { gerar_fala: "1", contexto: String(extra.contexto || "").slice(0, 900) } : {}), ...(postar ? { postar: "true" } : {}) } }),
+    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, modo, ...(extra.fotos ? { fotos: extra.fotos } : {}), ...(extra.gerarFala ? { gerar_fala: "1", contexto: String(extra.contexto || "").slice(0, 900) } : {}), ...(postar ? { postar: "true" } : {}) } }),
     cache: "no-store",
   });
   if (r.status !== 204) {
@@ -528,6 +601,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
     let msg = t; try { msg = JSON.parse(t).message || t; } catch {}
     return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? "Confira no token: dono = bemyveus-prog, repositório achadinhos e permissão Actions: Read and write." : ""}`);
   }
+  if (extra.fotos) return say(chat, `🖼️ Gerando o vídeo do <b>#${num}</b> com as suas fotos${modo === "link" ? " e final genérico (clique no link abaixo)" : modo === "shopee" ? " para o Shopee Vídeo" : " para o Reels"}. Chega aqui em uns 3 minutos.`);
   if (modo === "link") return say(chat, `🔗 Gerando o vídeo do <b>#${num}</b> com final genérico (clique no link abaixo, sem citar a loja). Chega aqui em uns 2 minutos.`);
   if (modo === "shopee") return say(chat, `🛍️ Gerando o vídeo do <b>#${num}</b> para o <b>Shopee Vídeo</b>${video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " e a sua narração" : ""}.\nChega aqui em uns 2 minutos.`);
   return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${video && sku ? ` com o seu vídeo + o vídeo da CJ (<code>${esc(sku)}</code>)` : video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " com a sua narração" : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
