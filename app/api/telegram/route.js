@@ -30,7 +30,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
-🎞️ Formato: os vídeos alternam sozinhos entre <b>tela cheia</b> e <b>máscara</b> (headline em cima, vídeo no meio, chamada embaixo). Para escolher, acrescente <i>mascara</i> ou <i>cheio</i>: <b>/reels 227 mascara</b>
+🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i> ou <i>cheio</i> no comando ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon / Shein</b>: cole o seu link de afiliado (amzn.to/…, amazon.com.br/dp/…, onelink.shein.com/…) e o produto entra na vitrine com a etiqueta da loja. Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
@@ -132,6 +132,7 @@ async function onText(msg) {
 
   if (cmd === "top") return startTop(chat, text);
   if (cmd === "modo") return setModo(chat, arg);
+  if (cmd === "formato") return setFormato(chat, arg);
   if (cmd === "reels" || cmd === "shopee" || cmd === "link") {
     const { head, fala } = parseReels(text);
     return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : cmd === "link" ? "link" : "instagram", cmd === "link" && !fala ? { gerarFala: true } : {});
@@ -579,7 +580,11 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
   // formato do vídeo: "mascara" (headline em cima, vídeo no meio, chamada embaixo) ou "cheio"; sem nada, sorteia
-  const layout = args.some((a) => /^m[aá]scara$/i.test(a)) ? "mascara" : args.some((a) => /^cheio$/i.test(a)) ? "cheio" : "";
+  // ordem: palavra no comando > palavra na legenda do vídeo/fotos (vem no contexto) > /formato
+  const ctxLayout = (String(extra.contexto || "").match(LAYOUT_RE) || [])[1] || "";
+  if (ctxLayout) extra = { ...extra, contexto: String(extra.contexto).replace(LAYOUT_RE, " ").trim() };
+  const layout = args.some((a) => /^m[aá]scara$/i.test(a)) ? "mascara" : args.some((a) => /^cheio$/i.test(a)) ? "cheio"
+    : ctxLayout ? (/^cheio$/i.test(ctxLayout) ? "cheio" : "mascara") : await getFormato();
   // depois do número: SKU da CJ (tem letras e números, ex.: CJYD2300009) e, sem "texto:", o resto vira narração
   const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio)$/i.test(a));
   const looksSku = (a) => /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
@@ -756,6 +761,20 @@ async function getModo() {
   const { data } = await db().from("bot_config").select("value").eq("key", "modo_grupo").maybeSingle();
   return ["shopee", "reels", "ambos"].includes(data?.value) ? data.value : "shopee";
 }
+// formato padrão dos vídeos: máscara, tela cheia ou alternar (sorteio)
+const LAYOUT_RE = /(?:^|\s)(m[aá]scara|cheio)(?=\s|$)/i;
+async function getFormato() {
+  if (!hasDb()) return "";
+  const { data } = await db().from("bot_config").select("value").eq("key", "formato").maybeSingle();
+  return ["mascara", "cheio"].includes(data?.value) ? data.value : "";
+}
+async function setFormato(chat, arg) {
+  const v = String(arg || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (!["mascara", "cheio", "alternar"].includes(v)) return say(chat, `Formato atual dos vídeos: <b>${(await getFormato()) || "alternar"}</b>\nUse: /formato mascara · /formato cheio · /formato alternar`);
+  await db().from("bot_config").upsert({ key: "formato", value: v, updated_at: new Date().toISOString() });
+  return say(chat, `✅ Daqui pra frente os vídeos saem: <b>${v === "mascara" ? "sempre com máscara" : v === "cheio" ? "sempre em tela cheia" : "alternando entre tela cheia e máscara"}</b>\n(Para um vídeo só, escreva <i>mascara</i> ou <i>cheio</i> no comando ou na legenda.)`);
+}
+
 async function setModo(chat, arg) {
   const v = String(arg || "").toLowerCase().trim();
   if (!["shopee", "reels", "ambos"].includes(v)) return say(chat, `Formato atual dos vídeos encaminhados: <b>${await getModo()}</b>\nUse: /modo shopee · /modo reels · /modo ambos`);

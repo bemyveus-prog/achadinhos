@@ -210,7 +210,10 @@ async function main() {
   const [modoRaw, layoutRaw] = env("REELS_MODO", "instagram").split("+");
   const modo = ["shopee", "link"].includes(modoRaw) ? modoRaw : "instagram";
   // formato: máscara (headline em cima, vídeo no meio, chamada embaixo) ou tela cheia; sem escolha, sorteia
-  const layout = ["mascara", "cheio"].includes(layoutRaw) ? layoutRaw : (env("REELS_LAYOUT", "alternar") === "alternar" ? (Math.random() < 0.5 ? "mascara" : "cheio") : env("REELS_LAYOUT"));
+  // sem escolha no pedido: vale o /formato do bot (bot_config "formato"); senão sorteia
+  let padrao = env("REELS_LAYOUT", "");
+  if (!padrao) { const { data: fc } = await sb.from("bot_config").select("value").eq("key", "formato").maybeSingle(); padrao = fc?.value || "alternar"; }
+  const layout = ["mascara", "cheio"].includes(layoutRaw) ? layoutRaw : ["mascara", "cheio"].includes(padrao) ? padrao : (Math.random() < 0.5 ? "mascara" : "cheio");
   log(`Formato: ${layout === "mascara" ? "máscara (headline + vídeo + chamada)" : "tela cheia"}`);
   const headline = layout === "mascara" ? await gerarHeadline(p, { fala, log }) : "";
   if (modo === "link") log("Modo link: final genérico chamando para o link abaixo (sem citar a loja)");
