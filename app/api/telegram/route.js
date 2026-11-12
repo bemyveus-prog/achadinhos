@@ -99,7 +99,7 @@ async function onText(msg) {
   const text = msg.text.trim();
   // texto do grupo com link da Shopee logo depois de um vídeo sem legenda
   if (!text.startsWith("/") && hasDb()) {
-    const url = (text.match(/https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0] || (text.match(AMAZON_RE) || [])[0];
+    const url = (text.match(/https?:\/\/(?:s\.shopee\.com\.br|(?:[a-z]{2,3}\.)?shope\.ee|(?:[a-z]{2,3}\.)?shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0] || (text.match(AMAZON_RE) || [])[0];
     if (url) {
       const { data: pend } = await db().from("bot_config").select("value").eq("key", "video_pendente").maybeSingle();
       let pv = null; try { pv = JSON.parse(pend?.value || "null"); } catch {}
@@ -547,7 +547,7 @@ async function onVideo(msg) {
   const chat = msg.chat.id;
   if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
   const cap = (msg.caption || "").trim();
-  const shopeeUrl = (cap.match(/https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
+  const shopeeUrl = (cap.match(/https?:\/\/(?:s\.shopee\.com\.br|(?:[a-z]{2,3}\.)?shope\.ee|(?:[a-z]{2,3}\.)?shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
   const isCmd = /^\/?(reels|shopee|link)\b/i.test(cap);
   const amzUrl = (cap.match(AMAZON_RE) || [])[0];
   if (!isCmd && amzUrl) return amazonVideo(msg, cap, amzUrl);
@@ -879,7 +879,7 @@ async function chooseGroupProduct(chat, q, data) {
 // ---------- grupos/canais do Telegram onde o bot está ----------
 // O bot NUNCA responde dentro do grupo: tudo vai para o seu chat. Só lê os grupos listados em TELEGRAM_GRUPOS.
 const grupos = () => (process.env.TELEGRAM_GRUPOS || "").split(/[\s,;]+/).filter(Boolean);
-const SHOPEE_RE = /https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|sv\.shopee\.com\.br|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i;
+const SHOPEE_RE = /https?:\/\/(?:s\.shopee\.com\.br|(?:[a-z]{2,3}\.)?shope\.ee|(?:[a-z]{2,3}\.)?shp\.ee|sv\.shopee\.com\.br|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i;
 
 async function onGroup(m) {
   const gid = String(m.chat.id);
