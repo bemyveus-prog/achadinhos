@@ -19,13 +19,14 @@ export async function gerarNarracao(p, { contexto = "", max = 280, log = console
   if (!key) { log("  narração: modelo de texto (sem ANTHROPIC_API_KEY)"); return modelo(p); }
   const prompt = `Escreva a narração falada de um vídeo curto de achadinho da Shopee (afiliado), em português do Brasil.
 Produto: "${p.name}"
-${p.price ? `Preço: ${brl(p.price)}` : ""}${p.rating ? ` · Nota ${p.rating}` : ""}${p.sales ? ` · ${p.sales} vendas recentes` : ""}
+${p.price ? `Preço: ${brl(p.price)}` : ""}${p.rating ? ` · Nota ${String(Number(p.rating).toFixed(1)).replace(".", ",")}` : ""}${p.sales ? ` · ${p.sales} vendas recentes` : ""}
 Texto que veio junto com o vídeo (pode ter a descrição do produto): """${String(contexto).slice(0, 800)}"""
 
 Regras:
 - No máximo ${max} caracteres, ${max <= 160 ? "1 ou 2 frases curtas" : "2 ou 3 frases"}, tom animado e natural, como uma pessoa falando.
 - Comece com um gancho que prenda nos primeiros segundos (problema que o produto resolve ou curiosidade).
-- Use SÓ informações do nome do produto e do texto acima. Não invente medidas, materiais, resultados ou promessas de saúde.
+- Use SÓ informações do nome do produto e do texto acima. Não invente medidas, materiais, benefícios, resultados ou promessas de saúde.
+- Números no jeito brasileiro (nota 4,9; R$ 119,99), para a voz ler certo.
 - Não fale de link, bio, cupom, seguir ou comentar (o final do vídeo já faz isso). Não use emojis, hashtags nem travessão.
 Responda só com o texto da narração.`;
   try {
