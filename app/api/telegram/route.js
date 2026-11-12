@@ -22,6 +22,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
+🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
@@ -110,6 +111,9 @@ async function onText(msg) {
       }
     }
   }
+  // link de vídeo do Shopee Vídeo sozinho: baixa o vídeo e segue como vídeo encaminhado
+  const svLink = (text.match(SHOPEE_RE) || [])[0];
+  if (svLink && isVideoLink(svLink) && (!text.startsWith("/") || /^\/baixar\b/i.test(text))) return baixarShopeeVideo(msg, text, svLink);
   const [cmdRaw, ...rest] = text.split(/\s+/);
   const cmd = cmdRaw.startsWith("/") ? cmdRaw.slice(1).split("@")[0].toLowerCase() : null;
   const arg = (cmd ? rest.join(" ") : text).trim();
@@ -739,6 +743,48 @@ async function saveTelegramVideo(v) {
   const { error } = await db().storage.from("reels-videos").upload(name, Buffer.from(await res.arrayBuffer()), { contentType: "video/mp4" });
   if (error) throw new Error(`Erro ao guardar o vídeo: ${error.message}`);
   return name;
+}
+
+// O link do Shopee Vídeo não abre o vídeo para navegador comum, mas entrega a página com o .mp4
+// para leitores de prévia de link. O Telegram baixa o .mp4 direto pela URL.
+async function shopeeVideoMp4(link) {
+  for (const ua of ["facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)", "TelegramBot (like TwitterBot)"]) {
+    try {
+      const r = await fetch(link, { headers: { "User-Agent": ua, "Accept-Language": "pt-BR" }, redirect: "follow", cache: "no-store", signal: AbortSignal.timeout(8000) });
+      const h = await r.text();
+      const mp4 = (h.match(/https?:[^"'\s\\]+?\.mp4[^"'\s\\<]*/) || [])[0];
+      if (mp4) return mp4.replace(/&amp;/g, "&");
+    } catch { /* tenta o próximo */ }
+  }
+  return null;
+}
+
+async function baixarShopeeVideo(msg, text, link) {
+  const chat = msg.chat.id;
+  await tg("sendChatAction", { chat_id: chat, action: "upload_video" }).catch(() => {});
+  const mp4 = await shopeeVideoMp4(link);
+  if (!mp4) return say(chat, "⚠️ Não consegui pegar o vídeo desse link. Baixe pelo app (Compartilhar → Baixar) e encaminhe o vídeo aqui.");
+  let sent;
+  try {
+    sent = await tg("sendVideo", { chat_id: chat, video: mp4, caption: "🎥 Vídeo do Shopee Vídeo baixado. Agora vou identificar o produto…", supports_streaming: true });
+  } catch {
+    // o Telegram não conseguiu baixar sozinho: baixa aqui e envia o arquivo
+    try {
+      const r = await fetch(mp4, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+      const form = new FormData();
+      form.append("chat_id", String(chat));
+      form.append("caption", "🎥 Vídeo do Shopee Vídeo baixado. Agora vou identificar o produto…");
+      form.append("video", new Blob([await r.arrayBuffer()], { type: "video/mp4" }), "shopee-video.mp4");
+      const res = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/sendVideo`, { method: "POST", body: form });
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.description);
+      sent = j.result;
+    } catch (e) { return say(chat, `⚠️ Achei o vídeo mas não consegui baixar (${esc(e.message)}).\nLink direto: ${esc(mp4)}`); }
+  }
+  const v = sent.video || sent.document;
+  if (!v) return say(chat, "Baixei, mas o Telegram não devolveu o vídeo.");
+  // segue o mesmo caminho de um vídeo encaminhado de grupo: identifica o produto, você confirma e ele gera o vídeo
+  return identifyGroupVideo({ chat: msg.chat, video: v }, text.replace(/^\/baixar\S*/i, ""));
 }
 
 async function identifyGroupVideo(msg, cap) {
