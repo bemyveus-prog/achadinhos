@@ -12,7 +12,7 @@ console.log("Vozes pt-BR:", pt.map((v) => `${v.id} (${v.genero})`).join(", "));
 const out = path.resolve("saida/vozes"); await mkdir(out, { recursive: true });
 const token = process.env.TELEGRAM_BOT_TOKEN, chat = (process.env.TELEGRAM_CHAT_ID || "").split(/[\s,;]+/)[0];
 for (const v of pt.filter((x) => x.id === (process.env.EDGE_VOICE || "pt-BR-FranciscaNeural"))) {
-  for (const [rate, FRASE] of [["+22%", "Teste 1: Xópi. Olha esse achadinho da Xópi, tem cupom da Xópi te esperando!"], ["+22%", "Teste 2: Chópi. Olha esse achadinho da Chópi, tem cupom da Chópi te esperando!"], ["+22%", "Teste 3: Shópi. Olha esse achadinho da Shópi, tem cupom da Shópi te esperando!"]]) {
+  for (const [rate, FRASE] of [["+22%", "Teste A: Chopi. Olha esse achadinho da Chopi, tem cupom da Chopi te esperando!"], ["+22%", "Teste B: Chopí. Olha esse achadinho da Chopí, tem cupom da Chopí te esperando!"]]) {
     try {
       const tts = new MsEdgeTTS();
       await tts.setMetadata(v.id, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
