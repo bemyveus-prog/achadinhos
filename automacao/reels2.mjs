@@ -162,7 +162,14 @@ async function main() {
   const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || "#D0306F" };
   let fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
   // sem texto seu: com a chave da IA, a narração é escrita para este produto (senão usa o texto padrão)
-  if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), log });
+  // com vídeo, a narração é escrita do tamanho do vídeo (~15 caracteres por segundo de fala)
+  let maxChars = 280;
+  if (clip?.file) {
+    const { audioDuration } = await import("./lib/voz.mjs");
+    const secs = Math.min(clip.maxSec || 5, Math.max(0, (await audioDuration(clip.file).catch(() => 0)) - 0.6));
+    if (secs > 0) { maxChars = Math.max(80, Math.min(280, Math.round(secs * 15))); log(`  vídeo de ${secs.toFixed(1)} s → narração de até ${maxChars} caracteres`); }
+  }
+  if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), max: maxChars, log });
   if (fala) log(`Narração própria: "${fala}"`);
   // final: "me segue" + link da bio; o cupom só é citado se a vitrine tiver cupom ativo agora
   const agora = new Date().toISOString();
