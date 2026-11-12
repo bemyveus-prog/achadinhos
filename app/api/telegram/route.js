@@ -609,7 +609,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   if (r.status !== 204) {
     const t = await r.text().catch(() => "");
     let msg = t; try { msg = JSON.parse(t).message || t; } catch {}
-    return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? "Confira no token: dono = bemyveus-prog, repositório achadinhos e permissão Actions: Read and write." : ""}`);
+    return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? `Confira o GITHUB_TOKEN da Vercel: precisa ter acesso ao repositório ${REPO} com a permissão Actions: Read and write.` : ""}`);
   }
   if (extra.fotos) return say(chat, `🖼️ Gerando o vídeo do <b>#${num}</b> com as suas fotos${modo === "link" ? " e final genérico (clique no link abaixo)" : modo === "shopee" ? " para o Shopee Vídeo" : " para o Reels"}. Chega aqui em uns 3 minutos.`);
   if (modo === "link") return say(chat, `🔗 Gerando o vídeo do <b>#${num}</b> com final genérico (clique no link abaixo, sem citar a loja). Chega aqui em uns 2 minutos.`);
