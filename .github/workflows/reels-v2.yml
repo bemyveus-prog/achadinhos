@@ -21,7 +21,7 @@ on:
         description: "Vídeo enviado pelo bot (nome no Storage reels-videos), opcional"
         default: ""
       modo:
-        description: "instagram (final com Seguir + link da bio) ou shopee (final chamando para o produto do Shopee Vídeo)"
+        description: "instagram (final com Seguir + link da bio), shopee (final chamando para o produto do Shopee Vídeo) ou link (final genérico: clique no link abaixo)"
         default: "instagram"
       fala:
         description: "Texto narrado na parte do produto (opcional)"

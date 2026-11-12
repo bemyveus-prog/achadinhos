@@ -162,7 +162,7 @@ async function main() {
   const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || "#D0306F" };
   let fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
   // sem texto seu: com a chave da IA, a narração é escrita para este produto (senão usa o texto padrão)
-  if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), log });
+  if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), generico: env("REELS_MODO", "") === "link", log });
   if (fala) log(`Narração própria: "${fala}"`);
   // final: "me segue" + link da bio; o cupom só é citado se a vitrine tiver cupom ativo agora
   const agora = new Date().toISOString();
@@ -182,7 +182,8 @@ async function main() {
     }
   } catch (e) { log(`  avatar: ${e.message}`); }
   log(`  final: ${cupom ? `com cupom (${cupons} ativos)` : "sem cupom ativo"} · ${avatar ? "com foto do perfil" : "sem foto do perfil (mande /avatar no bot)"}`);
-  const modo = env("REELS_MODO", "instagram") === "shopee" ? "shopee" : "instagram";
+  const modo = ["shopee", "link"].includes(env("REELS_MODO", "instagram")) ? env("REELS_MODO") : "instagram";
+  if (modo === "link") log("Modo link: final genérico chamando para o link abaixo (sem citar a loja)");
   if (modo === "shopee") log("Modo Shopee Vídeo: final chamando para o produto vinculado");
   const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, modo, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), log });
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
@@ -204,13 +205,15 @@ async function main() {
   await makePinImage({ id: offerId, title: p.name, image_url: p.imageUrl, price: p.price, sales: p.sales, rating: p.rating }, { log }).catch((e) => log(`  pin: ${e.message}`));
 
   // Shopee Vídeo: não tem postagem automática; o vídeo vai para o Telegram para você subir no app
-  if (modo === "shopee") {
+  if (modo === "shopee" || modo === "link") {
     const { data: off } = await sb.from("offers").select("link").eq("id", offerId).maybeSingle();
     // legenda do Shopee Vídeo: até 150 caracteres, com hashtags de busca do produto
-    const legShopee = await gerarLegendaShopee(p, { fala, log });
+    const legShopee = await gerarLegendaShopee(p, { fala, generico: modo === "link", log });
     await writeFile(path.join(outDir, "legenda-shopee.txt"), legShopee + "\n");
     if (hasTelegram()) {
-      const info = `🛍️ Shopee Vídeo #${offerId} (${seconds.toFixed(0)} s)\nNo app Shopee: Vídeo → postar → vincule o produto #${offerId}${off?.link ? `\n${off.link}` : ""}\n\nLegenda (${legShopee.length}/150) 👇`;
+      const info = modo === "link"
+        ? `🔗 Vídeo com link #${offerId} (${seconds.toFixed(0)} s)\nPoste com o link do produto${off?.link ? `:\n${off.link}` : ""}\n\nLegenda (${legShopee.length}/150) 👇`
+        : `🛍️ Shopee Vídeo #${offerId} (${seconds.toFixed(0)} s)\nNo app Shopee: Vídeo → postar → vincule o produto #${offerId}${off?.link ? `\n${off.link}` : ""}\n\nLegenda (${legShopee.length}/150) 👇`;
       // botão que copia SÓ a legenda
       try { await sendVideo(file, info.slice(0, 1024), { inline_keyboard: [[{ text: "📋 Copiar legenda", copy_text: { text: legShopee } }]] }); }
       catch (e) { log(`  botão de copiar recusado (${e.message}); enviando sem`); await sendVideo(file, info.slice(0, 1024)); }

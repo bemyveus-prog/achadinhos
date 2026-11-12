@@ -19,6 +19,18 @@ const reais = (v) => {
   return c ? `${r} reais e ${c}` : `${r} reais`;
 };
 
+// Final genérico (Amazon e outras lojas): chama para o link abaixo, sem citar a plataforma
+export const CTAS_LINK = [
+  { say: "Gostou? O link tá aqui embaixo, é só clicar!", tela: "Gostou? <span>Clique no link</span> aqui embaixo" },
+  { say: "Clica no link aqui embaixo e confere o preço de hoje!", tela: "Clique no link e <span>veja o preço de hoje</span>" },
+  { say: "Quer o seu? Clica no link aqui embaixo!", tela: "Quer o seu? <span>Clique no link</span> abaixo" },
+  { say: "Corre no link aqui embaixo antes que o preço mude!", tela: "Corre no link <span>antes que o preço mude</span>" },
+  { say: "Deixei o link aqui embaixo pra você, é só clicar!", tela: "Deixei o <span>link aqui embaixo</span> pra você" },
+  { say: "Clica no link aqui embaixo e vê todos os detalhes!", tela: "Clique no link e <span>veja todos os detalhes</span>" },
+  { say: "Não deixa pra depois, clica no link aqui embaixo!", tela: "Não deixa pra depois: <span>clique no link</span>" },
+  { say: "Clica no link aqui embaixo e manda pra quem também precisa!", tela: "Clique no link e <span>mande pra quem precisa</span>" },
+];
+
 // Finais do Shopee Vídeo (fala + texto na tela), um sorteado por vídeo
 export const CTAS_SHOPEE = [
   { say: "Gostou? Toca no produto aqui embaixo e garante o seu!", tela: "Gostou? <span>Toque no produto</span> aqui embaixo" },
@@ -50,7 +62,7 @@ export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom 
   const padrao = `${hook ? hook.replace(/\*/g, "").replace(/[.!?]*$/, "") + ". " : ""}${nome}. Aproveita enquanto tá nesse preço!`;
   return [
     { key: "produto", say: fala || padrao, min: 3.0 },
-    modo === "shopee"
+    modo === "shopee" || modo === "link"
       ? { key: "cta", say: (ctaShopee || CTAS_SHOPEE[0]).say, min: 3.4 }
       : { key: "cta", say: (ctaInsta || CTAS_INSTA[0]).say + ctaInstaFim(cupom, n ? `procura o número ${n}` : "procura na vitrine"), min: 4.2 },
   ];
@@ -182,7 +194,7 @@ window.render=(t)=>{
   $("price").querySelector("small").style.opacity=key==="preco"?ease(lt/0.2):0;
   $("pv").style.transform="scale("+(key==="preco"?0.3+0.7*back((lt-0.1)/0.4):0)+") rotate(-3deg)";
   // 5. chamada
-  const shopee=D.modo==="shopee";
+  const shopee=D.modo==="shopee"||D.modo==="link";
   const isC=key==="cta"&&!shopee;
   // modo Shopee Vídeo: chama para o produto vinculado embaixo do vídeo (sem "seguir" nem "link na bio")
   const isS=key==="cta"&&shopee;
@@ -257,7 +269,8 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   const tmp = path.join(outDir, "_tmp");
   await mkdir(tmp, { recursive: true });
   comment = comment || "Quanto você chutou? Comenta aí!";
-  const ctaShopee = CTAS_SHOPEE[Math.floor(Math.random() * CTAS_SHOPEE.length)];
+  const lista = modo === "link" ? CTAS_LINK : CTAS_SHOPEE;
+  const ctaShopee = lista[Math.floor(Math.random() * lista.length)];
   const ctaInsta = CTAS_INSTA[Math.floor(Math.random() * CTAS_INSTA.length)];
   const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom, modo, ctaShopee, ctaInsta });
   // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)

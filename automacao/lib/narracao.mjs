@@ -37,13 +37,13 @@ const FECHOS = [
   "frase direta de recomendação, curta e confiante",
 ];
 
-export async function gerarNarracao(p, { contexto = "", max = 280, log = console.log } = {}) {
+export async function gerarNarracao(p, { contexto = "", max = 280, generico = false, log = console.log } = {}) {
   const key = env("ANTHROPIC_API_KEY");
   if (!key) { log("  narração: modelo de texto (sem ANTHROPIC_API_KEY)"); return modelo(p); }
   // um estilo de gancho e um de fechamento sorteados a cada vídeo (sempre a partir da DOR que o produto resolve)
   const gancho = GANCHOS[Math.floor(Math.random() * GANCHOS.length)];
   const fecho = FECHOS[Math.floor(Math.random() * FECHOS.length)];
-  const prompt = `Você é um copywriter de vídeos curtos de achadinhos da Shopee (afiliado). Escreva a NARRAÇÃO falada de um vídeo de produto, em português do Brasil.
+  const prompt = `Você é um copywriter de vídeos curtos de achadinhos${generico ? "" : " da Shopee"} (afiliado). Escreva a NARRAÇÃO falada de um vídeo de produto, em português do Brasil.
 Produto: "${p.name}"
 Texto que veio junto com o vídeo (pode ter a descrição do produto): """${String(contexto).slice(0, 800)}"""
 
@@ -57,7 +57,7 @@ Regras:
 - PROIBIDO usar estas expressões gastas: "para tudo", "olha isso", "cansada de", "cansado de", "aproveita enquanto", "garante o seu", "você não vai acreditar", "achadinho incrível", "como vivia sem", "vale cada centavo".
 - NÃO fale de nota, avaliações, vendas nem preço exato (aparecem na tela).
 - Use SÓ o que dá para saber pelo nome e pelo texto acima. Não invente medidas, materiais, recursos, resultados ou promessas de saúde, nem características como "cabe em qualquer lugar", "fácil de limpar", "não enferruja" se isso não estiver escrito.
-- Não diga que você comprou ou usa o produto. Não fale de link, bio, cupom, seguir ou comentar. Sem emojis, hashtags ou travessão.
+- Não diga que você comprou ou usa o produto. Não fale de link, bio, cupom, seguir ou comentar${generico ? ", nem cite nenhuma loja ou plataforma (Amazon, Shopee etc.)" : ""}. Sem emojis, hashtags ou travessão.
 Responda só com o texto da narração.`;
   try {
     const raw = await claude({ model: env("ANTHROPIC_MODEL_NARRACAO", "claude-haiku-5-5"), content: prompt, max: 400 });
@@ -96,22 +96,23 @@ function cortar150(frase, tags) {
   return `${f} ${ts.join(" ")}`.trim().slice(0, 150);
 }
 
-export async function gerarLegendaShopee(p, { fala = "", log = console.log } = {}) {
-  const fallback = () => cortar150("Achado que facilita a rotina 👇", hashtagsDoNome(p.name));
+export async function gerarLegendaShopee(p, { fala = "", generico = false, log = console.log } = {}) {
+  const fallback = () => cortar150("Achado que facilita a rotina 👇", hashtagsDoNome(p.name).filter((t) => !generico || t !== "#achadosshopee"));
   if (!env("ANTHROPIC_API_KEY")) return fallback();
-  const prompt = `Crie a legenda de um vídeo do Shopee Vídeo para este produto: "${p.name}".
+  const prompt = `Crie a legenda de um vídeo curto${generico ? "" : " do Shopee Vídeo"} para este produto: "${p.name}".
 Narração do vídeo (para combinar o tom): """${String(fala).slice(0, 300)}"""
 Regras:
 - TOTAL com as hashtags: no máximo 140 caracteres (conte espaços e #).
 - 1 frase curta e chamativa (pode ter 1 emoji) + de 3 a 5 hashtags.
-- Hashtags em PORTUGUÊS DO BRASIL = palavras-chave que um cliente digitaria na busca da Shopee Brasil para achar ESTE produto (ex.: para um escorredor de louça: #escorredordelouca #escorredorinox #organizacaocozinha). Tudo minúsculo, sem acento, sem espaço. No máximo 1 hashtag genérica.
-- Não fale de preço, nota, vendas, link ou bio.
+- Hashtags em PORTUGUÊS DO BRASIL = palavras-chave que um cliente digitaria na busca${generico ? "" : " da Shopee Brasil"} para achar ESTE produto (ex.: para um escorredor de louça: #escorredordelouca #escorredorinox #organizacaocozinha). Tudo minúsculo, sem acento, sem espaço. No máximo 1 hashtag genérica.
+- Não fale de preço, nota, vendas, link ou bio${generico ? ", nem cite loja ou plataforma (Amazon, Shopee etc.)" : ""}.
 Responda só com a legenda pronta.`;
   try {
     const t = (await claude({ model: env("ANTHROPIC_MODEL_NARRACAO", "claude-haiku-5-5"), content: prompt, max: 200 })).replace(/\s+/g, " ").replace(/[—–]/g, ",").trim();
     let tags = (t.match(/#[\p{L}\p{N}_]+/gu) || []).map((h) => "#" + tirarAcento(h.slice(1)).toLowerCase());
     const frase = t.replace(/#[\p{L}\p{N}_]+/gu, "").replace(/\s+/g, " ").trim();
-    if (tags.length < 3) tags = [...new Set([...tags, ...hashtagsDoNome(p.name)])];
+    if (generico) tags = tags.filter((h) => !/shopee|amazon/.test(h));
+    if (tags.length < 3) tags = [...new Set([...tags, ...hashtagsDoNome(p.name).filter((t) => !generico || t !== "#achadosshopee")])];
     const leg = cortar150(frase, [...new Set(tags)].slice(0, 5));
     log(`  legenda Shopee (${leg.length}): ${leg}`);
     return leg;

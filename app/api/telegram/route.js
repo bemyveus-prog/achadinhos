@@ -25,7 +25,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
-🛒 <b>Amazon</b>: cole o seu link de associado (amzn.to/… ou amazon.com.br/dp/…) e o produto entra na vitrine com etiqueta Amazon.
+🛒 <b>Amazon</b>: cole o seu link de associado (amzn.to/… ou amazon.com.br/dp/…) e o produto entra na vitrine com etiqueta Amazon. Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
@@ -97,13 +97,14 @@ async function onText(msg) {
   const text = msg.text.trim();
   // texto do grupo com link da Shopee logo depois de um vídeo sem legenda
   if (!text.startsWith("/") && hasDb()) {
-    const url = (text.match(/https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
+    const url = (text.match(/https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0] || (text.match(AMAZON_RE) || [])[0];
     if (url) {
       const { data: pend } = await db().from("bot_config").select("value").eq("key", "video_pendente").maybeSingle();
       let pv = null; try { pv = JSON.parse(pend?.value || "null"); } catch {}
       if (pv && Date.now() - pv.at < 10 * 60000) {
         await db().from("bot_config").delete().eq("key", "video_pendente");
         const fake = { chat: msg.chat, video: { file_id: pv.file_id, file_size: pv.file_size } };
+        if (AMAZON_RE.test(url)) return amazonVideo(fake, text, url);
         return isVideoLink(url) ? identifyGroupVideo(fake, text) : importGroupVideo(fake, text, url);
       }
     }
@@ -417,25 +418,43 @@ async function addShop(chat, q, shopId) {
 async function importAmazon(chat, url, resto = "") {
   if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
   await say(chat, "🔎 Lendo o produto na Amazon...");
+  const r = await addAmazon(url, resto);
+  if (r.erro) return say(chat, r.erro);
+  const { a, id, dias, dup } = r;
+  if (dup) return say(chat, `Já está na vitrine como <b>#${id}</b>.`);
+  const preco = a.price ? `R$ ${a.price.toFixed(2).replace(".", ",")}` : "sem preço";
+  const faltou = [!a.price && "preço", !a.image_url && "foto"].filter(Boolean);
+  const msg = [
+    `✅ <b>Amazon</b> na vitrine como <b>#${id}</b> (sai em ${dias} dias)`,
+    `📦 ${esc(a.title)}`,
+    `💰 ${preco}`,
+    `🔗 ${a.link}`,
+    `🔎 ${VITRINE()}/?p=${id}`,
+    faltou.length ? `\n⚠️ Faltou ${faltou.join(" e ")}. ${!a.image_url ? `Mande a foto com a legenda <b>/foto ${id}</b>.` : ""}` : "",
+  ].filter(Boolean).join("\n");
+  return a.image_url ? tg("sendPhoto", { chat_id: chat, photo: a.image_url, caption: msg, parse_mode: "HTML" }).catch(() => say(chat, msg)) : say(chat, msg);
+}
+
+const AMAZON_BLOQUEOU = [
+  "⚠️ A Amazon bloqueou a leitura automática desta vez.",
+  "Mande de novo assim: <b>link  preço | nome do produto</b>",
+  "Ex.: <i>https://amzn.to/xxxx 39,89 | Kit Elseve Cachos dos Sonhos</i>",
+].join("\n");
+
+// lê o produto e grava na vitrine (ou devolve o que já existe)
+async function addAmazon(url, resto = "") {
   const a = await amazonProduct(url);
-  const [precoTxt, ...nomeTxt] = resto.split("|").map((x) => x.trim());
+  const [precoTxt, ...nomeTxt] = String(resto).split("|").map((x) => x.trim());
   const precoManual = Number(String(precoTxt || "").replace(/[^\d,]/g, "").replace(",", "."));
-  if (isFinite(precoManual) && precoManual > 0) a.price = precoManual;
+  if (nomeTxt.join(" ").trim() && isFinite(precoManual) && precoManual > 0) a.price = precoManual;
   if (nomeTxt.join(" ").trim()) a.title = nomeTxt.join(" ").trim();
-  if (!a.title) {
-    return say(chat, [
-      "⚠️ A Amazon bloqueou a leitura automática desta vez.",
-      "Mande de novo assim: <b>link  preço | nome do produto</b>",
-      "Ex.: <i>https://amzn.to/xxxx 39,89 | Kit Elseve Cachos dos Sonhos</i>",
-      "Depois mande a foto com a legenda <b>/foto NÚMERO</b>.",
-    ].join("\n"));
-  }
+  if (!a.title) return { erro: AMAZON_BLOQUEOU };
+  const dias = Number(process.env.DIAS_NA_VITRINE || 15);
   const desc = a.asin ? `amazon:${a.asin}` : null;
   if (desc) {
     const { data: dup } = await db().from("offers").select("id").eq("description", desc).eq("active", true).limit(1);
-    if (dup?.length) return say(chat, `Já está na vitrine como <b>#${dup[0].id}</b>.`);
+    if (dup?.length) return { a, id: dup[0].id, dias, dup: true };
   }
-  const dias = Number(process.env.DIAS_NA_VITRINE || 15);
   const { data: row, error } = await db().from("offers").insert({
     kind: "produto",
     title: a.title.slice(0, 120),
@@ -448,18 +467,30 @@ async function importAmazon(chat, url, resto = "") {
     active: true,
     expires_at: dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null,
   }).select("id").single();
-  if (error) return say(chat, `Erro ao gravar: ${esc(error.message)}`);
-  const preco = a.price ? `R$ ${a.price.toFixed(2).replace(".", ",")}` : "sem preço";
-  const faltou = [!a.price && "preço", !a.image_url && "foto"].filter(Boolean);
-  const msg = [
-    `✅ <b>Amazon</b> na vitrine como <b>#${row.id}</b> (sai em ${dias} dias)`,
-    `📦 ${esc(a.title)}`,
-    `💰 ${preco}`,
-    `🔗 ${a.link}`,
-    `🔎 ${VITRINE()}/?p=${row.id}`,
-    faltou.length ? `\n⚠️ Faltou ${faltou.join(" e ")}. ${!a.image_url ? `Mande a foto com a legenda <b>/foto ${row.id}</b>.` : ""}` : "",
-  ].filter(Boolean).join("\n");
-  return a.image_url ? tg("sendPhoto", { chat_id: chat, photo: a.image_url, caption: msg, parse_mode: "HTML" }).catch(() => say(chat, msg)) : say(chat, msg);
+  if (error) return { erro: `Erro ao gravar: ${esc(error.message)}` };
+  return { a, id: row.id, dias, dup: false };
+}
+
+// vídeo + link da Amazon: produto na vitrine e vídeo com final genérico ("clica no link abaixo")
+async function amazonVideo(msg, cap, url) {
+  const chat = msg.chat.id;
+  const v = msg.video || msg.document;
+  if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "Esse vídeo passa de 20 MB (limite do Telegram para o bot baixar).");
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  await tg("sendChatAction", { chat_id: chat, action: "upload_video" }).catch(() => {});
+  const resto = cap.replace(url, "").trim();
+  // "preço | nome" só quando vier no formato manual; o resto do texto vira contexto da narração
+  const manual = /\|/.test(resto) ? resto : "";
+  const r = await addAmazon(url, manual);
+  if (r.erro) return say(chat, `${r.erro}\n(junto com o vídeo, na legenda)`);
+  const f = await tg("getFile", { file_id: v.file_id });
+  const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
+  if (!res.ok) return say(chat, "Não consegui baixar o vídeo do Telegram.");
+  const name = `${Date.now()}.mp4`;
+  const { error: upErr } = await db().storage.from("reels-videos").upload(name, Buffer.from(await res.arrayBuffer()), { contentType: "video/mp4" });
+  if (upErr) return say(chat, `Erro ao guardar o vídeo: ${esc(upErr.message)}`);
+  await say(chat, `📥 <b>Amazon #${r.id}</b> ${esc(String(r.a.title).slice(0, 80))}${r.dup ? " (já estava na vitrine)" : ""}\n${r.a.price ? `💰 ${brl(r.a.price)}\n` : ""}🔗 ${esc(r.a.link)}`);
+  return startReels(chat, [String(r.id)], "", name, "link", { gerarFala: true, contexto: manual ? "" : resto });
 }
 
 // ---------- Reels sob encomenda: dispara o workflow "Reels v2" no GitHub ----------
@@ -492,6 +523,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
     let msg = t; try { msg = JSON.parse(t).message || t; } catch {}
     return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? "Confira no token: dono = bemyveus-prog, repositório achadinhos e permissão Actions: Read and write." : ""}`);
   }
+  if (modo === "link") return say(chat, `🔗 Gerando o vídeo do <b>#${num}</b> com final genérico (clique no link abaixo, sem citar a loja). Chega aqui em uns 2 minutos.`);
   if (modo === "shopee") return say(chat, `🛍️ Gerando o vídeo do <b>#${num}</b> para o <b>Shopee Vídeo</b>${video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " e a sua narração" : ""}.\nChega aqui em uns 2 minutos.`);
   return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${video && sku ? ` com o seu vídeo + o vídeo da CJ (<code>${esc(sku)}</code>)` : video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " com a sua narração" : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
 }
@@ -512,6 +544,8 @@ async function onVideo(msg) {
   const cap = (msg.caption || "").trim();
   const shopeeUrl = (cap.match(/https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
   const isCmd = /^\/?(reels|shopee)\b/i.test(cap);
+  const amzUrl = (cap.match(AMAZON_RE) || [])[0];
+  if (!isCmd && amzUrl) return amazonVideo(msg, cap, amzUrl);
   // link do Shopee Vídeo (não traz o produto) ou texto sem link: a IA identifica o produto pelo vídeo
   if (!isCmd && (isVideoLink(shopeeUrl) || (cap && !shopeeUrl))) return identifyGroupVideo(msg, cap);
   if (!isCmd && shopeeUrl) return importGroupVideo(msg, cap, shopeeUrl);
@@ -519,7 +553,7 @@ async function onVideo(msg) {
     // encaminhado do WhatsApp às vezes chega com o texto separado: guarda e espera a mensagem com o link
     const v = msg.video || msg.document;
     await db().from("bot_config").upsert({ key: "video_pendente", value: JSON.stringify({ file_id: v.file_id, file_size: v.file_size || 0, at: Date.now() }), updated_at: new Date().toISOString() });
-    return say(chat, "🎥 Recebi o vídeo. Agora manda (ou encaminha) o texto com o link da Shopee.");
+    return say(chat, "🎥 Recebi o vídeo. Agora manda (ou encaminha) o texto com o link da Shopee ou da Amazon.");
   }
   if (!/^\/?(reels|shopee)\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
   const v = msg.video || msg.document;
