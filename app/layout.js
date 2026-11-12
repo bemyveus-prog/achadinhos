@@ -1,6 +1,6 @@
 import "./globals.css";
 
-const name = process.env.NEXT_PUBLIC_SITE_NAME || "Meus Achadinhos";
+const name = process.env.NEXT_PUBLIC_SITE_NAME || "Minhas Ofertas";
 const tagline = process.env.NEXT_PUBLIC_TAGLINE || "Os achados que eu indico nos vídeos";
 
 // código do Pinterest do ofertas.achadinhosincriveis.site (outro site: troque pela variável PINTEREST_VERIFY)

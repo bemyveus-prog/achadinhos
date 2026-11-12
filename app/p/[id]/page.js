@@ -5,7 +5,7 @@ import { getOfferPublic, siteUrl, brl } from "@/lib/offer";
 // e mostra a prévia com foto, nome e preço.
 export const dynamic = "force-dynamic";
 
-const name = process.env.NEXT_PUBLIC_SITE_NAME || "Meus Achadinhos";
+const name = process.env.NEXT_PUBLIC_SITE_NAME || "Minhas Ofertas";
 
 export async function generateMetadata({ params }) {
   const { id } = await params;

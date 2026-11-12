@@ -29,10 +29,10 @@ async function getOffers() {
 export default async function Home() {
   const [{ offers, demo }, banners] = await Promise.all([getOffers(), hasDb() ? loadLiveBanners() : []]);
   const profile = {
-    name: process.env.NEXT_PUBLIC_SITE_NAME || "Meus Achadinhos",
-    handle: process.env.NEXT_PUBLIC_SITE_HANDLE || "",
-    tagline: process.env.NEXT_PUBLIC_TAGLINE || "Os achados que eu indico nos vídeos",
-    avatar: process.env.NEXT_PUBLIC_AVATAR_URL || "",
+    name: process.env.NEXT_PUBLIC_SITE_NAME || "Minhas Ofertas",
+    handle: process.env.NEXT_PUBLIC_SITE_HANDLE || "@minh.asofertas",
+    tagline: process.env.NEXT_PUBLIC_TAGLINE || "Os achados e cupons que eu indico nos vídeos",
+    avatar: process.env.NEXT_PUBLIC_AVATAR_URL || "/avatar.jpg",
     socials: {
       tiktok: process.env.NEXT_PUBLIC_TIKTOK_URL || "",
       instagram: process.env.NEXT_PUBLIC_INSTAGRAM_URL || "",
