@@ -19,6 +19,7 @@ env:
 
 jobs:
   limpeza:
+    if: github.event_name != 'schedule' || github.repository == 'bemyveus-prog/achadinhos' || vars.AGENDA == 'ligada'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
