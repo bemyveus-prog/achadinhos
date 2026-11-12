@@ -121,3 +121,23 @@ Responda só com a legenda pronta.`;
     return fallback();
   }
 }
+
+
+// ---------- headline curta para o topo do formato "máscara" ----------
+export async function gerarHeadline(p, { fala = "", log = console.log } = {}) {
+  if (!env("ANTHROPIC_API_KEY")) return "";
+  const prompt = `Escreva a HEADLINE (título no topo de um vídeo curto) para este produto: "${p.name}".
+Narração do vídeo: """${String(fala).slice(0, 300)}"""
+Regras:
+- No máximo 42 caracteres, em português do Brasil, tom de achadinho que desperta curiosidade ou toca numa dor do dia a dia.
+- Coloque UMA ou DUAS palavras-chave entre asteriscos para destacar (ex.: "A pia *nunca mais* ficou bagunçada").
+- Sem preço, sem nome de loja ou plataforma, sem hashtags, sem aspas, no máximo 1 emoji.
+Responda só com a headline.`;
+  try {
+    const t = (await claude({ model: env("ANTHROPIC_MODEL_NARRACAO", "claude-haiku-5-5"), content: prompt, max: 100 })).replace(/\s+/g, " ").replace(/^["']|["']$/g, "").replace(/[—–]/g, ",").trim();
+    const limpo = t.replace(/\*/g, "");
+    if (!limpo || limpo.length > 60) throw new Error(`headline fora do tamanho (${limpo.length})`);
+    log(`  headline: ${t}`);
+    return t;
+  } catch (e) { log(`  headline: ${e.message}`); return ""; }
+}

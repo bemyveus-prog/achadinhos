@@ -30,6 +30,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
+🎞️ Formato: os vídeos alternam sozinhos entre <b>tela cheia</b> e <b>máscara</b> (headline em cima, vídeo no meio, chamada embaixo). Para escolher, acrescente <i>mascara</i> ou <i>cheio</i>: <b>/reels 227 mascara</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon / Shein</b>: cole o seu link de afiliado (amzn.to/…, amazon.com.br/dp/…, onelink.shein.com/…) e o produto entra na vitrine com a etiqueta da loja. Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
@@ -577,8 +578,10 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const args = parts.filter(Boolean);
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
+  // formato do vídeo: "mascara" (headline em cima, vídeo no meio, chamada embaixo) ou "cheio"; sem nada, sorteia
+  const layout = args.some((a) => /^m[aá]scara$/i.test(a)) ? "mascara" : args.some((a) => /^cheio$/i.test(a)) ? "cheio" : "";
   // depois do número: SKU da CJ (tem letras e números, ex.: CJYD2300009) e, sem "texto:", o resto vira narração
-  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a));
+  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio)$/i.test(a));
   const looksSku = (a) => /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
   const sku = rest[0] && looksSku(rest[0]) ? rest[0] : "";
   if (!fala) fala = rest.slice(sku ? 1 : 0).join(" ").trim();
@@ -593,7 +596,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/reels-v2.yml/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "vitrine-bot" },
-    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, modo, ...(extra.fotos ? { fotos: extra.fotos } : {}), ...(extra.gerarFala ? { gerar_fala: "1", contexto: String(extra.contexto || "").slice(0, 900) } : {}), ...(postar ? { postar: "true" } : {}) } }),
+    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, modo: layout ? `${modo}+${layout}` : modo, ...(extra.fotos ? { fotos: extra.fotos } : {}), ...(extra.gerarFala ? { gerar_fala: "1", contexto: String(extra.contexto || "").slice(0, 900) } : {}), ...(postar ? { postar: "true" } : {}) } }),
     cache: "no-store",
   });
   if (r.status !== 204) {

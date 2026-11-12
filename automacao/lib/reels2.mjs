@@ -119,6 +119,19 @@ function pageHtml() {
   #bio{margin:34px auto 0;display:inline-flex;align-items:center;gap:20px;background:#fff;color:#2E1020;font-weight:800;font-size:56px;padding:22px 40px;border-radius:999px}
   #bio i{font-style:normal;background:var(--ac);color:#fff;padding:4px 22px;border-radius:999px}
   #flash{inset:0;background:#fff;opacity:0}
+  /* formato "máscara": headline em cima, vídeo no meio, chamada fixa embaixo */
+  #mtop{left:0;top:0;width:${W}px;height:420px;opacity:0;display:flex;flex-direction:column;justify-content:center;padding:40px 60px 20px;
+        background:linear-gradient(180deg,var(--ac),color-mix(in srgb,var(--ac) 70%,#000))}
+  #mwho{display:flex;align-items:center;gap:16px;color:#fff;font-weight:700;font-size:34px;opacity:.95}
+  #mava{width:64px;height:64px;border-radius:50%;background:#fff center/cover;border:3px solid #fff;display:grid;place-items:center;font-size:24px;font-weight:800;color:#2E1020}
+  #mhead{margin-top:18px;color:#fff;font-weight:800;font-size:76px;line-height:1.04;letter-spacing:-2px;text-wrap:balance;text-shadow:0 4px 18px rgba(0,0,0,.25)}
+  #mhead mark{background:#FFD54A;color:#2E1020;padding:0 12px;border-radius:14px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  #mbot{left:0;top:1500px;width:${W}px;height:420px;opacity:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+        background:linear-gradient(0deg,color-mix(in srgb,var(--ac) 70%,#000),var(--ac))}
+  #mcta{background:#fff;color:#2E1020;font-weight:800;font-size:56px;padding:22px 44px;border-radius:999px;box-shadow:0 18px 40px rgba(0,0,0,.35);text-align:center;max-width:960px}
+  #mcta i{font-style:normal;background:var(--ac);color:#fff;padding:2px 18px;border-radius:999px;margin-left:8px}
+  #marrow{font-size:84px;line-height:1}
+  body.mask #clip{left:40px;top:440px;width:${W - 80}px;height:1040px;border-radius:44px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
   #shp{left:60px;right:60px;top:820px;text-align:center;color:#fff;opacity:0}
   #shp h2{font-weight:800;font-size:76px;line-height:1.08;letter-spacing:-2px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
   #shp h2 span{color:#FFD54A}
@@ -143,6 +156,8 @@ function pageHtml() {
 <div id="cta" class="abs"><h2 id="ctah"></h2><span class="emo">👆</span><div id="bio">Link na bio <i id="num"></i></div><br><div id="coupon">🎟️ Cupom da Shopee hoje</div></div>
 <div id="shp" class="abs"><h2 id="shph"></h2><div id="shparrow">⬇️</div>
   <div id="shpcard"><img id="shpimg"><div><b id="shpname"></b><i id="shpprice"></i></div><em>Comprar</em></div></div>
+<div id="mtop" class="abs"><div id="mwho"><div id="mava"></div><span id="mhandle"></span></div><div id="mhead"></div></div>
+<div id="mbot" class="abs"><div id="mcta"></div><div id="marrow"></div></div>
 <div id="flash" class="abs"></div>
 <script>
 const $=(i)=>document.getElementById(i);
@@ -160,6 +175,11 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   $("coupon").style.display=d.cupom?"inline-block":"none";
   $("shph").innerHTML=d.ctaTela||"Gostou? <span>Toque no produto</span> aqui embaixo";$("shpimg").src=d.img;$("shpname").textContent=d.nome||"";$("shpprice").textContent=d.price||(D.modo==="link"?"Veja o preço no link":"Toque para ver o preço");
   if(!d.number)$("num").style.display="none";
+  if(d.layout==="mascara"){document.body.classList.add("mask");
+    $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
+    if(d.avatar){$("mava").style.backgroundImage="url("+d.avatar+")"}else{$("mava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
+    $("mcta").innerHTML=d.modo==="shopee"?"🛒 Toque no produto aqui embaixo":d.modo==="link"?"🔗 Clique no link abaixo":"🔗 Link na bio"+(d.number?"<i>"+d.number+"</i>":"");
+    $("marrow").textContent=d.modo==="instagram"?"👆":"👇";}
   let a=0;starts=d.scenes.map(s=>{const v=a;a+=s.dur;return v});
   return document.fonts.ready.then(()=>new Promise(r=>$("photo").complete?r():($("photo").onload=r)));};
 window.render=(t)=>{
@@ -229,6 +249,14 @@ window.render=(t)=>{
   $("sub").style.top=(D.clip&&D.clip.length?1180:1420)+"px";
   if(key==="produto"&&subs.length){const k=Math.min(subs.length-1,Math.floor(clamp((lt-vs)/vd,0,0.999)*subs.length));$("sub").textContent=subs[k];$("sub").style.opacity=lt>vs?1:0}
   else $("sub").style.opacity=0;
+  if(D.layout==="mascara"){
+    const mk=key==="produto"?Math.min(ease(lt/0.25),clamp((dur-lt)/0.25)):0;
+    $("mtop").style.opacity=mk;$("mbot").style.opacity=mk;
+    $("marrow").style.transform="translateY("+(Math.abs(Math.sin(t*5))*(D.modo==="instagram"?-18:18))+"px)";
+    $("mcta").style.transform="scale("+(1+0.03*Math.sin(t*6))+")";
+    if(key==="produto"){$("name").style.opacity=0;$("sub").style.top="1310px";
+      if(!D.clip||!D.clip.length){$("card").style.transform="translateY(40px) scale("+(0.95*(0.5+0.5*back(lt/0.45))*(1+0.05*clamp(lt/dur)))+")";$("chips").style.opacity=0}}
+  }
   if(window.renderClip)window.renderClip(t); // por último: o vídeo do produto manda na cena "produto"
 };
 </script>
@@ -243,7 +271,7 @@ window.renderClip=(t)=>{
   $("clip").style.opacity=k;
   if(on){const f=Math.floor(lt*30)%D.clip.length;if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}}
   // com vídeo, o cartão da foto e o nome ficam escondidos nessa cena
-  if(on){$("card").style.opacity=0;$("name").style.opacity=0;$("chips").style.top="1560px"}
+  if(on){$("card").style.opacity=0;$("name").style.opacity=0;$("chips").style.top=D.layout==="mascara"?"1380px":"1560px";if(D.layout==="mascara")$("chips").style.opacity=0}
   else{$("chips").style.top="1290px"}
   $("cliptag").style.opacity=0;
 };
@@ -252,18 +280,18 @@ window.renderClip=(t)=>{
 
 /** Gera o Reels v2. cover = resultado de pickCover (foto da categoria + gancho). */
 // extrai os quadros do vídeo da CJ (30 fps, até maxSec) como JPEG em data URI
-async function clipFrames(file, maxSec, dir) {
+async function clipFrames(file, maxSec, dir, w = 1080, h = 1920) {
   const { readdir, readFile } = await import("fs/promises");
   const fdir = path.join(dir, "clip");
   await mkdir(fdir, { recursive: true });
   // pula o primeiro 0,5 s (costuma ter tela preta ou logo) e enquadra em tela cheia 1080x1920
   await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "0.5", "-i", file, "-t", String(maxSec),
-    "-vf", "fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920", "-q:v", "5", path.join(fdir, "%04d.jpg")]);
+    "-vf", `fps=30,scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h}`, "-q:v", "5", path.join(fdir, "%04d.jpg")]);
   const names = (await readdir(fdir)).filter((f) => f.endsWith(".jpg")).sort();
   return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
 }
 
-export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, modo = "instagram", log = console.log }) {
+export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, modo = "instagram", layout = "cheio", headline = "", log = console.log }) {
   const { chromium } = await import("playwright");
   await mkdir(outDir, { recursive: true });
   const tmp = path.join(outDir, "_tmp");
@@ -316,10 +344,12 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     ctaInstaTela: ctaInsta.tela,
     avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null,
     cupom,
+    layout,
+    headHtml: hookHtml(headline || cover?.hook || ""),
   };
   if (clip?.file) {
     const sc = scenes.find((x) => x.key === "produto");
-    data.clip = await clipFrames(clip.file, sc.dur + 0.2, tmp).catch((e) => { log(`  vídeo do produto: ${e.message}`); return []; });
+    data.clip = await clipFrames(clip.file, sc.dur + 0.2, tmp, layout === "mascara" ? W - 80 : W, layout === "mascara" ? 1040 : H).catch((e) => { log(`  vídeo do produto: ${e.message}`); return []; });
     log(`  vídeo do produto: ${data.clip.length} quadros`);
   }
   const browser = await chromium.launch();

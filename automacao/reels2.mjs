@@ -10,7 +10,7 @@ import { writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { gql, hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
-import { gerarNarracao, gerarLegendaShopee } from "./lib/narracao.mjs";
+import { gerarNarracao, gerarLegendaShopee, gerarHeadline } from "./lib/narracao.mjs";
 import { normalize, score } from "./lib/escolha.mjs";
 import { pickCover, categoriesWithImages, coverConfig, categoryOf } from "./lib/capas.mjs";
 import { execFile } from "child_process";
@@ -186,7 +186,7 @@ async function main() {
   const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || "#D0306F" };
   let fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
   // sem texto seu: com a chave da IA, a narração é escrita para este produto (senão usa o texto padrão)
-  if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), generico: env("REELS_MODO", "") === "link", log });
+  if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), generico: env("REELS_MODO", "").startsWith("link"), log });
   if (fala) log(`Narração própria: "${fala}"`);
   // final: "me segue" + link da bio; o cupom só é citado se a vitrine tiver cupom ativo agora
   const agora = new Date().toISOString();
@@ -206,10 +206,16 @@ async function main() {
     }
   } catch (e) { log(`  avatar: ${e.message}`); }
   log(`  final: ${cupom ? `com cupom (${cupons} ativos)` : "sem cupom ativo"} · ${avatar ? "com foto do perfil" : "sem foto do perfil (mande /avatar no bot)"}`);
-  const modo = ["shopee", "link"].includes(env("REELS_MODO", "instagram")) ? env("REELS_MODO") : "instagram";
+  // REELS_MODO pode vir com o formato junto: "shopee+mascara", "instagram+cheio"
+  const [modoRaw, layoutRaw] = env("REELS_MODO", "instagram").split("+");
+  const modo = ["shopee", "link"].includes(modoRaw) ? modoRaw : "instagram";
+  // formato: máscara (headline em cima, vídeo no meio, chamada embaixo) ou tela cheia; sem escolha, sorteia
+  const layout = ["mascara", "cheio"].includes(layoutRaw) ? layoutRaw : (env("REELS_LAYOUT", "alternar") === "alternar" ? (Math.random() < 0.5 ? "mascara" : "cheio") : env("REELS_LAYOUT"));
+  log(`Formato: ${layout === "mascara" ? "máscara (headline + vídeo + chamada)" : "tela cheia"}`);
+  const headline = layout === "mascara" ? await gerarHeadline(p, { fala, log }) : "";
   if (modo === "link") log("Modo link: final genérico chamando para o link abaixo (sem citar a loja)");
   if (modo === "shopee") log("Modo Shopee Vídeo: final chamando para o produto vinculado");
-  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, modo, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), log });
+  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, modo, layout, headline, handle: env("INSTAGRAM_HANDLE", "@minh.asofertas"), log });
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [
