@@ -1,3 +1,4 @@
 import { gerarNarracao } from "./lib/narracao.mjs";
-const t = await gerarNarracao({ name: "Escorredor Secador Inox 16 Pratos Louca Louça Portátil", price: 119.99, rating: 4.9, sales: 300 }, { contexto: "Vídeo de Jonas Silva" });
-console.log("RESULTADO:", t);
+for (const name of ["Garrafa Térmica 1L com Termômetro Digital Cabo de Madeira", "Tapete Bolinha Macarrão Antiderrapante Banheiro", "Escorredor Secador Inox 16 Pratos Louça", "Cortina de Luz LED Cascata Natal Estrela Papai Noel"]) {
+  console.log("RESULTADO:", await gerarNarracao({ name, price: 39.9 }, { max: 240, log: (m) => console.log(m) }));
+}
