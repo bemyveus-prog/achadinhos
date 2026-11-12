@@ -19,14 +19,28 @@ const reais = (v) => {
   return c ? `${r} reais e ${c}` : `${r} reais`;
 };
 
-export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false, modo = "instagram" }) {
+// Finais do Shopee Vídeo (fala + texto na tela), um sorteado por vídeo
+export const CTAS_SHOPEE = [
+  { say: "Gostou? Toca no produto aqui embaixo e garante o seu!", tela: "Gostou? <span>Toque no produto</span> aqui embaixo" },
+  { say: "O produto tá aqui embaixo, é só tocar e ver o preço de hoje!", tela: "Toque aqui embaixo e <span>veja o preço de hoje</span>" },
+  { say: "Corre e toca no produto aqui embaixo antes que o preço mude!", tela: "Toque <span>antes que o preço mude</span>" },
+  { say: "Quer o seu? Toca no carrinho aqui embaixo!", tela: "Quer o seu? <span>Toque no carrinho</span> aqui embaixo" },
+  { say: "Tá esperando o quê? O produto tá bem aqui embaixo!", tela: "Tá esperando o quê? <span>O produto está aqui embaixo</span>" },
+  { say: "Toca aqui embaixo e confere todos os detalhes do produto!", tela: "Confira <span>todos os detalhes</span> aqui embaixo" },
+  { say: "Toca no produto aqui embaixo e manda pra quem também precisa!", tela: "Toque no produto e <span>mande pra quem precisa</span>" },
+  { say: "Deixei esse achado aqui embaixo pra você, é só tocar!", tela: "Deixei <span>aqui embaixo</span> pra você" },
+  { say: "Um toque aqui embaixo e você já vê ele na Shopee!", tela: "Um toque e você <span>vê na Shopee</span>" },
+  { say: "Não deixa pra depois, toca no produto aqui embaixo!", tela: "Não deixa pra depois: <span>toque aqui embaixo</span>" },
+];
+
+export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false, modo = "instagram", ctaShopee = null }) {
   const n = number ? String(number).replace("#", "") : "";
   const prova = [p.rating >= 4.5 ? `nota ${num(Number(p.rating).toFixed(1))}` : "", p.sales >= 100 ? `mais de ${salesLabel(p.sales).replace("+", "")} vendidos` : ""].filter(Boolean).join(", ");
   const padrao = `${hook ? hook.replace(/\*/g, "").replace(/[.!?]*$/, "") + ". " : ""}${nome}. Aproveita enquanto tá nesse preço!`;
   return [
     { key: "produto", say: fala || padrao, min: 3.0 },
     modo === "shopee"
-      ? { key: "cta", say: "Gostou? Toca no produto aqui embaixo e garante o seu!", min: 3.4 }
+      ? { key: "cta", say: (ctaShopee || CTAS_SHOPEE[0]).say, min: 3.4 }
       : { key: "cta", say: `Me segue que todo dia tem achado novo abaixo de 50 reais! E corre no link da bio, ${cupom ? "que tem cupom da Shopee te esperando!" : `procura o número ${n}!`}`, min: 4.2 },
   ];
 }
@@ -104,7 +118,7 @@ function pageHtml() {
 <div id="prof" class="abs"><div id="ava"></div><div id="pinfo"><div id="phandle"></div><div id="ptag">Achadinhos todo dia</div><div id="follow">Seguir</div></div></div>
 <div id="ring" class="abs"></div><div id="finger" class="abs">👆</div>
 <div id="cta" class="abs"><h2 id="ctah"></h2><span class="emo">👆</span><div id="bio">Link na bio <i id="num"></i></div><br><div id="coupon">🎟️ Cupom da Shopee hoje</div></div>
-<div id="shp" class="abs"><h2>Gostou? <span>Toque no produto</span> aqui embaixo</h2><div id="shparrow">⬇️</div>
+<div id="shp" class="abs"><h2 id="shph"></h2><div id="shparrow">⬇️</div>
   <div id="shpcard"><img id="shpimg"><div><b id="shpname"></b><i id="shpprice"></i></div><em>Comprar</em></div></div>
 <div id="flash" class="abs"></div>
 <script>
@@ -121,7 +135,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   $("phandle").textContent=d.handle||"@minh.asofertas";
   if(d.avatar){$("ava").style.backgroundImage="url("+d.avatar+")"}else{$("ava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
   $("coupon").style.display=d.cupom?"inline-block":"none";
-  $("shpimg").src=d.img;$("shpname").textContent=d.nome||"";$("shpprice").textContent=d.price||"";
+  $("shph").innerHTML=d.ctaTela||"Gostou? <span>Toque no produto</span> aqui embaixo";$("shpimg").src=d.img;$("shpname").textContent=d.nome||"";$("shpprice").textContent=d.price||"";
   if(!d.number)$("num").style.display="none";
   let a=0;starts=d.scenes.map(s=>{const v=a;a+=s.dur;return v});
   return document.fonts.ready.then(()=>new Promise(r=>$("photo").complete?r():($("photo").onload=r)));};
@@ -232,7 +246,8 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   const tmp = path.join(outDir, "_tmp");
   await mkdir(tmp, { recursive: true });
   comment = comment || "Quanto você chutou? Comenta aí!";
-  const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom, modo });
+  const ctaShopee = CTAS_SHOPEE[Math.floor(Math.random() * CTAS_SHOPEE.length)];
+  const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom, modo, ctaShopee });
   // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)
   process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
   const voice = await narrate(scenes.map((s) => s.say), tmp, log);
@@ -272,6 +287,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     voiceDur: voice[0]?.duration || 0,
     handle: handle || "@minh.asofertas",
     modo,
+    ctaTela: ctaShopee.tela,
     avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null,
     cupom,
   };
