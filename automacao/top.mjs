@@ -56,7 +56,17 @@ TITULO: título do vídeo (até 60 caracteres)
   if (!out.title) { log("Resposta da IA:", t.slice(0, 500)); throw new Error("A IA não mandou o título"); }
   const valid = new Set(prods.map((p) => p.id));
   out.items = (out.items || []).filter((i) => valid.has(Number(i.id))).slice(0, 5).map((i) => ({ id: Number(i.id), fala: String(i.fala || "").replace(/[—–]/g, ",") }));
+  // confere o que o título promete: limite de preço e quantidade
+  const price = new Map(prods.map((p) => [p.id, Number(p.price) || 0]));
+  const lim = (out.title.match(/(?:até|abaixo de|menos de)\s*R\$\s*([\d.,]+)/i) || [])[1];
+  if (lim) {
+    const max = Number(lim.replace(/\./g, "").replace(",", "."));
+    const antes = out.items.length;
+    out.items = out.items.filter((i) => price.get(i.id) <= max);
+    if (out.items.length < antes) log(`  ${antes - out.items.length} produto(s) acima de R$ ${max} removidos`);
+  }
   if (out.items.length < 3) throw new Error("A IA não escolheu produtos suficientes");
+  out.title = out.title.replace(/^(?:top\s*)?\d+/i, (m) => m.replace(/\d+/, String(out.items.length)));
   log(`Top automático: "${out.title}" com ${out.items.map((i) => "#" + i.id).join(", ")}`);
   const novos = [...out.items.map((i) => i.id), ...recentes].slice(0, 40);
   await sb.from("bot_config").upsert({ key: "top_recentes", value: JSON.stringify(novos), updated_at: new Date().toISOString() });
