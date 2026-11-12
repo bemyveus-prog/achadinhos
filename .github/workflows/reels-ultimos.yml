@@ -1,0 +1,34 @@
+name: Listar últimos Reels gerados
+
+# Mostra no log os últimos vídeos da tabela reels_pendentes (id, status, oferta e 1ª linha da legenda),
+# para achar o número de um vídeo e postar só no YouTube (publicar-reels.yml com so_youtube = true).
+on:
+  workflow_dispatch:
+
+jobs:
+  listar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: automacao
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: npm ci
+      - run: |
+          node --input-type=module -e '
+          import { createClient } from "@supabase/supabase-js";
+          const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+          const { data, error } = await sb.from("reels_pendentes").select("*").order("id", { ascending: false }).limit(12);
+          if (error) throw new Error(error.message);
+          for (const r of data) console.log("REELS", r.id, "|", r.status, "|", r.created_at || "", "| oferta", r.offer_id, "|", String(r.caption || "").split("\n")[0].slice(0, 90));
+          '
