@@ -1,12 +1,16 @@
 name: Publicar Reels aprovado
 
-# Disparado pelo botão "📤 Postar no Instagram" do bot do Telegram.
+# Disparado pelos botões "📤 Postar no Instagram" (Instagram + YouTube) e "▶️ Postar no YouTube" (só YouTube) do bot do Telegram.
 on:
   workflow_dispatch:
     inputs:
       id:
         description: "Número do Reels pendente (tabela reels_pendentes)"
         required: true
+      so_youtube:
+        description: "true = posta só no YouTube"
+        required: false
+        default: ""
 
 jobs:
   publicar:
@@ -36,4 +40,4 @@ jobs:
           cache: npm
           cache-dependency-path: automacao/package-lock.json
       - run: npm ci
-      - run: node publicar-reels.mjs --id "${{ inputs.id }}"
+      - run: node publicar-reels.mjs --id "${{ inputs.id }}" ${{ inputs.so_youtube == 'true' && '--so-youtube' || '' }}

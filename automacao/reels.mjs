@@ -72,6 +72,11 @@ async function main() {
     log("Enviando o Reels para o Instagram (o processamento do vídeo leva 1 a 3 minutos)...");
     const url = await postReel(file, texts.legenda, `reels-${folder}`);
     log(`Postado no Instagram: ${url}`);
+    const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
+    if (hasYouTube()) {
+      try { const { url: yt } = await postShort(file, textosYouTube(texts.legenda, { link: (env("VITRINE_URL", "https://ofertas.achadinhosincriveis.site")).replace(/\/$/, "") }), log); log(`YouTube: ${yt}`); }
+      catch (e) { log(`  YouTube: ${e.message}`); }
+    }
   }
 }
 

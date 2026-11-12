@@ -9,7 +9,7 @@ import { renderTop } from "./lib/reelstop.mjs";
 import { gerarNarracao } from "./lib/narracao.mjs";
 import { claude } from "./lib/ia.mjs";
 import { shortName } from "./lib/textos.mjs";
-import { hasTelegram, sendVideo } from "./lib/telegram.mjs";
+import { hasTelegram, sendText, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, postReel, uploadPublic } from "./lib/social.mjs";
 import { hasCJ, productBySku, productVideos, bestFreeVideo, downloadVideo } from "./lib/cj.mjs";
 
@@ -134,7 +134,7 @@ async function main() {
         const [video_url] = await uploadPublic([file], `top-${Date.now()}`, "video/mp4");
         const { data, error: e } = await sb.from("reels_pendentes").insert({ offer_id: items[0].id, video_url, caption: legenda }).select("id").single();
         if (e) throw new Error(e.message);
-        markup = { inline_keyboard: [[{ text: "📤 Postar no Instagram", callback_data: `pub:${data.id}` }], [{ text: "🗑️ Descartar", callback_data: `nopub:${data.id}` }]] };
+        markup = { inline_keyboard: [[{ text: "📤 Postar no Instagram", callback_data: `pub:${data.id}` }], [{ text: "▶️ Postar no YouTube", callback_data: `yt:${data.id}` }], [{ text: "🗑️ Descartar", callback_data: `nopub:${data.id}` }]] };
       } catch (e) { log(`  aprovação: ${e.message}`); }
     }
     await sendVideo(file, `🎬 Top ${items.length} (${seconds.toFixed(0)} s)${postarJa ? " · postando no Instagram…" : ""}\n\nLegenda:\n\n${legenda}`.slice(0, 1024), markup);
@@ -143,6 +143,11 @@ async function main() {
   if (postarJa) {
     if (!hasMeta()) throw new Error("Falta META_PAGE_TOKEN para postar.");
     log(`Postado: ${await postReel(file, legenda, `top-${Date.now()}`)}`);
+    const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
+    if (hasYouTube()) {
+      try { const { url: yt } = await postShort(file, textosYouTube(legenda, { link: "https://ofertas.achadinhosincriveis.site" }), log); if (hasTelegram()) await sendText(`▶️ Short no YouTube: ${yt}`).catch(() => {}); }
+      catch (e) { log(`  YouTube: ${e.message}`); }
+    }
   }
 }
 main().catch((e) => { console.error("ERRO:", e.message); process.exit(1); });

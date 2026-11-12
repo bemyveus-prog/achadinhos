@@ -42,6 +42,11 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
           META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YOUTUBE_POSTAR: ${{ vars.YOUTUBE_POSTAR }}
+          YOUTUBE_PRIVACIDADE: ${{ vars.YOUTUBE_PRIVACIDADE }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # Voz da Fish Audio (opcional). Sem ela, usa a voz neural da Microsoft (grátis).
           FISH_API_KEY: ${{ secrets.FISH_API_KEY }}

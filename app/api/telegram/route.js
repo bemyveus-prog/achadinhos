@@ -235,6 +235,7 @@ async function onButton(q) {
   }
   if (data.startsWith("ls:")) return addShop(chat, q, data.split(":")[1]);
   if (data.startsWith("pub:") || data.startsWith("nopub:")) return approveReels(chat, q, data);
+  if (data.startsWith("yt:")) return postYouTube(chat, q, data);
   if (data.startsWith("gp:") || data.startsWith("gpx:")) return chooseGroupProduct(chat, q, data);
 
   if (data.startsWith("more:")) {
@@ -699,6 +700,22 @@ async function approveReels(chat, q, data) {
   await db().from("reels_pendentes").update({ status: "postando" }).eq("id", r.id);
   await setButton("⏳ Postando no Instagram…");
   await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Postando! Te aviso aqui quando sair." });
+}
+
+// botão "▶️ Postar no YouTube": manda só o Short (o Instagram continua com os botões dele)
+async function postYouTube(chat, q, data) {
+  const id = Number(data.split(":")[1]);
+  const { data: r } = await db().from("reels_pendentes").select("id,status").eq("id", id).maybeSingle();
+  if (!r) return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Não achei esse vídeo" });
+  try {
+    await dispatchWorkflow("publicar-reels.yml", { id: String(r.id), so_youtube: "true" });
+  } catch (e) {
+    await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Erro ao postar no YouTube" });
+    return say(chat, `⚠️ ${esc(e.message)}`);
+  }
+  const rows = (q.message?.reply_markup?.inline_keyboard || []).map((row) => row.map((b) => (b.callback_data || "").startsWith("yt:") ? { text: "⏳ Enviando ao YouTube…", callback_data: "noop" } : b));
+  if (q.message?.message_id && rows.length) await tg("editMessageReplyMarkup", { chat_id: chat, message_id: q.message.message_id, reply_markup: { inline_keyboard: rows } }).catch(() => {});
+  await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Enviando pro YouTube! Te aviso aqui com o link." });
 }
 
 // foto do perfil usada na animação "Seguir" do final dos Reels

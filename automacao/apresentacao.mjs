@@ -104,7 +104,7 @@ async function main() {
         const [video_url] = await uploadPublic([file], `apresentacao-${Date.now()}`, "video/mp4");
         const { data, error } = await sb.from("reels_pendentes").insert({ video_url, caption: legenda }).select("id").single();
         if (error) throw new Error(error.message);
-        markup = { inline_keyboard: [[{ text: "📤 Postar no Instagram", callback_data: `pub:${data.id}` }], [{ text: "🗑️ Descartar", callback_data: `nopub:${data.id}` }]] };
+        markup = { inline_keyboard: [[{ text: "📤 Postar no Instagram", callback_data: `pub:${data.id}` }], [{ text: "▶️ Postar no YouTube", callback_data: `yt:${data.id}` }], [{ text: "🗑️ Descartar", callback_data: `nopub:${data.id}` }]] };
       } catch (e) { log(`  aprovação: ${e.message}`); }
     }
     await sendVideo(file, `🎬 Vídeo de apresentação do perfil (${seconds.toFixed(0)} s). Depois de postar, fixe no perfil (… → Fixar no perfil).\n\nLegenda:\n\n${legenda}`.slice(0, 1024), markup);
