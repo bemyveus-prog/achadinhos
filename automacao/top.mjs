@@ -37,7 +37,7 @@ ${lista}
 Escolha UM tema que agrupe bem 5 desses produtos e que chame atenção (ex.: "5 achados de cozinha abaixo de R$ 30", "5 coisas que parecem bobas mas facilitam a vida", "presentes de Natal até R$ 50"). Se a data combinar (Natal, Black Friday, volta às aulas, Dia das Mães...), prefira um tema da época.
 Regras:
 - O título deve ser verdadeiro para os produtos escolhidos (se disser "abaixo de R$ 30", todos precisam custar menos que isso).
-- Para cada produto, uma narração de 1 frase (até 110 caracteres), animada, usando só o que dá para saber pelo nome. Sem inventar medidas, materiais ou promessas. Sem travessão, sem emoji.
+- Para cada produto, uma narração de 1 frase (até 110 caracteres), persuasiva: comece pela dor ou desejo que o produto resolve e mostre o ganho na rotina. Use só o que dá para saber pelo nome. Não fale de nota, vendas ou preço exato. Sem inventar medidas, materiais ou promessas. Sem travessão, sem emoji.
 Responda EXATAMENTE neste formato de texto, sem nada antes ou depois:
 TITULO: título do vídeo (até 60 caracteres)
 123 | narração do produto

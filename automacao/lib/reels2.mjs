@@ -22,7 +22,7 @@ const reais = (v) => {
 export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false, modo = "instagram" }) {
   const n = number ? String(number).replace("#", "") : "";
   const prova = [p.rating >= 4.5 ? `nota ${num(Number(p.rating).toFixed(1))}` : "", p.sales >= 100 ? `mais de ${salesLabel(p.sales).replace("+", "")} vendidos` : ""].filter(Boolean).join(", ");
-  const padrao = `${hook ? hook.replace(/\*/g, "").replace(/[.!?]*$/, "") + ". " : ""}${nome}.${prova ? ` ${prova[0].toUpperCase() + prova.slice(1)}.` : ""}`;
+  const padrao = `${hook ? hook.replace(/\*/g, "").replace(/[.!?]*$/, "") + ". " : ""}${nome}. Aproveita enquanto tá nesse preço!`;
   return [
     { key: "produto", say: fala || padrao, min: 3.0 },
     modo === "shopee"
