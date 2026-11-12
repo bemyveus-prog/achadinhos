@@ -267,11 +267,8 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     try { clipDur = Math.max(0, Math.min(clip.maxSec || 5, (await audioDuration(clip.file)) - 0.6)); } catch { clipDur = 4; }
   }
   scenes.forEach((s, i) => {
-    // produto com vídeo: acompanha a narração; se o vídeo for maior, deixa ele "respirar" até 1,5 s a mais
-    // (nunca arrasta o vídeo inteiro sem fala); se a fala for maior, o vídeo repete
-    const v = voice[i].duration + 0.3;
-    s.dur = s.key === "produto" && clipDur ? Math.max(s.min, v, Math.min(clipDur, v + 1.5)) : Math.max(s.min, voice[i].duration + 0.25);
-    s.start = acc; acc += s.dur;
+    const min = s.key === "produto" && clipDur ? Math.max(s.min, clipDur) : s.min;
+    s.dur = Math.max(min, voice[i].duration + 0.25); s.start = acc; acc += s.dur;
   });
   const total = acc;
   log(`Reels v2: ${total.toFixed(1)} s`);
