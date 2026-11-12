@@ -119,7 +119,7 @@ async function main() {
     "",
     "Qual você levaria? Comenta o número 👇",
     "",
-    "✅ Me segue que todo dia tem achado novo abaixo de R$ 50!",
+    "🔖 Salva pra não perder e manda pra quem precisa!",
     `🔎 Link na bio! Procura os números na busca da vitrine${count ? " (e tem cupom da Shopee lá 🎟️)" : ""}.`,
     "",
     "#achadinhos #achadinhosshopee #shopee #achadosdashopee #comprinhas",

@@ -42,6 +42,9 @@ async function edge(text, out) {
 /**
  * Gera um mp3 por fala. Devolve [{ file, duration }] (file = null quando não deu para narrar aquela fala).
  */
+// Só para o áudio (a legenda na tela continua escrita certo): a voz lê "Shopee" como "Shopei"
+export const falaParaVoz = (t) => String(t ?? "").replace(/shopee/gi, "Xópi");
+
 export async function narrate(lines, dir, log = console.log) {
   await mkdir(dir, { recursive: true });
   let providers = [["Fish Audio", fish], ["voz Microsoft", edge]];
@@ -49,10 +52,11 @@ export async function narrate(lines, dir, log = console.log) {
   const out = [];
   for (let i = 0; i < lines.length; i++) {
     const file = path.join(dir, `fala-${i + 1}.mp3`);
+    const fala = falaParaVoz(lines[i]);
     let ok = false;
     for (const [name, fn] of chosen ? [chosen] : [...providers]) {
       try {
-        if (await fn(lines[i], file)) {
+        if (await fn(fala, file)) {
           ok = true;
           if (!chosen) { chosen = [name, fn]; log(`Narração: ${name}`); }
           break;

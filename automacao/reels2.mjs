@@ -192,7 +192,7 @@ async function main() {
     "",
     "Você usaria? Comenta aqui 👇",
     "",
-    "✅ Me segue que todo dia tem achado novo abaixo de R$ 50!",
+    "🔖 Salva pra não perder e manda pra quem precisa!",
     `🔎 Link na bio! Procura o #${offerId} na busca da vitrine${cupom ? " (e tem cupom da Shopee lá 🎟️)" : ""}.`,
     "",
     "#achadinhos #achadinhosshopee #shopee #achadosdashopee #comprinhas",

@@ -85,7 +85,7 @@ function pageHtml() {
 <div id="sub" class="abs"></div>
 <div id="prof" class="abs"><div id="ava"></div><div id="pinfo"><div id="phandle"></div><div id="ptag">Achadinhos todo dia</div><div id="follow">Seguir</div></div></div>
 <div id="finger" class="abs">👆</div>
-<div id="cta" class="abs"><h2>Me segue! Todo dia tem achado novo abaixo de R$ 50</h2><span class="emo">👆</span><div id="bio">Link na bio · procura os números</div><br><div id="coupon">🎟️ Cupom da Shopee hoje</div></div>
+<div id="cta" class="abs"><h2 id="ctah">Qual você levaria? Comenta o número 💬</h2><span class="emo">👆</span><div id="bio">Link na bio · procura os números</div><br><div id="coupon">🎟️ Cupom da Shopee hoje</div></div>
 <div id="flash" class="abs"></div>
 <script>
 const $=(i)=>document.getElementById(i);
@@ -158,7 +158,7 @@ export async function renderTop({ title, items, outDir, handle, avatar, cupom, a
 
   const scenes = [{ key: "intro", say: title.replace(/\*/g, ""), min: 2.4 }];
   items.forEach((it, k) => scenes.push({ key: `item${k}`, item: k, say: it.fala || it.name, min: it.clipFile ? 4.0 : 3.0 }));
-  scenes.push({ key: "cta", say: `Me segue que todo dia tem achado novo abaixo de 50 reais! E corre no link da bio${cupom ? ", que tem cupom da Shopee te esperando" : ", procura os números na vitrine"}!`, min: 4.2 });
+  scenes.push({ key: "cta", say: `Comenta aqui qual você levaria e salva pra não perder! O link tá na bio${cupom ? ", e tem cupom da Shopee te esperando" : ", procura os números na vitrine"}!`, min: 4.2 });
 
   process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
   let voice = await narrate(scenes.map((s) => s.say), tmp, log);

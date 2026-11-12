@@ -33,7 +33,18 @@ export const CTAS_SHOPEE = [
   { say: "Não deixa pra depois, toca no produto aqui embaixo!", tela: "Não deixa pra depois: <span>toque aqui embaixo</span>" },
 ];
 
-export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false, modo = "instagram", ctaShopee = null }) {
+// Final do Instagram: chamadas que geram salvamento, compartilhamento e comentário (sorteia uma por vídeo)
+export const CTAS_INSTA = [
+  { say: "Salva esse vídeo pra não perder e manda pra quem precisa!", tela: "Salva pra não perder 🔖 e manda pra quem precisa" },
+  { say: "Marca aqui nos comentários quem precisa disso!", tela: "Marca quem precisa disso 👇" },
+  { say: "Manda esse vídeo pra aquela pessoa que vive precisando disso!", tela: "Manda pra quem vive precisando disso 📲" },
+  { say: "Comenta aqui: você usaria ou não?", tela: "Você usaria? Comenta aqui 💬" },
+  { say: "Me segue pra não perder os próximos achados!", tela: "Me segue pra não perder os próximos achados" },
+  { say: "Salva pra lembrar depois e segue pra ver mais achados assim!", tela: "Salva 🔖 e segue pra ver mais" },
+];
+export const ctaInstaFim = (cupom, alvo) => cupom ? " O link tá na bio, e tem cupom da Shopee te esperando!" : ` O link tá na bio, ${alvo}!`;
+
+export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false, modo = "instagram", ctaShopee = null, ctaInsta = null }) {
   const n = number ? String(number).replace("#", "") : "";
   const prova = [p.rating >= 4.5 ? `nota ${num(Number(p.rating).toFixed(1))}` : "", p.sales >= 100 ? `mais de ${salesLabel(p.sales).replace("+", "")} vendidos` : ""].filter(Boolean).join(", ");
   const padrao = `${hook ? hook.replace(/\*/g, "").replace(/[.!?]*$/, "") + ". " : ""}${nome}. Aproveita enquanto tá nesse preço!`;
@@ -41,7 +52,7 @@ export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom 
     { key: "produto", say: fala || padrao, min: 3.0 },
     modo === "shopee"
       ? { key: "cta", say: (ctaShopee || CTAS_SHOPEE[0]).say, min: 3.4 }
-      : { key: "cta", say: `Me segue que todo dia tem achado novo abaixo de 50 reais! E corre no link da bio, ${cupom ? "que tem cupom da Shopee te esperando!" : `procura o número ${n}!`}`, min: 4.2 },
+      : { key: "cta", say: (ctaInsta || CTAS_INSTA[0]).say + ctaInstaFim(cupom, n ? `procura o número ${n}` : "procura na vitrine"), min: 4.2 },
   ];
 }
 
@@ -131,7 +142,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   $("cover").style.display="none";$("veil").style.display="none";$("coverbg").style.backgroundImage="url("+d.img+")";$("photo").src=d.img;
   $("tag").textContent=d.tag;$("hook").innerHTML=d.hookHtml;$("name").textContent=d.nome;
   $("chips").innerHTML=d.chips.map(c=>'<div class="chip">'+c+'</div>').join("");
-  $("pv").textContent=d.price;$("ctah").textContent="Me segue! Todo dia tem achado novo abaixo de R$ 50";$("num").textContent=d.number||"";
+  $("pv").textContent=d.price;$("ctah").textContent=d.ctaInstaTela||"Salva pra não perder 🔖";$("num").textContent=d.number||"";
   $("phandle").textContent=d.handle||"@minh.asofertas";
   if(d.avatar){$("ava").style.backgroundImage="url("+d.avatar+")"}else{$("ava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
   $("coupon").style.display=d.cupom?"inline-block":"none";
@@ -247,7 +258,8 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   await mkdir(tmp, { recursive: true });
   comment = comment || "Quanto você chutou? Comenta aí!";
   const ctaShopee = CTAS_SHOPEE[Math.floor(Math.random() * CTAS_SHOPEE.length)];
-  const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom, modo, ctaShopee });
+  const ctaInsta = CTAS_INSTA[Math.floor(Math.random() * CTAS_INSTA.length)];
+  const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom, modo, ctaShopee, ctaInsta });
   // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)
   process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
   const voice = await narrate(scenes.map((s) => s.say), tmp, log);
@@ -288,6 +300,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     handle: handle || "@minh.asofertas",
     modo,
     ctaTela: ctaShopee.tela,
+    ctaInstaTela: ctaInsta.tela,
     avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null,
     cupom,
   };
