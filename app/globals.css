@@ -173,6 +173,8 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase; letter-spacing: .04em;
 }
 .pill.p-shopee { background: var(--shopee-soft); color: var(--shopee); }
+.pill.p-amazon { background: #fff3db; color: #b25e00; }
+.cta.p-amazon { background: #ff9900; color: #111; box-shadow: 0 6px 14px -6px #ff990099; }
 .pill.p-tiktok { background: var(--tiktok-soft); color: #0f766e; }
 .pill.p-outro { background: #f1f5f9; color: #475569; }
 .title {

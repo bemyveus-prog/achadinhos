@@ -1,5 +1,6 @@
 import { isAdmin, unauthorized } from "@/lib/auth";
 import { importFromUrl } from "@/lib/importer";
+import { AMAZON_RE, amazonProduct } from "@/lib/amazon";
 import { db, hasDb } from "@/lib/supabase";
 import { hasShopeeApi, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
 import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
@@ -24,6 +25,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
+🛒 <b>Amazon</b>: cole o seu link de associado (amzn.to/… ou amazon.com.br/dp/…) e o produto entra na vitrine com etiqueta Amazon.
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
@@ -112,6 +114,8 @@ async function onText(msg) {
 
   if (!cmd && !arg) return;
   if (cmd === "start" || cmd === "ajuda" || cmd === "help") return say(chat, AJUDA);
+  const amz = !cmd || cmd === "amazon" ? (text.match(AMAZON_RE) || [])[0] : null;
+  if (amz) return importAmazon(chat, amz, text.replace(AMAZON_RE, "").replace(/^\/amazon\S*/i, "").trim());
   if (!hasShopeeApi()) return say(chat, "Falta SHOPEE_APP_ID/SHOPEE_APP_SECRET na Vercel.");
 
   if (cmd === "top") return startTop(chat, text);
@@ -279,6 +283,8 @@ async function onPhoto(msg) {
   if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
   const cap = (msg.caption || "").trim();
   if (/^\/?avatar\b/i.test(cap)) return saveAvatar(chat, msg);
+  const fm = cap.match(/^\/?foto\s+#?(\d+)/i);
+  if (fm) return saveOfferPhoto(chat, msg, Number(fm[1]));
   const m = cap.match(/^\/?capas?\s+(.+)$/i);
   if (!m) return say(chat, `Para usar como capa, mande a foto com a legenda <b>/capa categoria</b>.\nCategorias: ${CAPA_SLUGS.join(", ")}`);
   const slug = toSlug(m[1]);
@@ -303,6 +309,26 @@ async function onPhoto(msg) {
   const warn = !doc && Math.max(msg.photo?.at(-1)?.width || 0, msg.photo?.at(-1)?.height || 0) < 1200
     ? "\n⚠️ Dica: para qualidade máxima, mande como <b>arquivo</b> (📎 → Arquivo) em vez de foto." : "";
   return say(chat, `✅ Capa guardada em <b>${GANCHOS[slug].etiqueta}</b> (${total} no Telegram${slug === "maquiagem" || slug === "moda-feminina" ? " + 1 que você mandou no chat" : ""}).\nGanchos dessa categoria:\n${GANCHOS[slug].ganchos.map((g) => "• " + esc(g.replace(/\*/g, ""))).join("\n")}${warn}`);
+}
+
+// foto de um produto da vitrine (ex.: Amazon que bloqueou a leitura): legenda /foto 152
+async function saveOfferPhoto(chat, msg, id) {
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  const { data: off } = await db().from("offers").select("id,title").eq("id", id).maybeSingle();
+  if (!off) return say(chat, `Não achei o #${id} na vitrine.`);
+  const doc = msg.document && /^image\//.test(msg.document.mime_type || "") ? msg.document : null;
+  const fileId = doc ? doc.file_id : msg.photo?.[msg.photo.length - 1]?.file_id;
+  if (!fileId) return say(chat, "Esse arquivo não é imagem.");
+  const f = await tg("getFile", { file_id: fileId });
+  const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
+  if (!res.ok) return say(chat, "Não consegui baixar a imagem do Telegram.");
+  const ext = (f.file_path.split(".").pop() || "jpg").toLowerCase().replace("jpeg", "jpg");
+  const name = `produtos/${id}-${Date.now()}.${["png", "webp"].includes(ext) ? ext : "jpg"}`;
+  const { error } = await db().storage.from("carrosseis").upload(name, Buffer.from(await res.arrayBuffer()), { contentType: ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg" });
+  if (error) return say(chat, `Erro ao guardar: ${esc(error.message)}`);
+  const url = db().storage.from("carrosseis").getPublicUrl(name).data.publicUrl;
+  await db().from("offers").update({ image_url: url }).eq("id", id);
+  return say(chat, `✅ Foto do <b>#${id}</b> atualizada (${esc(off.title)}).`);
 }
 
 async function listCovers(chat) {
@@ -383,6 +409,57 @@ async function addShop(chat, q, shopId) {
       reply_markup: { inline_keyboard: [[{ text: "🛍️ Produtos da loja", callback_data: `lp:${shopId}` }, { text: `✅ Na vitrine #${row.id}`, callback_data: "noop" }]] } }).catch(() => {});
   }
   return say(chat, `✅ <b>${esc(sh.shopName)}</b> está na vitrine em "Cupons do momento" (#${row.id}, subId lojasite).\n🔗 ${link}`);
+}
+
+// ---------- Amazon: link de associado -> vitrine (sem API) ----------
+// Se a Amazon bloquear a leitura, mande o link + "preço | nome do produto" (ex.: 39,89 | Kit Elseve Cachos)
+// e depois a foto com a legenda /foto NUMERO.
+async function importAmazon(chat, url, resto = "") {
+  if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+  await say(chat, "🔎 Lendo o produto na Amazon...");
+  const a = await amazonProduct(url);
+  const [precoTxt, ...nomeTxt] = resto.split("|").map((x) => x.trim());
+  const precoManual = Number(String(precoTxt || "").replace(/[^\d,]/g, "").replace(",", "."));
+  if (isFinite(precoManual) && precoManual > 0) a.price = precoManual;
+  if (nomeTxt.join(" ").trim()) a.title = nomeTxt.join(" ").trim();
+  if (!a.title) {
+    return say(chat, [
+      "⚠️ A Amazon bloqueou a leitura automática desta vez.",
+      "Mande de novo assim: <b>link  preço | nome do produto</b>",
+      "Ex.: <i>https://amzn.to/xxxx 39,89 | Kit Elseve Cachos dos Sonhos</i>",
+      "Depois mande a foto com a legenda <b>/foto NÚMERO</b>.",
+    ].join("\n"));
+  }
+  const desc = a.asin ? `amazon:${a.asin}` : null;
+  if (desc) {
+    const { data: dup } = await db().from("offers").select("id").eq("description", desc).eq("active", true).limit(1);
+    if (dup?.length) return say(chat, `Já está na vitrine como <b>#${dup[0].id}</b>.`);
+  }
+  const dias = Number(process.env.DIAS_NA_VITRINE || 15);
+  const { data: row, error } = await db().from("offers").insert({
+    kind: "produto",
+    title: a.title.slice(0, 120),
+    description: desc,
+    image_url: a.image_url,
+    price: a.price || null,
+    original_price: a.original_price,
+    link: a.link,
+    platform: "amazon",
+    active: true,
+    expires_at: dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null,
+  }).select("id").single();
+  if (error) return say(chat, `Erro ao gravar: ${esc(error.message)}`);
+  const preco = a.price ? `R$ ${a.price.toFixed(2).replace(".", ",")}` : "sem preço";
+  const faltou = [!a.price && "preço", !a.image_url && "foto"].filter(Boolean);
+  const msg = [
+    `✅ <b>Amazon</b> na vitrine como <b>#${row.id}</b> (sai em ${dias} dias)`,
+    `📦 ${esc(a.title)}`,
+    `💰 ${preco}`,
+    `🔗 ${a.link}`,
+    `🔎 ${VITRINE()}/?p=${row.id}`,
+    faltou.length ? `\n⚠️ Faltou ${faltou.join(" e ")}. ${!a.image_url ? `Mande a foto com a legenda <b>/foto ${row.id}</b>.` : ""}` : "",
+  ].filter(Boolean).join("\n");
+  return a.image_url ? tg("sendPhoto", { chat_id: chat, photo: a.image_url, caption: msg, parse_mode: "HTML" }).catch(() => say(chat, msg)) : say(chat, msg);
 }
 
 // ---------- Reels sob encomenda: dispara o workflow "Reels v2" no GitHub ----------

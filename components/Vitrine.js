@@ -9,6 +9,7 @@ const brl = (v) =>
 const PLATFORM = {
   shopee: { label: "Shopee", cls: "p-shopee" },
   tiktok: { label: "TikTok Shop", cls: "p-tiktok" },
+  amazon: { label: "Amazon", cls: "p-amazon" },
   outro: { label: "Loja", cls: "p-outro" },
 };
 

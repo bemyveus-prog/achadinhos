@@ -21,8 +21,8 @@ const keyOf = (url, bucket) => { const m = String(url || "").match(new RegExp(`/
 async function main() {
   // o que precisa ficar
   const agora = new Date().toISOString();
-  const { data: live } = await sb.from("offers").select("pin_image").eq("active", true).not("pin_image", "is", null).or(`expires_at.is.null,expires_at.gt.${agora}`);
-  const keep = new Set((live || []).map((o) => keyOf(o.pin_image, "carrosseis")).filter(Boolean));
+  const { data: live } = await sb.from("offers").select("pin_image,image_url").eq("active", true).or(`expires_at.is.null,expires_at.gt.${agora}`);
+  const keep = new Set((live || []).flatMap((o) => [keyOf(o.pin_image, "carrosseis"), keyOf(o.image_url, "carrosseis")]).filter(Boolean));
   const { data: pend } = await sb.from("reels_pendentes").select("video_url").in("status", ["pendente", "postando", "erro"]);
   for (const r of pend || []) { const k = keyOf(r.video_url, "carrosseis"); if (k) keep.add(k); }
   log(`Protegidos: ${keep.size} arquivos (capas de pin na vitrine e vídeos esperando aprovação)`);
