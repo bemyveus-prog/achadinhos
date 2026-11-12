@@ -22,6 +22,11 @@ jobs:
       META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      YOUTUBE_POSTAR: ${{ vars.YOUTUBE_POSTAR }}
+      YOUTUBE_PRIVACIDADE: ${{ vars.YOUTUBE_PRIVACIDADE }}
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4

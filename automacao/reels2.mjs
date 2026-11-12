@@ -276,6 +276,14 @@ async function main() {
     if (!hasMeta()) throw new Error("Falta META_PAGE_TOKEN para postar.");
     const url = await postReel(file, legenda, `reels2-${offerId}`);
     log(`Postado: ${url}`);
+    const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
+    if (hasYouTube()) {
+      const VIT = env("VITRINE_URL", "https://ofertas.achadinhosincriveis.site").replace(/\/$/, "");
+      try {
+        const { url: yt } = await postShort(file, textosYouTube(legenda, { link: `${VIT}/r/${offerId}` }), log);
+        if (hasTelegram()) await sendText(`▶️ Short no YouTube: ${yt}`).catch(() => {});
+      } catch (e) { log(`  YouTube: ${e.message}`); }
+    }
   }
   console.log(scenes.map((s, i) => `${i + 1}. [${s.key}] ${s.say}`).join("\n"));
 }
