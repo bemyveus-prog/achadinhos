@@ -26,6 +26,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon</b>: cole o seu link de associado (amzn.to/… ou amazon.com.br/dp/…) e o produto entra na vitrine com etiqueta Amazon. Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
+<b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
@@ -121,9 +122,9 @@ async function onText(msg) {
 
   if (cmd === "top") return startTop(chat, text);
   if (cmd === "modo") return setModo(chat, arg);
-  if (cmd === "reels" || cmd === "shopee") {
+  if (cmd === "reels" || cmd === "shopee" || cmd === "link") {
     const { head, fala } = parseReels(text);
-    return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : "instagram");
+    return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : cmd === "link" ? "link" : "instagram", cmd === "link" && !fala ? { gerarFala: true } : {});
   }
   if (cmd === "loja" || cmd === "lojas") {
     if (!arg) return say(chat, "Ex.: /loja samsung  ou  /loja vult");
@@ -530,7 +531,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
 
 // "/reels 123 SKU texto: narração" (o texto também pode vir nas linhas de baixo)
 function parseReels(text) {
-  const full = String(text || "").replace(/^\/?(reels|shopee)(@\S+)?/i, "").trim();
+  const full = String(text || "").replace(/^\/?(reels|shopee|link)(@\S+)?/i, "").trim();
   const m = full.match(/^(.*?)(?:\btexto:|\n)([\s\S]*)$/i);
   const head = (m ? m[1] : full).trim().split(/\s+/).filter(Boolean);
   const fala = m ? m[2].replace(/\s+/g, " ").trim() : "";
@@ -543,7 +544,7 @@ async function onVideo(msg) {
   if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
   const cap = (msg.caption || "").trim();
   const shopeeUrl = (cap.match(/https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
-  const isCmd = /^\/?(reels|shopee)\b/i.test(cap);
+  const isCmd = /^\/?(reels|shopee|link)\b/i.test(cap);
   const amzUrl = (cap.match(AMAZON_RE) || [])[0];
   if (!isCmd && amzUrl) return amazonVideo(msg, cap, amzUrl);
   // link do Shopee Vídeo (não traz o produto) ou texto sem link: a IA identifica o produto pelo vídeo
@@ -555,7 +556,7 @@ async function onVideo(msg) {
     await db().from("bot_config").upsert({ key: "video_pendente", value: JSON.stringify({ file_id: v.file_id, file_size: v.file_size || 0, at: Date.now() }), updated_at: new Date().toISOString() });
     return say(chat, "🎥 Recebi o vídeo. Agora manda (ou encaminha) o texto com o link da Shopee ou da Amazon.");
   }
-  if (!/^\/?(reels|shopee)\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
+  if (!/^\/?(reels|shopee|link)\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
   const v = msg.video || msg.document;
   if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "O Telegram só deixa o bot baixar vídeos de até 20 MB. Mande uma versão menor (ex.: cortada ou em 720p).");
   if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
@@ -570,7 +571,8 @@ async function onVideo(msg) {
   const { error } = await db().storage.from("reels-videos").upload(name, buf, { contentType: type });
   if (error) return say(chat, `Erro ao guardar o vídeo: ${esc(error.message)}`);
   const { head, fala } = parseReels(cap);
-  return startReels(chat, head, fala, name, /^\/?shopee\b/i.test(cap) ? "shopee" : "instagram");
+  const modoV = /^\/?shopee\b/i.test(cap) ? "shopee" : /^\/?link\b/i.test(cap) ? "link" : "instagram";
+  return startReels(chat, head, fala, name, modoV, modoV === "link" && !fala ? { gerarFala: true } : {});
 }
 
 // ---------- aprovação de Reels ----------
