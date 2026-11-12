@@ -42,8 +42,8 @@ async function edge(text, out) {
 /**
  * Gera um mp3 por fala. Devolve [{ file, duration }] (file = null quando não deu para narrar aquela fala).
  */
-// Só para o áudio (a legenda na tela continua escrita certo): a voz lê "Shopee" como "Shopei"
-export const falaParaVoz = (t) => String(t ?? "").replace(/shopee/gi, "Xópi");
+// Só para o áudio (a legenda na tela continua escrita certo): a voz lê "Shopee" como "Shopei"; testado: "Chopí" soa certo
+export const falaParaVoz = (t) => String(t ?? "").replace(/shopee/gi, "Chopí");
 
 export async function narrate(lines, dir, log = console.log) {
   await mkdir(dir, { recursive: true });
