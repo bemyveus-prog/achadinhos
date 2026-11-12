@@ -2,7 +2,7 @@ import { isAdmin, unauthorized } from "@/lib/auth";
 import { importFromUrl } from "@/lib/importer";
 import { AMAZON_RE, amazonProduct } from "@/lib/amazon";
 import { db, hasDb } from "@/lib/supabase";
-import { hasShopeeApi, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
+import { hasShopeeApi, parseShopeeIds, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
 import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
 import GANCHOS from "@/automacao/capas/ganchos.json";
 
@@ -113,7 +113,7 @@ async function onText(msg) {
   }
   // link de vídeo do Shopee Vídeo sozinho: baixa o vídeo e segue como vídeo encaminhado
   const svLink = (text.match(SHOPEE_RE) || [])[0];
-  if (svLink && isVideoLink(svLink) && (!text.startsWith("/") || /^\/baixar\b/i.test(text))) return baixarShopeeVideo(msg, text, svLink);
+  if (svLink && (!text.startsWith("/") || /^\/baixar\b/i.test(text))) return linkShopee(msg, text, svLink);
   const [cmdRaw, ...rest] = text.split(/\s+/);
   const cmd = cmdRaw.startsWith("/") ? cmdRaw.slice(1).split("@")[0].toLowerCase() : null;
   const arg = (cmd ? rest.join(" ") : text).trim();
@@ -757,6 +757,40 @@ async function shopeeVideoMp4(link) {
     } catch { /* tenta o próximo */ }
   }
   return null;
+}
+
+// segue os redirecionamentos do link curto (s.shopee.com.br/xxx) para saber se é vídeo ou produto
+async function destinoShopee(link) {
+  const chain = [link];
+  let cur = link;
+  for (let i = 0; i < 6; i++) {
+    try {
+      const r = await fetch(cur, { redirect: "manual", headers: { "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)" }, cache: "no-store", signal: AbortSignal.timeout(5000) });
+      const loc = r.headers.get("location");
+      if (!(r.status >= 300 && r.status < 400 && loc)) break;
+      cur = new URL(loc, cur).toString();
+      chain.push(cur);
+    } catch { break; }
+  }
+  return chain;
+}
+
+// link da Shopee colado sozinho: vídeo → baixa e identifica; produto → mostra com o botão de vitrine
+async function linkShopee(msg, text, link) {
+  const chat = msg.chat.id;
+  const chain = isVideoLink(link) ? [link] : await destinoShopee(link);
+  if (chain.some(isVideoLink)) return baixarShopeeVideo(msg, text, link);
+  const ids = chain.map(parseShopeeIds).find(Boolean);
+  if (ids && hasShopeeApi()) {
+    const raw = await shopeeProduct(ids).catch(() => null);
+    if (raw) {
+      const p = normalize(raw);
+      return tg("sendPhoto", { chat_id: chat, photo: p.imageUrl, parse_mode: "HTML",
+        caption: `🛍️ <b>${esc(p.name.slice(0, 150))}</b>\n💰 ${brl(p.price)}${p.commission ? ` · 💸 ${pct(p.commission)}` : ""}${p.sales ? ` · 🛒 ${p.sales}` : ""}`,
+        reply_markup: { inline_keyboard: [[{ text: "➕ Colocar na vitrine", callback_data: `add:${p.shopId}:${p.itemId}` }]] } });
+    }
+  }
+  return say(chat, "Não reconheci esse link da Shopee. Se for vídeo, baixe pelo app e encaminhe aqui; se for produto, use o link do produto (Compartilhar → Copiar link).");
 }
 
 async function baixarShopeeVideo(msg, text, link) {
