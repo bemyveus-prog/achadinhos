@@ -2,11 +2,16 @@ name: Reels Top N
 
 # Disparado pelo bot (/top). O roteiro vem em JSON (título + produtos da vitrine + narração de cada um).
 on:
+  push:
+    branches: [top-teste]
+  schedule:
+    # Top automático todo dia (~13h07 Brasília): a IA escolhe tema e produtos; chega no Telegram para aprovar
+    - cron: "7 16 * * *"
   workflow_dispatch:
     inputs:
       roteiro:
-        description: 'JSON: {"title":"...","items":[{"id":136,"sku":"","fala":"..."}],"postar":false}'
-        required: true
+        description: 'JSON: {"title":"...","items":[{"id":136,"sku":"","fala":"..."}],"postar":false} (vazio = automático)'
+        default: ""
 
 concurrency:
   group: reels-top
@@ -31,7 +36,7 @@ jobs:
           npm ci
           bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
       - name: Gerar o Reels
-        run: node top.mjs
+        run: node top.mjs ${{ (github.event_name != 'workflow_dispatch' || !inputs.roteiro) && '--auto' || '' }}
         env:
           REELS_TOP: ${{ inputs.roteiro }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -43,6 +48,7 @@ jobs:
           CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL_NARRACAO: ${{ vars.ANTHROPIC_MODEL_NARRACAO }}
+          ANTHROPIC_MODEL_TOP: ${{ vars.ANTHROPIC_MODEL_TOP }}
           FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
           FISH_VOICE_ID: ${{ vars.FISH_VOICE_ID }}
           EDGE_VOICE: ${{ vars.EDGE_VOICE }}

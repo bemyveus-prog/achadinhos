@@ -17,8 +17,48 @@ const env = (k, d) => (process.env[k] ?? "").trim() || d;
 const log = (...m) => console.log(new Date().toLocaleTimeString("pt-BR"), ...m);
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
+// Top automático: a IA escolhe um tema e 5 produtos da vitrine e escreve a narração de cada um
+async function autoRoteiro() {
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error("O Top automático precisa da ANTHROPIC_API_KEY");
+  const agora = new Date().toISOString();
+  const { data: prods } = await sb.from("offers").select("id,title,price,category").eq("active", true).eq("kind", "produto")
+    .not("image_url", "is", null).or(`expires_at.is.null,expires_at.gt.${agora}`).order("id", { ascending: false }).limit(120);
+  if ((prods || []).length < 5) throw new Error("Poucos produtos na vitrine para um Top");
+  // não repete os produtos dos últimos Tops
+  const { data: rec } = await sb.from("bot_config").select("value").eq("key", "top_recentes").maybeSingle();
+  const recentes = new Set(JSON.parse(rec?.value || "[]"));
+  const lista = prods.filter((p) => !recentes.has(p.id)).map((p) => `${p.id} | ${String(p.title).slice(0, 90)} | R$ ${Number(p.price || 0).toFixed(2)}${p.category ? ` | ${p.category}` : ""}`).join("\n");
+  const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "long" });
+  const prompt = `Hoje é ${hoje}. Você monta vídeos "Top 5" para um perfil de achadinhos da Shopee no Instagram.
+Produtos disponíveis na vitrine (id | nome | preço | categoria):
+${lista}
+
+Escolha UM tema que agrupe bem 5 desses produtos e que chame atenção (ex.: "5 achados de cozinha abaixo de R$ 30", "5 coisas que parecem bobas mas facilitam a vida", "presentes de Natal até R$ 50"). Se a data combinar (Natal, Black Friday, volta às aulas, Dia das Mães...), prefira um tema da época.
+Regras:
+- O título deve ser verdadeiro para os produtos escolhidos (se disser "abaixo de R$ 30", todos precisam custar menos que isso).
+- Para cada produto, uma narração de 1 frase (até 110 caracteres), animada, usando só o que dá para saber pelo nome. Sem inventar medidas, materiais ou promessas. Sem travessão, sem emoji.
+Responda só com JSON: {"title": "título do vídeo (até 60 caracteres)", "items": [{"id": 123, "fala": "..."}]}`;
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY.trim(), "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: env("ANTHROPIC_MODEL_TOP", "claude-sonnet-5-5"), max_tokens: 900, messages: [{ role: "user", content: prompt }] }),
+    signal: AbortSignal.timeout(60000),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(`IA: ${j?.error?.message || r.status}`);
+  const t = (j.content || []).map((c) => c.text || "").join("");
+  const out = JSON.parse((t.match(/\{[\s\S]*\}/) || [t])[0]);
+  const valid = new Set(prods.map((p) => p.id));
+  out.items = (out.items || []).filter((i) => valid.has(Number(i.id))).slice(0, 5).map((i) => ({ id: Number(i.id), fala: String(i.fala || "").replace(/[—–]/g, ",") }));
+  if (out.items.length < 3) throw new Error("A IA não escolheu produtos suficientes");
+  log(`Top automático: "${out.title}" com ${out.items.map((i) => "#" + i.id).join(", ")}`);
+  const novos = [...out.items.map((i) => i.id), ...recentes].slice(0, 40);
+  await sb.from("bot_config").upsert({ key: "top_recentes", value: JSON.stringify(novos), updated_at: new Date().toISOString() });
+  return { title: out.title, items: out.items, postar: false };
+}
+
 async function main() {
-  const r = JSON.parse(process.env.REELS_TOP || "{}");
+  const r = process.argv.includes("--auto") ? await autoRoteiro() : JSON.parse(process.env.REELS_TOP || "{}");
   if (!r.title || !r.items?.length) throw new Error("Roteiro vazio (REELS_TOP)");
   const ids = r.items.map((i) => Number(i.id));
   const { data: offers, error } = await sb.from("offers").select("id,title,image_url,price").in("id", ids);

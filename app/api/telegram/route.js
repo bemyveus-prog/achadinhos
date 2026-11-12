@@ -23,7 +23,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
 📲 <b>Vídeos do grupo do WhatsApp</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
-<b>/top</b> título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
+<b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
@@ -534,6 +534,11 @@ async function startTop(chat, text) {
     const words = m[2].trim().split(/\s+/);
     const sku = words[0] && looksSku(words[0]) ? words.shift().replace(/[^A-Za-z0-9_-]/g, "") : "";
     items.push({ id: Number(m[1]), sku, fala: words.join(" ").slice(0, 300) });
+  }
+  // só "/top": a IA escolhe o tema e os produtos da vitrine
+  if (!title && !items.length) {
+    try { await dispatchWorkflow("reels-top.yml", { roteiro: "" }); } catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+    return say(chat, "🤖 A IA está escolhendo um tema e 5 produtos da vitrine para um Top. Chega aqui em uns 3 minutos para você aprovar.");
   }
   if (!title || items.length < 2) {
     return say(chat, "Use assim (cada produto numa linha):\n<b>/top 5 coisas que parecem bobas mas facilitam a vida\n136 Esse organizador acaba com a bagunça\n137 Esse prendedor segura o saco aberto\n138 ...</b>\n\nDe 2 a 8 produtos. Pode pôr o SKU da CJ depois do número. Escreva <i>postar</i> no título para postar direto.");
