@@ -134,9 +134,12 @@ Regras:
 - Sem preço, sem nome de loja ou plataforma, sem hashtags, sem aspas, no máximo 1 emoji.
 Responda só com a headline.`;
   try {
-    const t = (await claude({ model: env("ANTHROPIC_MODEL_NARRACAO", "claude-haiku-5-5"), content: prompt, max: 100 })).replace(/\s+/g, " ").replace(/^["']|["']$/g, "").replace(/[—–]/g, ",").trim();
+    const raw = await claude({ model: env("ANTHROPIC_MODEL_NARRACAO", "claude-haiku-5-5"), content: prompt, max: 100 });
+    // às vezes vem com opções ou explicação: fica só com a primeira linha que pareça a headline
+    const linhas = raw.split(/\n+/).map((l) => l.replace(/^[-*\d.)\s]+(?=\S)/, "").replace(/^\*\*|\*\*$/g, "").replace(/^(headline|título)\s*:\s*/i, "").trim()).filter(Boolean);
+    const t = (linhas.find((l) => !/:$/.test(l) && l.replace(/\*/g, "").length >= 10 && l.replace(/\*/g, "").length <= 60) || "").replace(/^["']|["']$/g, "").replace(/[—–]/g, ",").trim();
     const limpo = t.replace(/\*/g, "");
-    if (!limpo || limpo.length > 60) throw new Error(`headline fora do tamanho (${limpo.length})`);
+    if (!limpo || limpo.length > 60) throw new Error(`headline fora do tamanho: ${raw.replace(/\s+/g, " ").slice(0, 160)}`);
     log(`  headline: ${t}`);
     return t;
   } catch (e) { log(`  headline: ${e.message}`); return ""; }
