@@ -8,6 +8,9 @@ on:
         description: "Quantos produtos mandar (1 a 30)"
         default: "3"
 
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   telegram:
     runs-on: ubuntu-24.04

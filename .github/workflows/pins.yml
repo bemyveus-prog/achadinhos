@@ -11,6 +11,9 @@ on:
         description: "Quantos produtos no máximo"
         default: "120"
 
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   pins:
     runs-on: ubuntu-24.04

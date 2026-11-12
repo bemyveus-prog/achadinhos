@@ -42,6 +42,9 @@ on:
 
 # sem fila única: vários vídeos podem ser gerados ao mesmo tempo (encaminhar muitos de uma vez)
 
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   reels:
     runs-on: ubuntu-24.04

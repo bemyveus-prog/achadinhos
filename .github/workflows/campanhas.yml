@@ -16,6 +16,9 @@ concurrency:
   group: campanhas
   cancel-in-progress: false
 
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   campanhas:
     runs-on: ubuntu-24.04

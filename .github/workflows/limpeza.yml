@@ -13,6 +13,9 @@ on:
         type: boolean
         default: false
 
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   limpeza:
     runs-on: ubuntu-24.04

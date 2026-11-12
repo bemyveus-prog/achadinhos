@@ -9,6 +9,9 @@ on:
         description: "Buscas em inglês separadas por |"
         default: "kitchen organizer|silicone spatula set|drawer organizer|car phone holder|led strip light"
 
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   cj:
     runs-on: ubuntu-24.04

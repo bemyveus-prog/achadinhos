@@ -2,6 +2,9 @@ name: Teste IA
 on:
   push:
     branches: [ia-teste]
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   t:
     runs-on: ubuntu-24.04

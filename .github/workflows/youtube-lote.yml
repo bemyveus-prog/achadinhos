@@ -12,6 +12,9 @@ on:
         description: "Minutos entre um e outro"
         default: "30"
 
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   lote:
     runs-on: ubuntu-24.04

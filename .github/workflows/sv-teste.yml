@@ -2,6 +2,9 @@ name: Teste link Shopee Vídeo
 on:
   push:
     branches: [sv-teste]
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   sv:
     runs-on: ubuntu-24.04

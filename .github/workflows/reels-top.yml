@@ -17,6 +17,9 @@ concurrency:
   group: reels-top
   cancel-in-progress: false
 
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   top:
     runs-on: ubuntu-24.04

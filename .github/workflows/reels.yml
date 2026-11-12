@@ -14,6 +14,9 @@ on:
         type: boolean
         default: false
 
+env:
+  MARCA_DAGUA: ${{ vars.MARCA_DAGUA }}
+
 jobs:
   reels:
     runs-on: ubuntu-24.04
