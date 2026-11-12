@@ -748,6 +748,9 @@ async function saveTelegramVideo(v) {
 // O link do Shopee Vídeo não abre o vídeo para navegador comum, mas entrega a página com o .mp4
 // para leitores de prévia de link. O Telegram baixa o .mp4 direto pela URL.
 async function shopeeVideoMp4(link) {
+  // link curto (br.shp.ee / s.shopee): primeiro descobre o endereço do vídeo, depois lê a página dele
+  const chain = isVideoLink(link) && /sv\.shopee/.test(link) ? [link] : await destinoShopee(link);
+  link = chain[chain.length - 1];
   for (const ua of ["facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)", "TelegramBot (like TwitterBot)"]) {
     try {
       const r = await fetch(link, { headers: { "User-Agent": ua, "Accept-Language": "pt-BR" }, redirect: "follow", cache: "no-store", signal: AbortSignal.timeout(8000) });
@@ -765,7 +768,7 @@ async function destinoShopee(link) {
   let cur = link;
   for (let i = 0; i < 6; i++) {
     try {
-      const r = await fetch(cur, { redirect: "manual", headers: { "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)" }, cache: "no-store", signal: AbortSignal.timeout(5000) });
+      const r = await fetch(cur, { redirect: "manual", headers: { "User-Agent": "TelegramBot (like TwitterBot)" }, cache: "no-store", signal: AbortSignal.timeout(5000) });
       const loc = r.headers.get("location");
       if (!(r.status >= 300 && r.status < 400 && loc)) break;
       cur = new URL(loc, cur).toString();
