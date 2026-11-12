@@ -23,11 +23,12 @@ Objetivo: fazer a pessoa querer o produto AGORA.
 Estrutura:
 1. Gancho forte no primeiro segundo: uma dor, desejo ou situação do dia a dia que a pessoa reconhece ("Cansada de...", "Sabe quando...", "Para tudo!", "Ninguém te contou que...").
 2. O produto como a solução, com o benefício que muda a rotina (o que a pessoa ganha), de forma visual e emocional.
-3. Fechamento com vontade de comprar já: "aproveita enquanto tá nesse preço", "eu já garanti o meu", "corre", sem prometer estoque acabando.
+3. Fechamento com vontade de comprar já: "aproveita enquanto tá nesse preço", "corre", "garante o seu", sem prometer estoque acabando.
 Regras:
 - No máximo ${max} caracteres, ${max <= 160 ? "1 ou 2 frases curtas" : "2 ou 3 frases"}, ritmo rápido, linguagem falada e próxima ("você", "olha isso").
 - NÃO fale de nota, avaliações, quantidade de vendas nem do preço exato (aparecem na tela).
-- Use SÓ o que dá para saber pelo nome e pelo texto acima. Não invente medidas, materiais, recursos, resultados ou promessas de saúde.
+- Use SÓ o que dá para saber pelo nome e pelo texto acima. Não invente medidas, materiais, recursos, resultados ou promessas de saúde, nem características como "cabe em qualquer lugar", "fácil de limpar", "não enferruja" se isso não estiver escrito.
+- Não diga que você comprou ou usa o produto.
 - Não fale de link, bio, cupom, seguir ou comentar (o final do vídeo já faz isso). Sem emojis, hashtags ou travessão.
 Responda só com o texto da narração.`;
   try {
