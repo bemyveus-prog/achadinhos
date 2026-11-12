@@ -6,7 +6,15 @@ jobs:
   t:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
       - run: |
-          cp lib/amazon.js a.mjs
-          node -e 'import("./a.mjs").then(async m=>{for(const u of ["https://www.amazon.com.br/dp/B0G7MDQ8G5/ref=cm_sw_r_as_gl_apa_gl_i_NJBFEHFGDM7P5VSB78AN?linkCode=ml1&tag=ofertasama02b-20&linkId=598ea08a6f17f1da044aedf798a2524f","https://www.amazon.com.br/dp/B0CJMQJF3B"]) console.log(JSON.stringify(await m.amazonProduct(u)))})'
+          cat > t.mjs <<'JS'
+          const r = await fetch("https://www.amazon.com.br/dp/B0G7MDQ8G5", { headers: { "user-agent": "facebookexternalhit/1.1", "accept-language": "pt-BR" } });
+          const h = await r.text();
+          for (const k of ["a-price-whole", "priceAmount", "a-offscreen", "corePrice", "apex_desktop", "priceToPay", "displayPrice"]) {
+            let i = -1, n = 0; const idx = [];
+            while ((i = h.indexOf(k, i + 1)) >= 0 && n < 3) { idx.push(i); n++; }
+            console.log("==", k, (h.split(k).length - 1));
+            for (const j of idx) console.log("   ", JSON.stringify(h.slice(j - 80, j + 160)));
+          }
+          JS
+          node t.mjs
