@@ -21,7 +21,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
-📲 <b>Vídeos do grupo do WhatsApp</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
+📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
@@ -47,7 +47,7 @@ export async function GET(req) {
   if (!(await isAdmin())) return unauthorized();
   if (!hasBot()) return Response.json({ error: "Falta TELEGRAM_BOT_TOKEN nas variáveis da Vercel" }, { status: 400 });
   const url = `${new URL(req.url).origin}/api/telegram`;
-  await tg("setWebhook", { url, secret_token: webhookSecret(), allowed_updates: ["message", "callback_query"], drop_pending_updates: true });
+  await tg("setWebhook", { url, secret_token: webhookSecret(), allowed_updates: ["message", "channel_post", "callback_query"], drop_pending_updates: true });
   await tg("setMyCommands", { commands: [
     { command: "buscar", description: "Buscar produto (comissão + vendas)" },
     { command: "comissao", description: "Buscar só pela maior comissão" },
@@ -71,6 +71,7 @@ export async function POST(req) {
   const update = await req.json().catch(() => ({}));
   try {
     if (update.callback_query) await onButton(update.callback_query);
+    else if ((update.message || update.channel_post) && (update.message || update.channel_post).chat?.type !== "private") await onGroup(update.message || update.channel_post);
     else if (update.message?.video || /^video\//.test(update.message?.document?.mime_type || "")) await onVideo(update.message);
     else if (update.message?.photo || update.message?.document) await onPhoto(update.message);
     else if (update.message?.text) await onText(update.message);
@@ -680,4 +681,39 @@ async function chooseGroupProduct(chat, q, data) {
   const modo = await getModo();
   const modos = modo === "ambos" ? ["shopee", "instagram"] : [modo === "reels" ? "instagram" : "shopee"];
   for (const m of modos) await startReels(chat, [String(offerId)], "", row.video, m, { gerarFala: true, contexto: [row.descricao, row.contexto].filter(Boolean).join(". ") });
+}
+
+// ---------- grupos/canais do Telegram onde o bot está ----------
+// O bot NUNCA responde dentro do grupo: tudo vai para o seu chat. Só lê os grupos listados em TELEGRAM_GRUPOS.
+const grupos = () => (process.env.TELEGRAM_GRUPOS || "").split(/[\s,;]+/).filter(Boolean);
+const SHOPEE_RE = /https?:\/\/(?:s\.shopee\.com\.br|shope\.ee|shp\.ee|sv\.shopee\.com\.br|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i;
+
+async function onGroup(m) {
+  const gid = String(m.chat.id);
+  const owner = allowedChat();
+  // "/grupoid" mandado por você dentro do grupo: o bot te conta (no privado) o número do grupo
+  if (/^\/grupoid\b/i.test(m.text || "") && m.from && isAllowed(m.from.id)) {
+    return say(owner, `Grupo "<b>${esc(m.chat.title || "")}</b>": <code>${gid}</code>\nPara o bot ler esse grupo, coloque esse número na variável <b>TELEGRAM_GRUPOS</b> da Vercel e faça o Redeploy.`);
+  }
+  if (!grupos().includes(gid) || !owner || !hasDb()) return; // grupo não liberado: ignora em silêncio
+  const asOwner = { ...m, chat: { id: Number(owner), type: "private" } }; // respostas vão para você
+  const isVid = m.video || /^video\//.test(m.document?.mime_type || "");
+  const text = (m.caption || m.text || "").trim();
+  const url = (text.match(SHOPEE_RE) || [])[0];
+  const key = `video_pendente_${gid}`;
+  if (isVid) {
+    if (url) return isVideoLink(url) ? identifyGroupVideo(asOwner, text) : importGroupVideo(asOwner, text, url);
+    const v = m.video || m.document;
+    await db().from("bot_config").upsert({ key, value: JSON.stringify({ file_id: v.file_id, file_size: v.file_size || 0, at: Date.now() }), updated_at: new Date().toISOString() });
+    return; // espera a mensagem com o link
+  }
+  if (url) {
+    const { data: pend } = await db().from("bot_config").select("value").eq("key", key).maybeSingle();
+    let pv = null; try { pv = JSON.parse(pend?.value || "null"); } catch {}
+    if (pv && Date.now() - pv.at < 10 * 60000) {
+      await db().from("bot_config").delete().eq("key", key);
+      const fake = { chat: asOwner.chat, video: { file_id: pv.file_id, file_size: pv.file_size } };
+      return isVideoLink(url) ? identifyGroupVideo(fake, text) : importGroupVideo(fake, text, url);
+    }
+  }
 }
