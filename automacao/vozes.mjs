@@ -11,8 +11,8 @@ const pt = todas.filter((v) => /^pt-BR/.test(v.ShortName)).map((v) => ({ id: v.S
 console.log("Vozes pt-BR:", pt.map((v) => `${v.id} (${v.genero})`).join(", "));
 const out = path.resolve("saida/vozes"); await mkdir(out, { recursive: true });
 const token = process.env.TELEGRAM_BOT_TOKEN, chat = (process.env.TELEGRAM_CHAT_ID || "").split(/[\s,;]+/)[0];
-for (const v of pt) {
-  for (const rate of ["+12%", "+22%"]) {
+for (const v of pt.filter((x) => x.id === (process.env.EDGE_VOICE || "pt-BR-FranciscaNeural"))) {
+  for (const [rate, FRASE] of [["+22%", "Teste 1: Xópi. Olha esse achadinho da Xópi, tem cupom da Xópi te esperando!"], ["+22%", "Teste 2: Chópi. Olha esse achadinho da Chópi, tem cupom da Chópi te esperando!"], ["+22%", "Teste 3: Shópi. Olha esse achadinho da Shópi, tem cupom da Shópi te esperando!"]]) {
     try {
       const tts = new MsEdgeTTS();
       await tts.setMetadata(v.id, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
@@ -21,8 +21,8 @@ for (const v of pt) {
       const nome = v.id.replace("pt-BR-", "").replace("Neural", "");
       const form = new FormData();
       form.append("chat_id", chat);
-      form.append("audio", new Blob([await readFile(audioFilePath)], { type: "audio/mpeg" }), `${nome} ${rate}.mp3`);
-      form.append("title", `${nome} ${rate}`);
+      form.append("audio", new Blob([await readFile(audioFilePath)], { type: "audio/mpeg" }), `${FRASE.slice(0,13)}.mp3`);
+      form.append("title", FRASE.slice(0,13));
       form.append("performer", v.genero === "Female" ? "Feminina" : "Masculina");
       form.append("caption", `🎙️ ${nome} (${v.genero === "Female" ? "feminina" : "masculina"}) · velocidade ${rate}\nPara usar: variável EDGE_VOICE = ${v.id}${rate !== "+22%" ? ` e EDGE_RATE_REELS = ${rate}` : ""}`);
       const r = await fetch(`https://api.telegram.org/bot${token}/sendAudio`, { method: "POST", body: form });
