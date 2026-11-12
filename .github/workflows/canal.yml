@@ -1,0 +1,49 @@
+name: Canal de ofertas (Telegram)
+
+on:
+  schedule:
+    # 8 ofertas por dia, de 2 em 2 horas (horário de Brasília): ~08h, 10h, 12h, 14h, 16h, 18h, 20h, 22h
+    - cron: "23 11,13,15,17,19,21,23,1 * * *"
+  push:
+    branches: [canal-teste]
+  workflow_dispatch:
+    inputs:
+      n:
+        description: "Quantas ofertas postar agora (1 a 5)"
+        default: "1"
+      teste:
+        description: "Só mandar a prévia para você, sem postar no canal"
+        type: boolean
+        default: false
+
+concurrency:
+  group: canal
+  cancel-in-progress: false
+
+jobs:
+  canal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: automacao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: npm ci
+      - name: Postar oferta no canal
+        run: node canal.mjs --n ${{ inputs.n || '1' }} ${{ (inputs.teste || github.event_name == 'push') && '--teste' || '' }}
+        env:
+          SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+          SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_CANAL: ${{ vars.TELEGRAM_CANAL }}
+          DIAS_NA_VITRINE: ${{ vars.DIAS_NA_VITRINE }}

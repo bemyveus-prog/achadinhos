@@ -126,6 +126,7 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
           <span className="dot" /> {products.length} achados · {coupons.length} cupons ativos
         </div>
         <Socials s={profile.socials} />
+        <Canais c={profile.canais} />
       </header>
 
       <BannerCarousel banners={banners} />
@@ -322,6 +323,20 @@ function ProductCard({ p, eager, onShare }) {
         <ShareIcon />
       </button>
     )}
+    </div>
+  );
+}
+
+// convite para os canais de ofertas relâmpago
+function Canais({ c }) {
+  if (!c?.telegram && !c?.whatsapp) return null;
+  return (
+    <div className="canais">
+      <p>⚡ Ofertas relâmpago que somem rápido: receba antes de todo mundo</p>
+      <div>
+        {c.telegram && <a className="canal tg" href={c.telegram} target="_blank" rel="noopener">Canal no Telegram</a>}
+        {c.whatsapp && <a className="canal zap" href={c.whatsapp} target="_blank" rel="noopener">Canal no WhatsApp</a>}
+      </div>
     </div>
   );
 }

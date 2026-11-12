@@ -39,6 +39,10 @@ export default async function Home() {
       youtube: process.env.NEXT_PUBLIC_YOUTUBE_URL || "",
       whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_URL || "",
     },
+    canais: {
+      telegram: process.env.NEXT_PUBLIC_CANAL_TELEGRAM ?? "https://t.me/minhasofertarelampago",
+      whatsapp: process.env.NEXT_PUBLIC_CANAL_WHATSAPP || "",
+    },
   };
   return <Vitrine offers={offers} profile={profile} demo={demo} banners={banners} />;
 }
