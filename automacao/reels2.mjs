@@ -10,7 +10,7 @@ import { writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { gql, hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
-import { gerarNarracao } from "./lib/narracao.mjs";
+import { gerarNarracao, gerarLegendaShopee } from "./lib/narracao.mjs";
 import { normalize, score } from "./lib/escolha.mjs";
 import { pickCover, categoriesWithImages, coverConfig, categoryOf } from "./lib/capas.mjs";
 import { execFile } from "child_process";
@@ -18,7 +18,7 @@ import { promisify } from "util";
 const run = promisify(execFile);
 import { renderReel2 } from "./lib/reels2.mjs";
 import { shortName, brl, salesLabel } from "./lib/textos.mjs";
-import { hasTelegram, sendVideo } from "./lib/telegram.mjs";
+import { hasTelegram, sendText, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, postReel, uploadPublic } from "./lib/social.mjs";
 import { hasCJ, productBySku, productVideos, bestFreeVideo, downloadVideo } from "./lib/cj.mjs";
 
@@ -206,16 +206,15 @@ async function main() {
   // Shopee Vídeo: não tem postagem automática; o vídeo vai para o Telegram para você subir no app
   if (modo === "shopee") {
     const { data: off } = await sb.from("offers").select("link").eq("id", offerId).maybeSingle();
-    const legShopee = [
-      `${(fala || cover.hook).replace(/\*/g, "").slice(0, 120)}`,
-      "",
-      "👇 Toque no produto aqui embaixo para ver o preço de hoje!",
-      "",
-      "#achadinhos #achadosdashopee #shopee #comprinhas #oferta",
-    ].join("\n");
+    // legenda do Shopee Vídeo: até 150 caracteres, com hashtags de busca do produto
+    const legShopee = await gerarLegendaShopee(p, { fala, log });
     await writeFile(path.join(outDir, "legenda-shopee.txt"), legShopee + "\n");
     if (hasTelegram()) {
-      await sendVideo(file, `🛍️ Shopee Vídeo #${offerId} (${seconds.toFixed(0)} s)\n\nNo app Shopee: Vídeo → postar → vincule o produto #${offerId}${off?.link ? ` (${off.link})` : ""}.\n\nLegenda:\n\n${legShopee}`.slice(0, 1024));
+      const info = `🛍️ Shopee Vídeo #${offerId} (${seconds.toFixed(0)} s)\nNo app Shopee: Vídeo → postar → vincule o produto #${offerId}${off?.link ? `\n${off.link}` : ""}\n\nLegenda (${legShopee.length}/150) 👇`;
+      // botão que copia SÓ a legenda
+      try { await sendVideo(file, info.slice(0, 1024), { inline_keyboard: [[{ text: "📋 Copiar legenda", copy_text: { text: legShopee } }]] }); }
+      catch (e) { log(`  botão de copiar recusado (${e.message}); enviando sem`); await sendVideo(file, info.slice(0, 1024)); }
+      await sendText(legShopee).catch(() => {}); // a legenda sozinha, também fácil de copiar
       log("Enviado no Telegram (Shopee Vídeo).");
     }
     console.log(scenes.map((x, i) => `${i + 1}. [${x.key}] ${x.say}`).join("\n"));
