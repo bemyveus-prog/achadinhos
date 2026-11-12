@@ -1,0 +1,37 @@
+name: Teste YouTube (vídeo privado)
+
+# Confere se os segredos do YouTube funcionam: gera um vídeo de 4 s e envia como PRIVADO,
+# mostrando no log em qual canal ele caiu. Pode apagar o vídeo depois no YouTube Studio.
+on:
+  workflow_dispatch:
+
+jobs:
+  teste:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg >/dev/null
+          ffmpeg -loglevel error -f lavfi -i color=c=0x2bb673:s=1080x1920:d=4 -f lavfi -i anullsrc=r=48000:cl=stereo -t 4 -c:v libx264 -pix_fmt yuv420p -c:a aac teste.mp4
+      - run: |
+          cat > t.mjs <<'JS'
+          import { readFile } from "fs/promises";
+          const e = (k) => (process.env[k] || "").trim();
+          for (const k of ["YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"]) if (!e(k)) throw new Error("falta o segredo " + k);
+          const tk = await (await fetch("https://oauth2.googleapis.com/token", { method: "POST", body: new URLSearchParams({ client_id: e("YT_CLIENT_ID"), client_secret: e("YT_CLIENT_SECRET"), refresh_token: e("YT_REFRESH_TOKEN"), grant_type: "refresh_token" }) })).json();
+          if (!tk.access_token) throw new Error("token: " + JSON.stringify(tk));
+          console.log("escopos do token:", tk.scope);
+          const v = await readFile("teste.mp4");
+          const ini = await fetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", { method: "POST", headers: { Authorization: "Bearer " + tk.access_token, "Content-Type": "application/json", "X-Upload-Content-Type": "video/mp4", "X-Upload-Content-Length": String(v.length) }, body: JSON.stringify({ snippet: { title: "teste da automação (pode apagar)", categoryId: "26" }, status: { privacyStatus: "private" } }) });
+          const loc = ini.headers.get("location"); if (!loc) throw new Error("envio recusado: " + ini.status + " " + (await ini.text()));
+          const j = await (await fetch(loc, { method: "PUT", headers: { "Content-Type": "video/mp4" }, body: v })).json();
+          console.log("RESULTADO: vídeo", j.id, "no canal:", j.snippet?.channelTitle, "| privacidade:", j.status?.privacyStatus);
+          JS
+          node t.mjs
