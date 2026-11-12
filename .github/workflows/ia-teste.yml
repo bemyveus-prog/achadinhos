@@ -1,0 +1,16 @@
+name: Teste IA
+on:
+  push:
+    branches: [ia-teste]
+jobs:
+  t:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node automacao/ia-teste.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
