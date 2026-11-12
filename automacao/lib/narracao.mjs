@@ -31,7 +31,7 @@ export const GANCHOS = [
 ];
 const FECHOS = [
   "convite curto para conferir o preço de hoje, sem mencionar valor",
-  "frase de efeito curta (ex.: algo como 'é daqueles que a gente se pergunta como vivia sem')",
+  "frase de efeito curta e original sobre como a rotina fica melhor (crie uma frase nova, não use clichês)",
   "urgência leve e honesta sobre o preço poder mudar, sem prometer estoque acabando",
   "chamada para mandar para alguém que precisa disso",
   "frase direta de recomendação, curta e confiante",
@@ -54,7 +54,7 @@ Passo 2: escreva a narração assim:
 - FECHAMENTO no estilo: ${fecho}.
 Regras:
 - No máximo ${max} caracteres, ${max <= 160 ? "1 ou 2 frases curtas" : "2 ou 3 frases"}, ritmo rápido, linguagem falada.
-- PROIBIDO usar estas expressões gastas: "para tudo", "olha isso", "cansada de", "cansado de", "aproveita enquanto", "garante o seu", "você não vai acreditar", "achadinho incrível".
+- PROIBIDO usar estas expressões gastas: "para tudo", "olha isso", "cansada de", "cansado de", "aproveita enquanto", "garante o seu", "você não vai acreditar", "achadinho incrível", "como vivia sem", "vale cada centavo".
 - NÃO fale de nota, avaliações, vendas nem preço exato (aparecem na tela).
 - Use SÓ o que dá para saber pelo nome e pelo texto acima. Não invente medidas, materiais, recursos, resultados ou promessas de saúde, nem características como "cabe em qualquer lugar", "fácil de limpar", "não enferruja" se isso não estiver escrito.
 - Não diga que você comprou ou usa o produto. Não fale de link, bio, cupom, seguir ou comentar. Sem emojis, hashtags ou travessão.
