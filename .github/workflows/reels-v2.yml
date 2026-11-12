@@ -37,9 +37,7 @@ on:
         type: boolean
         default: false
 
-concurrency:
-  group: reels-v2
-  cancel-in-progress: false
+# sem fila única: vários vídeos podem ser gerados ao mesmo tempo (encaminhar muitos de uma vez)
 
 jobs:
   reels:
