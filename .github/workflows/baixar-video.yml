@@ -32,7 +32,8 @@ jobs:
           TIPO: ${{ inputs.tipo }}
         run: |
           command -v ffmpeg >/dev/null || bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
-          CHAT=$(echo "$TELEGRAM_CHAT_ID" | tr ',; ' '\n' | head -1)
+          CHAT=$(echo "$TELEGRAM_CHAT_ID" | tr ',; ' '\n' | head -1 | tr -d '[:space:]')
+          TOKEN=$(printf '%s' "$TELEGRAM_BOT_TOKEN" | tr -d '[:space:]')
           if [ "$TIPO" = "ytdlp" ]; then
             pip install -q -U "yt-dlp[default,curl-cffi]"
             # melhor vídeo em .mp4 de até ~45 MB (limite de envio do bot é 50 MB)
@@ -46,8 +47,8 @@ jobs:
             ls -la video.mp4
             curl -sS -F chat_id="$CHAT" -F caption="$LEGENDA
           Para virar vídeo com narração, encaminhe de volta com o link do produto (ou /reels NÚMERO) na legenda." -F supports_streaming=true -F video=@video.mp4 \
-              "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendVideo" | head -c 300
+              "https://api.telegram.org/bot$TOKEN/sendVideo" | head -c 300
           else
-            curl -sS -d chat_id="$CHAT" --data-urlencode text="⚠️ Não consegui baixar esse vídeo. Alguns vídeos do TikTok ficam bloqueados para servidores; nesse caso, salve pelo app e encaminhe aqui." "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" >/dev/null
+            curl -sS -d chat_id="$CHAT" --data-urlencode text="⚠️ Não consegui baixar esse vídeo. Alguns vídeos do TikTok ficam bloqueados para servidores; nesse caso, salve pelo app e encaminhe aqui." "https://api.telegram.org/bot$TOKEN/sendMessage" >/dev/null
             exit 1
           fi
