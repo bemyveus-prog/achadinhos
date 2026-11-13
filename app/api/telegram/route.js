@@ -30,6 +30,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
 🖼️ <b>Fotos → vídeo</b>: mande várias fotos de uma vez (álbum) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Vira vídeo com zoom nas fotos, narração e o final.
+📌 <b>Link do Pinterest</b>: cole o link de um pin de vídeo (pin.it/…) e o bot devolve o vídeo baixado.
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
@@ -122,6 +123,9 @@ async function onText(msg) {
       }
     }
   }
+  // link do Pinterest: baixa o vídeo do pin e devolve aqui
+  const pin = (text.match(PIN_RE) || [])[0];
+  if (pin && !text.startsWith("/")) return baixarPinterest(chat, pin);
   // link de vídeo do Shopee Vídeo sozinho: baixa o vídeo e segue como vídeo encaminhado
   const svLink = (text.match(SHOPEE_RE) || [])[0];
   if (svLink && (!text.startsWith("/") || /^\/baixar\b/i.test(text))) return linkShopee(msg, text, svLink);
@@ -983,6 +987,44 @@ async function shopeeVideoMp4(link) {
     } catch { /* tenta o próximo */ }
   }
   return null;
+}
+
+// ---------- Pinterest: baixar o vídeo de um pin ----------
+const PIN_RE = /https?:\/\/(?:pin\.it|(?:[a-z]{2,3}\.|www\.)?pinterest\.[a-z.]+\/pin)\/[^\s)>\]]+/i;
+async function pinterestVideo(link) {
+  for (const ua of ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", "TelegramBot (like TwitterBot)", "facebookexternalhit/1.1"]) {
+    try {
+      const r = await fetch(link, { headers: { "User-Agent": ua, "Accept-Language": "pt-BR" }, redirect: "follow", cache: "no-store", signal: AbortSignal.timeout(9000) });
+      const h = (await r.text()).replace(/\\u002F/g, "/").replace(/\\\//g, "/");
+      const mp4s = [...h.matchAll(/https:\/\/v\d*\.pinimg\.com\/videos\/[^"'\s\\]+?\.mp4/g)].map((m) => m[0]);
+      if (mp4s.length) {
+        // melhor qualidade disponível
+        const ordem = (u) => (/\/720p\//.test(u) ? 0 : /\/expMp4\//.test(u) ? 1 : /\/480p\//.test(u) ? 2 : 3);
+        return { mp4: [...new Set(mp4s)].sort((a, b) => ordem(a) - ordem(b))[0], titulo: (h.match(/<title>([^<]{0,120})/) || [])[1] || "" };
+      }
+      if (/pinimg\.com\/videos\/[^"'\s]+\.m3u8/.test(h)) return { erro: "Esse pin só tem o vídeo em formato de transmissão (m3u8), que o bot ainda não baixa." };
+    } catch { /* tenta o próximo */ }
+  }
+  return null;
+}
+async function baixarPinterest(chat, link) {
+  await tg("sendChatAction", { chat_id: chat, action: "upload_video" }).catch(() => {});
+  const v = await pinterestVideo(link);
+  if (!v) return say(chat, "⚠️ Não achei vídeo nesse link do Pinterest. Confira se o pin é um <b>vídeo</b> (não foto) e se é público.");
+  if (v.erro) return say(chat, `⚠️ ${esc(v.erro)}`);
+  const cap = "📌 Vídeo do Pinterest baixado.\nPara virar vídeo com narração, encaminhe ele de volta aqui com o link do produto (ou /reels NÚMERO) na legenda.";
+  try { return await tg("sendVideo", { chat_id: chat, video: v.mp4, caption: cap, supports_streaming: true }); }
+  catch {
+    try {
+      const r = await fetch(v.mp4, { cache: "no-store", signal: AbortSignal.timeout(25000) });
+      const form = new FormData();
+      form.append("chat_id", String(chat)); form.append("caption", cap);
+      form.append("video", new Blob([await r.arrayBuffer()], { type: "video/mp4" }), "pinterest.mp4");
+      const res = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/sendVideo`, { method: "POST", body: form });
+      const j = await res.json(); if (!j.ok) throw new Error(j.description);
+      return j.result;
+    } catch (e) { return say(chat, `⚠️ Achei o vídeo mas não consegui enviar (${esc(e.message)}).\nLink direto: ${esc(v.mp4)}`); }
+  }
 }
 
 // segue os redirecionamentos do link curto (s.shopee.com.br/xxx) para saber se é vídeo ou produto
