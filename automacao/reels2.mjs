@@ -286,9 +286,8 @@ async function main() {
     try {
       const gancho = headline || (await gerarHeadline(p, { fala, log })) || "";
       yt.titulo = gancho.replace(/\*/g, "");
-      if (layout === "limpo" && headline) yt.file = file;
-      else {
-        const r = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir: path.join(outDir, "youtube"), clip, fala, cupom, avatar, modo, layout: "limpo", headline: gancho, ganchoTopo: gancho, handle: BRAND.handle, log });
+      {
+        const r = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir: path.join(outDir, "youtube"), clip, fala, cupom, avatar, modo, layout: "limpo", headline: gancho, ganchoTopo: gancho, destino: "youtube", handle: BRAND.handle, log });
         yt.file = r.file;
       }
       log(`  versão YouTube pronta (título: ${yt.titulo || "-"})`);

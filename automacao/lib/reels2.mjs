@@ -188,7 +188,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   if(!d.number)$("num").style.display="none";
   if(d.layout==="limpo"){document.body.classList.add("limpo");if(d.soFoto)document.body.classList.add("foto");
     if(d.ganchoTopoHtml)$("lhookt").innerHTML=d.ganchoTopoHtml;
-    $("lctat").textContent=d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":"🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆";}
+    $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":"🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆";}
   if(d.layout==="mascara"){document.body.classList.add("mask");
     $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
     if(d.avatar){$("mava").style.backgroundImage="url("+d.avatar+")"}else{$("mava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
@@ -324,7 +324,7 @@ async function clipFrames(file, maxSec, dir, w = 1080, h = 1920) {
   return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
 }
 
-export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, modo = "instagram", layout = "cheio", headline = "", ganchoTopo = "", log = console.log }) {
+export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, modo = "instagram", layout = "cheio", headline = "", ganchoTopo = "", destino = "", log = console.log }) {
   const { chromium } = await import("playwright");
   await mkdir(outDir, { recursive: true });
   const tmp = path.join(outDir, "_tmp");
@@ -380,6 +380,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     layout,
     headHtml: hookHtml(headline || cover?.hook || ""),
     ganchoTopoHtml: ganchoTopo ? hookHtml(ganchoTopo) : "",
+    destino,
   };
   if (clip?.file) {
     const sc = scenes.find((x) => x.key === "produto");
