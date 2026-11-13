@@ -6,6 +6,7 @@ import { SHEIN_RE, isShein, sheinProduct } from "@/lib/shein";
 const AMAZON_RE = new RegExp(`${AMZ_RE.source}|${SHEIN_RE.source}`, "i");
 const lojaNome = (u) => (isShein(u) ? "Shein" : "Amazon");
 import { db, hasDb } from "@/lib/supabase";
+import { relatorioImagem } from "@/lib/relatorioImg";
 import { hasShopeeApi, parseShopeeIds, shopeeConversions, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
 import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
 import GANCHOS from "@/automacao/capas/ganchos.json";
@@ -838,7 +839,7 @@ async function relatorio(chat, arg) {
     }
   }
   // cliques do site no mesmo período
-  let cliques = 0, topCliques = [];
+  let cliques = 0, topCliques = [], maisClicados = [];
   if (hasDb()) {
     const desde = new Date(inicio * 1000).toISOString();
     const ate = new Date(fim * 1000).toISOString();
@@ -849,7 +850,8 @@ async function relatorio(chat, arg) {
     const top = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
     if (top.length) {
       const { data: of } = await db().from("offers").select("id,title").in("id", top.map(([id]) => id));
-      topCliques = top.map(([id, n]) => `#${id} ${esc(String(of?.find((o) => o.id === id)?.title || "").slice(0, 38))} · ${n}`);
+      maisClicados = top.map(([id, n]) => ({ id, n, titulo: String(of?.find((o) => o.id === id)?.title || "") }));
+      topCliques = maisClicados.map((m) => `#${m.id} ${esc(m.titulo.slice(0, 38))} · ${m.n}`);
     }
   }
   const periodo = ontem ? "ontem" : dias === 1 ? "hoje" : `últimos ${dias} dias (contando hoje)`;
@@ -871,6 +873,28 @@ async function relatorio(chat, arg) {
   if (topCliques.length) linhas.push("", "<b>Mais clicados no site</b>", ...topCliques.map((t) => `• ${t}`));
   if (erro) linhas.push("", `⚠️ Shopee: ${esc(erro.slice(0, 150))}`);
   linhas.push("", "<i>A Shopee leva um tempo para mostrar as vendas e a comissão só é confirmada quando o pedido é concluído.</i>", "Outros períodos: /relatorio ontem · /relatorio 7 · /relatorio 30");
+  // versão em imagem (mais fácil de ler); se falhar, vai o texto
+  try {
+    const fmt = (t) => new Date(t * 1000).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+    const img = await relatorioImagem({
+      periodo: ontem ? "ontem" : dias === 1 ? "hoje" : `${dias} dias`,
+      intervalo: fmt(inicio) === fmt(fim) ? fmt(inicio) : `${fmt(inicio)} a ${fmt(fim)}`,
+      pedidos, cancelados, comissao, concluida, cliques,
+      origens: [...porOrigem.entries()].sort((a, b) => b[1].c - a[1].c).map(([nome, v]) => ({ nome, ...v })),
+      produtos: [...porProduto.entries()].sort((a, b) => b[1].n - a[1].n).map(([nome, v]) => ({ nome, ...v })),
+      maisClicados,
+    });
+    const form = new FormData();
+    form.append("chat_id", String(chat));
+    form.append("photo", new Blob([await img.arrayBuffer()], { type: "image/png" }), "relatorio.png");
+    form.append("caption", `📊 Relatório de ${periodo}: ${pedidos} pedido${pedidos === 1 ? "" : "s"} · ${brl(comissao)} de comissão estimada · ${cliques} cliques no site${erro ? `\n⚠️ Shopee: ${erro.slice(0, 120)}` : ""}\nOutros períodos: /relatorio ontem · /relatorio 7 · /relatorio 30`);
+    const r = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/sendPhoto`, { method: "POST", body: form });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.description);
+    return;
+  } catch (e) {
+    console.error("relatorio imagem:", e.message);
+  }
   return say(chat, linhas.join("\n"));
 }
 
