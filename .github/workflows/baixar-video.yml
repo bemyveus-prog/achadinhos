@@ -1,0 +1,41 @@
+name: Baixar vídeo (m3u8 → mp4)
+
+# Disparado pelo bot quando o vídeo (ex.: pin do Pinterest) só existe em formato de transmissão.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Endereço .m3u8"
+        required: true
+      legenda:
+        description: "Texto que vai junto do vídeo no Telegram"
+        default: "Vídeo baixado."
+
+env:
+  MARCA: ${{ vars.MARCA }}
+
+jobs:
+  baixar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Converter e enviar
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          URL: ${{ inputs.url }}
+          LEGENDA: ${{ inputs.legenda }}
+        run: |
+          command -v ffmpeg >/dev/null || bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
+          CHAT=$(echo "$TELEGRAM_CHAT_ID" | tr ',; ' '\n' | head -1)
+          if ffmpeg -v error -y -i "$URL" -map 0:v:0 -map 0:a:0? -c copy -bsf:a aac_adtstoasc -movflags +faststart video.mp4 \
+             || ffmpeg -v error -y -i "$URL" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart video.mp4; then
+            ls -la video.mp4
+            curl -sS -F chat_id="$CHAT" -F caption="$LEGENDA
+          Para virar vídeo com narração, encaminhe de volta com o link do produto (ou /reels NÚMERO) na legenda." -F supports_streaming=true -F video=@video.mp4 \
+              "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendVideo" | head -c 300
+          else
+            curl -sS -d chat_id="$CHAT" --data-urlencode text="⚠️ Não consegui converter esse vídeo." "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" >/dev/null
+            exit 1
+          fi

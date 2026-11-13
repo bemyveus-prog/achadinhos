@@ -1002,7 +1002,16 @@ async function pinterestVideo(link) {
         const ordem = (u) => (/\/720p\//.test(u) ? 0 : /\/expMp4\//.test(u) ? 1 : /\/480p\//.test(u) ? 2 : 3);
         return { mp4: [...new Set(mp4s)].sort((a, b) => ordem(a) - ordem(b))[0], titulo: (h.match(/<title>([^<]{0,120})/) || [])[1] || "" };
       }
-      if (/pinimg\.com\/videos\/[^"'\s]+\.m3u8/.test(h)) return { erro: "Esse pin só tem o vídeo em formato de transmissão (m3u8), que o bot ainda não baixa." };
+      const m3u8 = (h.match(/https:\/\/v\d*\.pinimg\.com\/videos\/[^"'\s\\]+?\.m3u8/) || [])[0];
+      if (m3u8) {
+        // o mesmo vídeo costuma existir em .mp4 com o mesmo código, numa pasta de qualidade
+        const caminho = m3u8.replace(/^https:\/\/v\d*\.pinimg\.com\/videos\//, "").replace(/^(?:iht\/)?hls\//, "").replace(/\.m3u8$/, "");
+        for (const q of ["mc/720p", "720p", "expMp4", "mc/480p"]) {
+          const u = `https://v1.pinimg.com/videos/${q}/${caminho.replace(/_\w+$/, "")}.mp4`;
+          try { const t = await fetch(u, { method: "HEAD", signal: AbortSignal.timeout(5000) }); if (t.ok) return { mp4: u }; } catch {}
+        }
+        return { m3u8 };
+      }
     } catch { /* tenta o próximo */ }
   }
   return null;
@@ -1012,6 +1021,12 @@ async function baixarPinterest(chat, link) {
   const v = await pinterestVideo(link);
   if (!v) return say(chat, "⚠️ Não achei vídeo nesse link do Pinterest. Confira se o pin é um <b>vídeo</b> (não foto) e se é público.");
   if (v.erro) return say(chat, `⚠️ ${esc(v.erro)}`);
+  if (v.m3u8) {
+    // só em formato de transmissão: o GitHub converte para .mp4 (com FFmpeg) e manda aqui
+    try { await dispatchWorkflow("baixar-video.yml", { url: v.m3u8, legenda: "📌 Vídeo do Pinterest baixado." }); }
+    catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+    return say(chat, "📌 Esse pin está em formato de transmissão: estou convertendo para vídeo. Chega aqui em ~1 minuto.");
+  }
   const cap = "📌 Vídeo do Pinterest baixado.\nPara virar vídeo com narração, encaminhe ele de volta aqui com o link do produto (ou /reels NÚMERO) na legenda.";
   try { return await tg("sendVideo", { chat_id: chat, video: v.mp4, caption: cap, supports_streaming: true }); }
   catch {
