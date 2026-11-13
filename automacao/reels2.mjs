@@ -22,6 +22,31 @@ import { hasTelegram, sendText, sendVideo } from "./lib/telegram.mjs";
 import { hasMeta, postReel, uploadPublic } from "./lib/social.mjs";
 import { hasCJ, productBySku, productVideos, bestFreeVideo, downloadVideo } from "./lib/cj.mjs";
 import { BRAND } from "../lib/brand.mjs";
+import { claude, hasIA } from "./lib/ia.mjs";
+
+// título que não diz o que é o produto (ex.: página de promoção da Shein)
+const nomeGenerico = (t) => !t || String(t).replace(/[^\p{L}]/gu, "").length < 6 || /oferta grande|economize|não perca|nao perca|promo(ção|cao)|^shein\b|^achado d[ao]/i.test(t);
+
+// olha as fotos (ou quadros do vídeo) e diz o que é o produto e o que dá para ver nele
+async function verProduto(imagens, log) {
+  if (!hasIA() || !imagens.length) return null;
+  const { readFile } = await import("fs/promises");
+  const content = [];
+  for (const f of imagens.slice(0, 3)) {
+    try { content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: (await readFile(f)).toString("base64") } }); } catch {}
+  }
+  if (!content.length) return null;
+  content.push({ type: "text", text: `Estas são fotos de um produto à venda. Responda exatamente em 2 linhas, em português do Brasil:
+NOME: o que é o produto, como um título curto de loja (até 8 palavras, ex.: "Par de brincos de pedra verde")
+DETALHES: só o que dá para VER nas fotos (cor, formato, material aparente, para que serve), em uma frase. Não invente medidas nem recursos.` });
+  try {
+    const t = await claude({ content, max: 200 });
+    const nome = (t.match(/NOME:\s*(.+)/i) || [])[1]?.trim().replace(/^["']|["']$/g, "");
+    const det = (t.match(/DETALHES:\s*(.+)/i) || [])[1]?.trim();
+    log(`  pelas fotos: ${nome || "?"} | ${det || ""}`);
+    return { nome, det };
+  } catch (e) { log(`  ver fotos: ${e.message}`); return null; }
+}
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -133,6 +158,7 @@ async function main() {
   }
   // várias fotos mandadas pelo bot (pasta no Storage reels-videos): viram o vídeo do produto
   const pastaFotos = (process.env.REELS_FOTOS || "").trim();
+  let fotosBaixadas = [];
   if (pastaFotos && !clip) {
     const { mkdir } = await import("fs/promises");
     await mkdir(outDir, { recursive: true });
@@ -145,6 +171,7 @@ async function main() {
       await writeFile(file, Buffer.from(await data.arrayBuffer()));
       fotos.push(file);
     }
+    fotosBaixadas = fotos;
     if (fotos.length) {
       const { fotosParaVideo } = await import("./lib/fotosvideo.mjs");
       // tempo de cada foto acompanha mais ou menos a narração (~15 letras por segundo)
@@ -178,6 +205,25 @@ async function main() {
       log("  seu vídeo + vídeo da CJ emendados");
     } else clip = { file: cjFile };
   }
+  // fotos enviadas, ou nome que não diz o que é o produto: a IA olha as imagens
+  let visto = null;
+  const genericoAntes = nomeGenerico(p.name);
+  if (fotosBaixadas.length || (genericoAntes && clip?.file)) {
+    let imgs = fotosBaixadas;
+    if (!imgs.length && clip?.file) {
+      imgs = [];
+      for (const t of [0.8, 2.5]) {
+        const f = path.join(outDir, `quadro-${t}.jpg`);
+        try { await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(t), "-i", clip.file, "-frames:v", "1", "-vf", "scale=768:-2", f]); imgs.push(f); } catch {}
+      }
+    }
+    visto = await verProduto(imgs, log);
+    if (visto?.nome && genericoAntes) {
+      log(`  nome genérico ("${p.name}") trocado por "${visto.nome}"`);
+      p.name = visto.nome;
+      if (offerId) await sb.from("offers").update({ title: visto.nome.slice(0, 120) }).eq("id", offerId).then(() => {}, () => {});
+    }
+  }
   const nome = shortName(p.name, 5);
   // sem capa no Reels: só o gancho da categoria entra na narração padrão (quando não há texto próprio)
   const cfg = await coverConfig();
@@ -187,7 +233,7 @@ async function main() {
   const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || BRAND.accent };
   let fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
   // sem texto seu: com a chave da IA, a narração é escrita para este produto (senão usa o texto padrão)
-  if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: env("REELS_CONTEXTO", ""), generico: env("REELS_MODO", "").startsWith("link"), log });
+  if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: [visto?.det ? `O que aparece nas fotos: ${visto.det}` : "", nomeGenerico(env("REELS_CONTEXTO", "")) ? "" : env("REELS_CONTEXTO", "")].filter(Boolean).join(". "), generico: env("REELS_MODO", "").startsWith("link"), log });
   if (fala) log(`Narração própria: "${fala}"`);
   // final: "me segue" + link da bio; o cupom só é citado se a vitrine tiver cupom ativo agora
   const agora = new Date().toISOString();

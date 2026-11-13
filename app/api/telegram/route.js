@@ -384,7 +384,7 @@ async function fotosProduto(msg, cap) {
   const loja = (cap.match(AMAZON_RE) || [])[0];
   if (loja) {
     const resto = cap.replace(loja, "").trim();
-    const r = await addAmazon(loja, /\|/.test(resto) ? resto : "");
+    const r = await addAmazon(loja, /\|/.test(resto) ? resto : "", { provisorio: true });
     if (r.erro) return say(chat, r.erro);
     await say(chat, `📥 <b>${lojaNome(loja)} #${r.id}</b> ${esc(String(r.a.title).slice(0, 80))}${r.dup ? " (já estava na vitrine)" : ""}\n🔗 ${esc(r.a.link)}`);
     return startReels(chat, [String(r.id)], "", "", "link", { fotos: pasta, gerarFala: true, contexto: /\|/.test(resto) ? "" : resto });
@@ -527,16 +527,18 @@ const AMAZON_BLOQUEOU = [
 ].join("\n");
 
 // lê o produto e grava na vitrine (ou devolve o que já existe)
-async function addAmazon(url, resto = "") {
+async function addAmazon(url, resto = "", { provisorio = false } = {}) {
   const shein = isShein(url);
   const a = shein ? await sheinProduct(url) : await amazonProduct(url);
   const [precoTxt, ...nomeTxt] = String(resto).split("|").map((x) => x.trim());
   const precoManual = Number(String(precoTxt || "").replace(/[^\d,]/g, "").replace(",", "."));
   if (nomeTxt.join(" ").trim() && isFinite(precoManual) && precoManual > 0) a.price = precoManual;
   if (nomeTxt.join(" ").trim()) a.title = nomeTxt.join(" ").trim();
-  if (!a.title) return { erro: shein ? "⚠️ A Shein bloqueou a leitura desta vez. Mande de novo assim: <b>link | nome do produto</b> e depois a foto com a legenda <b>/foto NÚMERO</b>." : AMAZON_BLOQUEOU };
+  // vídeo/fotos junto: entra com nome provisório e a IA troca pelo nome certo olhando as imagens
+  if (!a.title && provisorio) a.title = shein ? "Achado da Shein" : "Achado da Amazon";
+  if (!a.title) return { erro: shein ? "⚠️ Esse link da Shein não trouxe o nome do produto (às vezes é link de promoção). Mande de novo assim: <b>link | nome do produto</b>, ou mande as <b>fotos</b> do produto com o link na legenda que a IA identifica pelas fotos." : AMAZON_BLOQUEOU };
   const dias = Number(process.env.DIAS_NA_VITRINE || 15);
-  const desc = shein ? (a.goods_id ? `shein:${a.goods_id}` : null) : a.asin ? `amazon:${a.asin}` : null;
+  const desc = shein ? (a.goods_id && !a.generico ? `shein:${a.goods_id}` : null) : a.asin ? `amazon:${a.asin}` : null;
   if (desc) {
     const { data: dup } = await db().from("offers").select("id").eq("description", desc).eq("active", true).limit(1);
     if (dup?.length) return { a, id: dup[0].id, dias, dup: true };
@@ -567,7 +569,7 @@ async function amazonVideo(msg, cap, url) {
   const resto = cap.replace(url, "").trim();
   // "preço | nome" só quando vier no formato manual; o resto do texto vira contexto da narração
   const manual = /\|/.test(resto) ? resto : "";
-  const r = await addAmazon(url, manual);
+  const r = await addAmazon(url, manual, { provisorio: true });
   if (r.erro) return say(chat, `${r.erro}\n(junto com o vídeo, na legenda)`);
   const f = await tg("getFile", { file_id: v.file_id });
   const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
