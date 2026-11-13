@@ -6,7 +6,7 @@ import { SHEIN_RE, isShein, sheinProduct } from "@/lib/shein";
 const AMAZON_RE = new RegExp(`${AMZ_RE.source}|${SHEIN_RE.source}`, "i");
 const lojaNome = (u) => (isShein(u) ? "Shein" : "Amazon");
 import { db, hasDb } from "@/lib/supabase";
-import { hasShopeeApi, parseShopeeIds, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
+import { hasShopeeApi, parseShopeeIds, shopeeConversions, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
 import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
 import GANCHOS from "@/automacao/capas/ganchos.json";
 import { BRAND } from "@/lib/brand.mjs";
@@ -35,6 +35,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon / Shein</b>: cole o seu link de afiliado (amzn.to/…, amazon.com.br/dp/…, onelink.shein.com/…) e o produto entra na vitrine com a etiqueta da loja. Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
+📊 <b>/relatorio</b> → vendas, comissão e cliques de hoje (ou /relatorio 7, /relatorio 30)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
@@ -68,6 +69,7 @@ export async function GET(req) {
     { command: "top", description: "Reels com vários produtos (Top N)" },
     { command: "modo", description: "Formato dos vídeos encaminhados: shopee, reels ou ambos" },
     { command: "shopee", description: "Vídeo para o Shopee Vídeo: /shopee 131 SKU texto" },
+    { command: "relatorio", description: "Vendas, comissão e cliques (hoje, 7 ou 30 dias)" },
     { command: "ajuda", description: "Como usar" },
   ] });
   const info = await tg("getWebhookInfo", {});
@@ -134,6 +136,7 @@ async function onText(msg) {
   if (cmd === "top") return startTop(chat, text);
   if (cmd === "modo") return setModo(chat, arg);
   if (cmd === "formato") return setFormato(chat, arg);
+  if (cmd === "relatorio" || cmd === "relatório" || cmd === "vendas") return relatorio(chat, arg);
   if (cmd === "reels" || cmd === "shopee" || cmd === "link") {
     const { head, fala } = parseReels(text);
     return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : cmd === "link" ? "link" : "instagram", cmd === "link" && !fala ? { gerarFala: true } : {});
@@ -791,6 +794,81 @@ async function setFormato(chat, arg) {
   if (!["mascara", "cheio", "alternar"].includes(v)) return say(chat, `Formato atual dos vídeos: <b>${(await getFormato()) || "alternar"}</b>\nUse: /formato mascara · /formato cheio · /formato alternar`);
   await db().from("bot_config").upsert({ key: "formato", value: v, updated_at: new Date().toISOString() });
   return say(chat, `✅ Daqui pra frente os vídeos saem: <b>${v === "mascara" ? "sempre com máscara" : v === "cheio" ? "sempre em tela cheia" : "alternando entre tela cheia e máscara"}</b>\n(Para um vídeo só, escreva <i>mascara</i> ou <i>cheio</i> no comando ou na legenda.)`);
+}
+
+// ---------- relatório: vendas da Shopee (API de afiliado) + cliques do site ----------
+const ORIGENS = { site: "Site (link na bio)", achadosite: "Achado do dia", botsite: "Bot", reelssite: "Reels automático", canalsite: "Canal Telegram",
+  gruposite: "Vídeos de grupo", fotossite: "Fotos → vídeo", lojasite: "Lojas", kitsite: "Kit", campanhasite: "Campanhas", catsite: "Categorias", bio: "Site (link na bio)" };
+function origemDe(n) {
+  const sub = String(n.utmContent || "").split("-")[0].trim();
+  if (sub) return ORIGENS[sub] || sub;
+  const ref = String(n.referrer || "");
+  if (/shopeevideo/i.test(ref)) return "Shopee Vídeo";
+  if (/live/i.test(ref)) return "Live";
+  return ref ? `Outros (${ref})` : "Outros";
+}
+async function relatorio(chat, arg) {
+  const dias = Math.max(1, Math.min(30, Number(String(arg).match(/\d+/)?.[0]) || 1));
+  // início do dia em Brasília
+  const agora = Math.floor(Date.now() / 1000);
+  const hojeBR = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const inicioHoje = agora - (hojeBR.getHours() * 3600 + hojeBR.getMinutes() * 60 + hojeBR.getSeconds());
+  const inicio = inicioHoje - (dias - 1) * 86400;
+  await tg("sendChatAction", { chat_id: chat, action: "typing" }).catch(() => {});
+  let conv = [], erro = "";
+  try { conv = await shopeeConversions(inicio, agora); } catch (e) { erro = e.message; }
+  let pedidos = 0, cancelados = 0, comissao = 0, concluida = 0;
+  const porOrigem = new Map(), porProduto = new Map();
+  for (const n of conv) {
+    const st = (n.orders || []).map((o) => o.orderStatus);
+    const cancel = st.length && st.every((x) => x === "CANCELLED");
+    if (cancel) { cancelados++; continue; }
+    pedidos++;
+    const c = Number(n.totalCommission) || 0;
+    comissao += c;
+    if (st.includes("COMPLETED")) concluida += c;
+    const o = origemDe(n);
+    const po = porOrigem.get(o) || { n: 0, c: 0 }; po.n++; po.c += c; porOrigem.set(o, po);
+    for (const ord of n.orders || []) for (const it of ord.items || []) {
+      if (!it.qty) continue;
+      const k = it.itemName || String(it.itemId);
+      const pp = porProduto.get(k) || { n: 0, c: 0 }; pp.n += it.qty; pp.c += Number(it.itemTotalCommission) || 0; porProduto.set(k, pp);
+    }
+  }
+  // cliques do site no mesmo período
+  let cliques = 0, topCliques = [];
+  if (hasDb()) {
+    const desde = new Date(inicio * 1000).toISOString();
+    const { count } = await db().from("click_events").select("id", { count: "exact", head: true }).gte("created_at", desde);
+    cliques = count || 0;
+    const { data: ev } = await db().from("click_events").select("offer_id").gte("created_at", desde).not("offer_id", "is", null).limit(5000);
+    const m = new Map(); for (const e of ev || []) m.set(e.offer_id, (m.get(e.offer_id) || 0) + 1);
+    const top = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if (top.length) {
+      const { data: of } = await db().from("offers").select("id,title").in("id", top.map(([id]) => id));
+      topCliques = top.map(([id, n]) => `#${id} ${esc(String(of?.find((o) => o.id === id)?.title || "").slice(0, 38))} · ${n}`);
+    }
+  }
+  const periodo = dias === 1 ? "hoje" : `últimos ${dias} dias`;
+  const linhas = [
+    `📊 <b>Relatório (${periodo})</b>`,
+    "",
+    `🛒 Pedidos: <b>${pedidos}</b>${cancelados ? ` (+${cancelados} cancelados)` : ""}`,
+    `💰 Comissão estimada: <b>${brl(comissao)}</b>${concluida ? ` · concluída: ${brl(concluida)}` : ""}`,
+    `👆 Cliques no site: <b>${cliques}</b>`,
+  ];
+  if (porOrigem.size) {
+    linhas.push("", "<b>De onde vieram as vendas</b>");
+    for (const [o, v] of [...porOrigem.entries()].sort((a, b) => b[1].c - a[1].c)) linhas.push(`• ${esc(o)}: ${v.n} pedido${v.n > 1 ? "s" : ""} · ${brl(v.c)}`);
+  }
+  if (porProduto.size) {
+    linhas.push("", "<b>Produtos que mais venderam</b>");
+    for (const [k, v] of [...porProduto.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 5)) linhas.push(`• ${esc(k.slice(0, 45))} · ${v.n}x · ${brl(v.c)}`);
+  }
+  if (topCliques.length) linhas.push("", "<b>Mais clicados no site</b>", ...topCliques.map((t) => `• ${t}`));
+  if (erro) linhas.push("", `⚠️ Shopee: ${esc(erro.slice(0, 150))}`);
+  linhas.push("", "<i>A Shopee leva um tempo para mostrar as vendas e a comissão só é confirmada quando o pedido é concluído.</i>", "Outros períodos: /relatorio 7 · /relatorio 30");
+  return say(chat, linhas.join("\n"));
 }
 
 async function setModo(chat, arg) {
