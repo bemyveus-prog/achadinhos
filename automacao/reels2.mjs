@@ -172,6 +172,15 @@ async function main() {
       fotos.push(file);
     }
     fotosBaixadas = fotos;
+    // produto sem foto (ex.: link da Shein/AliExpress que não trouxe imagem): a 1ª foto enviada vira a foto do produto
+    if (fotos.length && !p.imageUrl) {
+      try {
+        const [u] = await uploadPublic([fotos[0]], `produto-${offerId}-${Date.now()}`, "image/jpeg");
+        p.imageUrl = u;
+        if (offerId) await sb.from("offers").update({ image_url: u }).eq("id", offerId);
+        log("  sem foto do produto: usando a 1ª foto enviada");
+      } catch (e) { p.imageUrl = fotos[0]; log(`  foto do produto: ${e.message}`); }
+    }
     if (fotos.length) {
       const { fotosParaVideo } = await import("./lib/fotosvideo.mjs");
       // tempo de cada foto acompanha mais ou menos a narração (~15 letras por segundo)
