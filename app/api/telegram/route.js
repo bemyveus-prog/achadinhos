@@ -30,7 +30,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
 🖼️ <b>Fotos → vídeo</b>: mande várias fotos de uma vez (álbum) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Vira vídeo com zoom nas fotos, narração e o final.
-📌 <b>Link do Pinterest</b>: cole o link de um pin de vídeo (pin.it/…) e o bot devolve o vídeo baixado.
+📌 <b>Link do Pinterest ou do TikTok</b>: cole o link do vídeo (pin.it/…, vm.tiktok.com/…) e o bot devolve o vídeo baixado.
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
@@ -124,6 +124,13 @@ async function onText(msg) {
     }
   }
   // link do Pinterest: baixa o vídeo do pin e devolve aqui
+  // link de vídeo do TikTok (ou Kwai): o GitHub baixa com yt-dlp e manda aqui
+  const tt = (text.match(TIKTOK_RE) || [])[0];
+  if (tt && !text.startsWith("/")) {
+    try { await dispatchWorkflow("baixar-video.yml", { url: tt, tipo: "ytdlp", legenda: "🎵 Vídeo do TikTok baixado." }); }
+    catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+    return say(chat, "🎵 Baixando o vídeo do TikTok… chega aqui em ~1 minuto.");
+  }
   const pin = (text.match(PIN_RE) || [])[0];
   if (pin && !text.startsWith("/")) return baixarPinterest(chat, pin);
   // link de vídeo do Shopee Vídeo sozinho: baixa o vídeo e segue como vídeo encaminhado
@@ -990,6 +997,7 @@ async function shopeeVideoMp4(link) {
 }
 
 // ---------- Pinterest: baixar o vídeo de um pin ----------
+const TIKTOK_RE = /https?:\/\/(?:(?:www|m|vm|vt)\.)?(?:tiktok\.com|kwai\.com|kw\.ai)\/[^\s)>\]]+/i;
 const PIN_RE = /https?:\/\/(?:pin\.it|(?:[a-z]{2,3}\.|www\.)?pinterest\.[a-z.]+\/pin)\/[^\s)>\]]+/i;
 async function pinterestVideo(link) {
   for (const ua of ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", "TelegramBot (like TwitterBot)", "facebookexternalhit/1.1"]) {

@@ -5,8 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: "Endereço .m3u8"
+        description: "Endereço .m3u8 ou link do vídeo (TikTok/Kwai)"
         required: true
+      tipo:
+        description: "m3u8 (converte com FFmpeg) ou ytdlp (baixa com yt-dlp)"
+        default: "m3u8"
       legenda:
         description: "Texto que vai junto do vídeo no Telegram"
         default: "Vídeo baixado."
@@ -26,11 +29,20 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           URL: ${{ inputs.url }}
           LEGENDA: ${{ inputs.legenda }}
+          TIPO: ${{ inputs.tipo }}
         run: |
           command -v ffmpeg >/dev/null || bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
           CHAT=$(echo "$TELEGRAM_CHAT_ID" | tr ',; ' '\n' | head -1)
-          if ffmpeg -v error -y -i "$URL" -map 0:v:0 -map 0:a:0? -c copy -bsf:a aac_adtstoasc -movflags +faststart video.mp4 \
-             || ffmpeg -v error -y -i "$URL" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart video.mp4; then
+          if [ "$TIPO" = "ytdlp" ]; then
+            pip install -q -U yt-dlp
+            # melhor vídeo em .mp4 de até ~45 MB (limite de envio do bot é 50 MB)
+            yt-dlp -q --no-warnings -f "b[ext=mp4][filesize<45M]/b[ext=mp4]/b" --merge-output-format mp4 -o video.mp4 "$URL" || true
+            [ -s video.mp4 ] && OK=1 || OK=0
+          else
+            OK=2
+          fi
+          if [ "$OK" = 1 ] || { [ "$OK" = 2 ] && { ffmpeg -v error -y -i "$URL" -map 0:v:0 -map 0:a:0? -c copy -bsf:a aac_adtstoasc -movflags +faststart video.mp4 \
+             || ffmpeg -v error -y -i "$URL" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart video.mp4; }; }; then
             ls -la video.mp4
             curl -sS -F chat_id="$CHAT" -F caption="$LEGENDA
           Para virar vídeo com narração, encaminhe de volta com o link do produto (ou /reels NÚMERO) na legenda." -F supports_streaming=true -F video=@video.mp4 \
