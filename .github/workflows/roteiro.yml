@@ -58,14 +58,17 @@ jobs:
             yt-dlp -q --no-warnings --impersonate chrome -f "b[ext=mp4]/b" -o v.mp4 "$URL"
           fi
           ls -la v.mp4
-          ffmpeg -v error -y -i v.mp4 -vn -ac 1 -ar 16000 a.wav
+          ffmpeg -v error -y -i v.mp4 -vn -ac 1 -ar 16000 -c:a pcm_s16le a.wav
       - name: Transcrever (Whisper)
         run: |
           pip install -q faster-whisper
           python - <<'PY'
           from faster_whisper import WhisperModel
           m = WhisperModel("small", device="cpu", compute_type="int8")
-          segs, info = m.transcribe("a.wav", language="pt", vad_filter=True)
+          import wave, numpy as np
+          # lê o áudio direto (evita o leitor de mídia do faster-whisper, que muda entre versões)
+          w = wave.open("a.wav", "rb"); audio = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768.0
+          segs, info = m.transcribe(audio, language="pt", vad_filter=True)
           txt = " ".join(s.text.strip() for s in segs)
           open("transcricao.txt", "w").write(txt)
           print("TRANSCRIÇÃO:", txt)
