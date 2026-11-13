@@ -324,6 +324,14 @@ async function main() {
     if (!hasMeta()) throw new Error("Falta META_PAGE_TOKEN para postar.");
     const url = await postReel(file, legenda, `reels2-${offerId}`);
     log(`Postado: ${url}`);
+    try {
+      const { hasThreads, postThreadsVideo, textoThreads } = await import("./lib/threads.mjs");
+      if (await hasThreads()) {
+        const [vurl] = await uploadPublic([file], `threads-${offerId}-${Date.now()}`, "video/mp4");
+        const tl = await postThreadsVideo(vurl, textoThreads(legenda, `${BRAND.site}/r/${offerId}`), log);
+        if (hasTelegram()) await sendText(`🧵 Postado no Threads: ${tl}`).catch(() => {});
+      }
+    } catch (e) { log(`  Threads: ${e.message}`); }
     const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
     if (hasYouTube()) {
       const VIT = BRAND.site;

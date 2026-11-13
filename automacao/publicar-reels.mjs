@@ -8,6 +8,19 @@ import { postReelUrl } from "./lib/social.mjs";
 import { hasTelegram, sendText } from "./lib/telegram.mjs";
 import { hasYouTube, postShort, textosYouTube } from "./lib/youtube.mjs";
 import { BRAND } from "../lib/brand.mjs";
+import { hasThreads, postThreadsVideo, textoThreads } from "./lib/threads.mjs";
+
+// o mesmo vídeo no Threads, com o link do produto clicável (falha no Threads não atrapalha o resto)
+async function threads(r) {
+  if (!(await hasThreads())) return;
+  try {
+    const link = await postThreadsVideo(r.video_url, textoThreads(r.caption, r.offer_id ? `${BRAND.site}/r/${r.offer_id}` : BRAND.site));
+    if (hasTelegram()) await sendText(`🧵 Postado no Threads:\n${link}`).catch(() => {});
+  } catch (e) {
+    console.error("Threads:", e.message);
+    if (hasTelegram()) await sendText(`⚠️ Threads: ${e.message.slice(0, 300)}`).catch(() => {});
+  }
+}
 
 const VITRINE = BRAND.site;
 
@@ -53,6 +66,7 @@ async function main() {
     console.log("Postado:", url);
     if (hasTelegram()) await sendText(`✅ Reels #${r.offer_id} postado no Instagram:\n${url}`).catch(() => {});
     await youtube(r);
+    await threads(r);
   } catch (e) {
     await sb.from("reels_pendentes").update({ status: "erro", erro: e.message }).eq("id", id);
     if (hasTelegram()) await sendText(`❌ Não consegui postar o Reels #${r.offer_id}: ${e.message}`).catch(() => {});
