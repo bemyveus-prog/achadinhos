@@ -63,3 +63,36 @@ export async function postThreadsVideo(videoUrl, texto, log = console.log) {
   log(`  Threads: ${link || pub.id}`);
   return link || `https://www.threads.net/ (post ${pub.id})`;
 }
+
+// carrossel de fotos (2 a 20 imagens com URL pública) com texto; devolve o link do post
+export async function postThreadsCarrossel(urls, texto, log = console.log) {
+  const c = await credenciais();
+  if (!c) throw new Error("Threads não conectado (abra /api/threads/login no site)");
+  const lista = urls.slice(0, 20);
+  const esperar = async (id) => {
+    for (let i = 0; i < 30; i++) {
+      const st = await api("GET", `${id}?fields=status,error_message&access_token=${encodeURIComponent(c.token)}`);
+      if (st.status === "FINISHED") return;
+      if (st.status === "ERROR" || st.status === "EXPIRED") throw new Error(`Threads recusou a imagem: ${st.error_message || st.status}`);
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  };
+  let cont;
+  if (lista.length === 1) {
+    cont = await api("POST", `${c.user}/threads`, { media_type: "IMAGE", image_url: lista[0], text: texto, access_token: c.token });
+  } else {
+    const filhos = [];
+    for (const image_url of lista) {
+      const f = await api("POST", `${c.user}/threads`, { media_type: "IMAGE", image_url, is_carousel_item: "true", access_token: c.token });
+      filhos.push(f.id);
+    }
+    for (const id of filhos) await esperar(id);
+    cont = await api("POST", `${c.user}/threads`, { media_type: "CAROUSEL", children: filhos.join(","), text: texto, access_token: c.token });
+  }
+  await esperar(cont.id);
+  const pub = await api("POST", `${c.user}/threads_publish`, { creation_id: cont.id, access_token: c.token });
+  let link = "";
+  try { link = (await api("GET", `${pub.id}?fields=permalink&access_token=${encodeURIComponent(c.token)}`)).permalink || ""; } catch {}
+  log(`  Threads: ${link || pub.id}`);
+  return link || `https://www.threads.net/ (post ${pub.id})`;
+}

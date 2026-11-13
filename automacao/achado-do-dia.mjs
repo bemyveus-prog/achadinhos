@@ -16,6 +16,7 @@ import { pickCover } from "./lib/capas.mjs";
 import { hasDb, pickedItemIds, publishOffer, recordPick } from "./lib/vitrine.mjs";
 import { hasTelegram, sendPreview, sendText } from "./lib/telegram.mjs";
 import { hasMeta, publishSocial } from "./lib/social.mjs";
+import { BRAND } from "../lib/brand.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -133,6 +134,7 @@ async function main() {
     folder: path.basename(outDir),
     caption: texts.legenda,
     link,
+    linkThreads: offer?.id ? `${(process.env.VITRINE_URL || BRAND.site).replace(/\/$/, "")}/r/${offer.id}` : null,
     targets,
   });
   for (const [k, v] of Object.entries(results)) log(`Postado no ${k}: ${v}`);

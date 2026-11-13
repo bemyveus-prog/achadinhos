@@ -85,13 +85,18 @@ export async function postFacebook(urls, message) {
 }
 
 // Posta onde estiver pedido em POSTAR (ex: "instagram,facebook"). Um erro não impede o outro.
-export async function publishSocial(files, { folder, caption, link, targets }) {
+export async function publishSocial(files, { folder, caption, link, linkThreads = null, targets }) {
   const urls = await uploadPublic(files, folder);
   const results = {};
   const errors = [];
   if (targets.includes("instagram")) {
     try { results.instagram = await postInstagram(urls, caption); }
     catch (e) { errors.push(`Instagram: ${e.message}`); }
+    // junto com o Instagram, o mesmo carrossel no Threads (lá o link é clicável). Falha no Threads só avisa.
+    try {
+      const { hasThreads, postThreadsCarrossel, textoThreads } = await import("./threads.mjs");
+      if (await hasThreads()) results.threads = await postThreadsCarrossel(urls, textoThreads(caption, linkThreads || link));
+    } catch (e) { results.threads = `⚠️ não postou (${e.message.slice(0, 150)})`; }
   }
   if (targets.includes("facebook")) {
     // no Facebook link é clicável, então vai o link de afiliado direto
