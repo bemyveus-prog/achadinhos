@@ -260,8 +260,9 @@ async function main() {
   // sem escolha no pedido: vale o /formato do bot (bot_config "formato"); senão sorteia
   let padrao = env("REELS_LAYOUT", "");
   if (!padrao) { const { data: fc } = await sb.from("bot_config").select("value").eq("key", "formato").maybeSingle(); padrao = fc?.value || "alternar"; }
-  const layout = ["mascara", "cheio"].includes(layoutRaw) ? layoutRaw : ["mascara", "cheio"].includes(padrao) ? padrao : (Math.random() < 0.5 ? "mascara" : "cheio");
-  log(`Formato: ${layout === "mascara" ? "máscara (headline + vídeo + chamada)" : "tela cheia"}`);
+  const FORMATOS = ["mascara", "cheio", "limpo"];
+  const layout = FORMATOS.includes(layoutRaw) ? layoutRaw : FORMATOS.includes(padrao) ? padrao : (Math.random() < 0.5 ? "mascara" : "cheio");
+  log(`Formato: ${layout === "mascara" ? "máscara (headline + vídeo + chamada)" : layout === "limpo" ? "limpo (só o vídeo + narração)" : "tela cheia"}`);
   const headline = layout === "mascara" ? await gerarHeadline(p, { fala, log }) : "";
   if (modo === "link") log("Modo link: final genérico chamando para o link abaixo (sem citar a loja)");
   if (modo === "shopee") log("Modo Shopee Vídeo: final chamando para o produto vinculado");

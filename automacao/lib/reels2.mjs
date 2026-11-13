@@ -133,6 +133,11 @@ function pageHtml() {
   #mcta{background:#fff;color:#2E1020;font-weight:800;font-size:56px;padding:22px 44px;border-radius:999px;box-shadow:0 18px 40px rgba(0,0,0,.35);text-align:center;max-width:960px}
   #mcta i{font-style:normal;background:var(--ac);color:#fff;padding:2px 18px;border-radius:999px;margin-left:8px}
   #marrow{font-size:84px;line-height:1}
+  /* formato "limpo": só o vídeo em tela cheia do começo ao fim, com a legenda e uma chamada pequena no final */
+  #lcta{left:60px;right:60px;top:1500px;text-align:center;opacity:0}
+  #lcta span{display:inline-block;background:#fff;color:#2E1020;font-weight:800;font-size:54px;line-height:1.15;padding:22px 42px;border-radius:999px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+  body.limpo #clip img{object-fit:cover}
+  body.limpo.foto #clip img{object-fit:contain}
   body.mask #clip{left:40px;top:440px;width:${W - 80}px;height:1040px;border-radius:44px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
   #shp{left:60px;right:60px;top:820px;text-align:center;color:#fff;opacity:0}
   #shp h2{font-weight:800;font-size:76px;line-height:1.08;letter-spacing:-2px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
@@ -160,6 +165,7 @@ function pageHtml() {
   <div id="shpcard"><img id="shpimg"><div><b id="shpname"></b><i id="shpprice"></i></div><em>Comprar</em></div></div>
 <div id="mtop" class="abs"><div id="mwho"><div id="mava"></div><span id="mhandle"></span></div><div id="mhead"></div></div>
 <div id="mbot" class="abs"><div id="mcta"></div><div id="marrow"></div></div>
+<div id="lcta" class="abs"><span id="lctat"></span></div>
 <div id="flash" class="abs"></div>
 <script>
 const $=(i)=>document.getElementById(i);
@@ -177,6 +183,8 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   $("coupon").style.display=d.cupom?"inline-block":"none";
   $("shph").innerHTML=d.ctaTela||"Gostou? <span>Toque no produto</span> aqui embaixo";$("shpimg").src=d.img;$("shpname").textContent=d.nome||"";$("shpprice").textContent=d.price||(D.modo==="link"?"Veja o preço no link":"Toque para ver o preço");
   if(!d.number)$("num").style.display="none";
+  if(d.layout==="limpo"){document.body.classList.add("limpo");if(d.soFoto)document.body.classList.add("foto");
+    $("lctat").textContent=d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":"🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆";}
   if(d.layout==="mascara"){document.body.classList.add("mask");
     $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
     if(d.avatar){$("mava").style.backgroundImage="url("+d.avatar+")"}else{$("mava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
@@ -266,6 +274,18 @@ window.render=(t)=>{
 // vídeo real do produto (quadros extraídos com FFmpeg), toca durante a cena "produto"
 window.renderClip=(t)=>{
   if(!D.clip||!D.clip.length){return}
+  if(D.layout==="limpo"){
+    // o vídeo do produto do começo ao fim; nada por cima além da legenda e da chamada final
+    let j=0;while(j<starts.length-1&&t>=starts[j+1])j++;
+    const kj=D.scenes[j].key, ltj=t-starts[j];
+    $("clip").style.opacity=1;
+    const f=Math.floor(t*30)%D.clip.length;if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}
+    for(const id of ["card","name","chips","prof","finger","ring","cta","shp","mtop","mbot","dark","flash","cliptag"])$(id).style.opacity=0;
+    $("sub").style.top="1240px";
+    const kc=kj==="cta"?ease(ltj/0.35):0;
+    $("lcta").style.opacity=kc;$("lcta").style.transform="translateY("+((1-kc)*40)+"px) scale("+(1+0.03*Math.sin(t*6))+")";
+    return;
+  }
   let i=0;while(i<starts.length-1&&t>=starts[i+1])i++;
   const key=D.scenes[i].key, lt=t-starts[i], dur=D.scenes[i].dur;
   const on=key==="produto";
@@ -351,9 +371,11 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   };
   if (clip?.file) {
     const sc = scenes.find((x) => x.key === "produto");
-    data.clip = await clipFrames(clip.file, sc.dur + 0.2, tmp, layout === "mascara" ? W - 80 : W, layout === "mascara" ? 1040 : H).catch((e) => { log(`  vídeo do produto: ${e.message}`); return []; });
+    data.clip = await clipFrames(clip.file, (layout === "limpo" ? total : sc.dur) + 0.2, tmp, layout === "mascara" ? W - 80 : W, layout === "mascara" ? 1040 : H).catch((e) => { log(`  vídeo do produto: ${e.message}`); return []; });
     log(`  vídeo do produto: ${data.clip.length} quadros`);
   }
+  // formato limpo sem vídeo: a foto do produto fica de fundo o tempo todo
+  if (layout === "limpo" && !data.clip.length && data.img) { data.clip = [data.img]; data.soFoto = true; }
   const browser = await chromium.launch();
   const silent = path.join(tmp, "video.mp4");
   try {
