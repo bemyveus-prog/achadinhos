@@ -2,9 +2,10 @@ import { isAdmin, unauthorized } from "@/lib/auth";
 import { importFromUrl } from "@/lib/importer";
 import { AMAZON_RE as AMZ_RE, amazonProduct } from "@/lib/amazon";
 import { SHEIN_RE, isShein, sheinProduct } from "@/lib/shein";
+import { ALI_RE, isAli, aliProduct } from "@/lib/aliexpress";
 // links de lojas sem API (Amazon e Shein): mesmo caminho, final genérico nos vídeos
-const AMAZON_RE = new RegExp(`${AMZ_RE.source}|${SHEIN_RE.source}`, "i");
-const lojaNome = (u) => (isShein(u) ? "Shein" : "Amazon");
+const AMAZON_RE = new RegExp(`${AMZ_RE.source}|${SHEIN_RE.source}|${ALI_RE.source}`, "i");
+const lojaNome = (u) => (isShein(u) ? "Shein" : isAli(u) ? "AliExpress" : "Amazon");
 import { db, hasDb } from "@/lib/supabase";
 import { relatorioImagem } from "@/lib/relatorioImg";
 import { hasShopeeApi, parseShopeeIds, shopeeConversions, shopeeProduct, shopeeSearch, shopeeShops, shopeeShortLinkSub } from "@/lib/shopee";
@@ -34,7 +35,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i> ou <i>cheio</i> no comando ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
-🛒 <b>Amazon / Shein</b>: cole o seu link de afiliado (amzn.to/…, amazon.com.br/dp/…, onelink.shein.com/…) e o produto entra na vitrine com a etiqueta da loja. Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
+🛒 <b>Amazon / Shein / AliExpress</b>: cole o seu link de afiliado (amzn.to/…, onelink.shein.com/…, s.click.aliexpress.com/…) e o produto entra na vitrine com a etiqueta da loja. Na AliExpress, mande as fotos ou o vídeo com o link na legenda (a IA identifica o produto). Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
 📊 <b>/relatorio</b> → vendas, comissão e cliques de hoje (ou /relatorio ontem, /relatorio 7, /relatorio 30)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
@@ -528,17 +529,18 @@ const AMAZON_BLOQUEOU = [
 
 // lê o produto e grava na vitrine (ou devolve o que já existe)
 async function addAmazon(url, resto = "", { provisorio = false } = {}) {
-  const shein = isShein(url);
-  const a = shein ? await sheinProduct(url) : await amazonProduct(url);
+  const shein = isShein(url), ali = isAli(url);
+  const a = shein ? await sheinProduct(url) : ali ? await aliProduct(url) : await amazonProduct(url);
   const [precoTxt, ...nomeTxt] = String(resto).split("|").map((x) => x.trim());
   const precoManual = Number(String(precoTxt || "").replace(/[^\d,]/g, "").replace(",", "."));
   if (nomeTxt.join(" ").trim() && isFinite(precoManual) && precoManual > 0) a.price = precoManual;
   if (nomeTxt.join(" ").trim()) a.title = nomeTxt.join(" ").trim();
   // vídeo/fotos junto: entra com nome provisório e a IA troca pelo nome certo olhando as imagens
-  if (!a.title && provisorio) a.title = shein ? "Achado da Shein" : "Achado da Amazon";
+  if (!a.title && provisorio) a.title = `Achado da ${shein ? "Shein" : ali ? "AliExpress" : "Amazon"}`;
+  if (!a.title && ali) return { erro: "⚠️ A AliExpress não deixa ler o produto pelo link. Mande as <b>fotos ou o vídeo</b> do produto com o link na legenda (a IA identifica pelas imagens), ou o texto assim: <b>link | nome do produto</b>." };
   if (!a.title) return { erro: shein ? "⚠️ Esse link da Shein não trouxe o nome do produto (às vezes é link de promoção). Mande de novo assim: <b>link | nome do produto</b>, ou mande as <b>fotos</b> do produto com o link na legenda que a IA identifica pelas fotos." : AMAZON_BLOQUEOU };
   const dias = Number(process.env.DIAS_NA_VITRINE || 15);
-  const desc = shein ? (a.goods_id && !a.generico ? `shein:${a.goods_id}` : null) : a.asin ? `amazon:${a.asin}` : null;
+  const desc = shein ? (a.goods_id && !a.generico ? `shein:${a.goods_id}` : null) : ali ? (a.ali_id ? `ali:${a.ali_id}` : null) : a.asin ? `amazon:${a.asin}` : null;
   if (desc) {
     const { data: dup } = await db().from("offers").select("id").eq("description", desc).eq("active", true).limit(1);
     if (dup?.length) return { a, id: dup[0].id, dias, dup: true };
@@ -551,7 +553,7 @@ async function addAmazon(url, resto = "", { provisorio = false } = {}) {
     price: a.price || null,
     original_price: a.original_price,
     link: a.link,
-    platform: shein ? "shein" : "amazon",
+    platform: shein ? "shein" : ali ? "aliexpress" : "amazon",
     active: true,
     expires_at: dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null,
   }).select("id").single();

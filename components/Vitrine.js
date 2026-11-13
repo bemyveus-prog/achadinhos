@@ -11,6 +11,7 @@ const PLATFORM = {
   tiktok: { label: "TikTok Shop", cls: "p-tiktok" },
   amazon: { label: "Amazon", cls: "p-amazon" },
   shein: { label: "Shein", cls: "p-shein" },
+  aliexpress: { label: "AliExpress", cls: "p-ali" },
   outro: { label: "Loja", cls: "p-outro" },
 };
 
@@ -60,7 +61,7 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
   const [sheet, setSheet] = useState(null);
   async function share(p) {
     const url = `${window.location.origin}/p/${p.id}`;
-    const text = `${p.title}${p.price != null ? ` por ${brl(p.price)}` : ""} 🛍️ Achei ${p.platform === "amazon" ? "na Amazon" : p.platform === "shein" ? "na Shein" : "na Shopee"}:`;
+    const text = `${p.title}${p.price != null ? ` por ${brl(p.price)}` : ""} 🛍️ Achei ${p.platform === "amazon" ? "na Amazon" : p.platform === "shein" ? "na Shein" : p.platform === "aliexpress" ? "na AliExpress" : "na Shopee"}:`;
     try { await navigator.clipboard?.writeText(url); } catch {}
     try {
       if (navigator.canShare) {
