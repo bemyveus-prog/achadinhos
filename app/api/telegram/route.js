@@ -35,7 +35,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon / Shein</b>: cole o seu link de afiliado (amzn.to/…, amazon.com.br/dp/…, onelink.shein.com/…) e o produto entra na vitrine com a etiqueta da loja. Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
-📊 <b>/relatorio</b> → vendas, comissão e cliques de hoje (ou /relatorio 7, /relatorio 30)
+📊 <b>/relatorio</b> → vendas, comissão e cliques de hoje (ou /relatorio ontem, /relatorio 7, /relatorio 30)
 <b>/loja</b> nome da loja → lojas oficiais e parceiras, com a comissão e os produtos de cada uma
 Categorias: ${Object.keys(CATEGORIAS).join(", ")}
 
@@ -808,15 +808,17 @@ function origemDe(n) {
   return ref ? `Outros (${ref})` : "Outros";
 }
 async function relatorio(chat, arg) {
-  const dias = Math.max(1, Math.min(30, Number(String(arg).match(/\d+/)?.[0]) || 1));
+  const ontem = /ontem/i.test(String(arg));
+  const dias = ontem ? 1 : Math.max(1, Math.min(30, Number(String(arg).match(/\d+/)?.[0]) || 1));
   // início do dia em Brasília
   const agora = Math.floor(Date.now() / 1000);
   const hojeBR = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
   const inicioHoje = agora - (hojeBR.getHours() * 3600 + hojeBR.getMinutes() * 60 + hojeBR.getSeconds());
-  const inicio = inicioHoje - (dias - 1) * 86400;
+  const inicio = ontem ? inicioHoje - 86400 : inicioHoje - (dias - 1) * 86400;
+  const fim = ontem ? inicioHoje - 1 : agora;
   await tg("sendChatAction", { chat_id: chat, action: "typing" }).catch(() => {});
   let conv = [], erro = "";
-  try { conv = await shopeeConversions(inicio, agora); } catch (e) { erro = e.message; }
+  try { conv = await shopeeConversions(inicio, fim); } catch (e) { erro = e.message; }
   let pedidos = 0, cancelados = 0, comissao = 0, concluida = 0;
   const porOrigem = new Map(), porProduto = new Map();
   for (const n of conv) {
@@ -839,9 +841,10 @@ async function relatorio(chat, arg) {
   let cliques = 0, topCliques = [];
   if (hasDb()) {
     const desde = new Date(inicio * 1000).toISOString();
-    const { count } = await db().from("click_events").select("id", { count: "exact", head: true }).gte("created_at", desde);
+    const ate = new Date(fim * 1000).toISOString();
+    const { count } = await db().from("click_events").select("id", { count: "exact", head: true }).gte("created_at", desde).lte("created_at", ate);
     cliques = count || 0;
-    const { data: ev } = await db().from("click_events").select("offer_id").gte("created_at", desde).not("offer_id", "is", null).limit(5000);
+    const { data: ev } = await db().from("click_events").select("offer_id").gte("created_at", desde).lte("created_at", ate).not("offer_id", "is", null).limit(5000);
     const m = new Map(); for (const e of ev || []) m.set(e.offer_id, (m.get(e.offer_id) || 0) + 1);
     const top = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
     if (top.length) {
@@ -849,7 +852,7 @@ async function relatorio(chat, arg) {
       topCliques = top.map(([id, n]) => `#${id} ${esc(String(of?.find((o) => o.id === id)?.title || "").slice(0, 38))} · ${n}`);
     }
   }
-  const periodo = dias === 1 ? "hoje" : `últimos ${dias} dias`;
+  const periodo = ontem ? "ontem" : dias === 1 ? "hoje" : `últimos ${dias} dias (contando hoje)`;
   const linhas = [
     `📊 <b>Relatório (${periodo})</b>`,
     "",
@@ -867,7 +870,7 @@ async function relatorio(chat, arg) {
   }
   if (topCliques.length) linhas.push("", "<b>Mais clicados no site</b>", ...topCliques.map((t) => `• ${t}`));
   if (erro) linhas.push("", `⚠️ Shopee: ${esc(erro.slice(0, 150))}`);
-  linhas.push("", "<i>A Shopee leva um tempo para mostrar as vendas e a comissão só é confirmada quando o pedido é concluído.</i>", "Outros períodos: /relatorio 7 · /relatorio 30");
+  linhas.push("", "<i>A Shopee leva um tempo para mostrar as vendas e a comissão só é confirmada quando o pedido é concluído.</i>", "Outros períodos: /relatorio ontem · /relatorio 7 · /relatorio 30");
   return say(chat, linhas.join("\n"));
 }
 
