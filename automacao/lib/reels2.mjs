@@ -279,7 +279,7 @@ window.renderClip=(t)=>{
     let j=0;while(j<starts.length-1&&t>=starts[j+1])j++;
     const kj=D.scenes[j].key, ltj=t-starts[j];
     $("clip").style.opacity=1;
-    const f=Math.floor(t*30)%D.clip.length;if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}
+    const f=Math.floor(t*(D.clipFps||30))%D.clip.length;if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}
     for(const id of ["card","name","chips","prof","finger","ring","cta","shp","mtop","mbot","dark","flash","cliptag"])$(id).style.opacity=0;
     $("sub").style.top="1240px";
     const kc=kj==="cta"?ease(ltj/0.35):0;
@@ -291,7 +291,7 @@ window.renderClip=(t)=>{
   const on=key==="produto";
   const k=on?Math.min(1,(dur-lt)/0.2):0;
   $("clip").style.opacity=k;
-  if(on){const f=Math.floor(lt*30)%D.clip.length;if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}}
+  if(on){const f=Math.floor(lt*(D.clipFps||30))%D.clip.length;if($("clipimg").dataset.f!=f){$("clipimg").src=D.clip[f];$("clipimg").dataset.f=f}}
   // com vídeo, o cartão da foto e o nome ficam escondidos nessa cena
   if(on){$("card").style.opacity=0;$("name").style.opacity=0;$("chips").style.top=D.layout==="mascara"?"1380px":"1560px";if(D.layout==="mascara")$("chips").style.opacity=0}
   else{$("chips").style.top="1290px"}
@@ -302,13 +302,16 @@ window.renderClip=(t)=>{
 
 /** Gera o Reels v2. cover = resultado de pickCover (foto da categoria + gancho). */
 // extrai os quadros do vídeo da CJ (30 fps, até maxSec) como JPEG em data URI
+// os quadros vão para o navegador de uma vez: limita a ~160 (vídeo longo usa menos quadros por segundo),
+// senão o navegador fica sem memória e fecha
+export const clipFpsPara = (seg) => Math.max(8, Math.min(30, Math.floor(160 / Math.max(1, seg))));
 async function clipFrames(file, maxSec, dir, w = 1080, h = 1920) {
   const { readdir, readFile } = await import("fs/promises");
   const fdir = path.join(dir, "clip");
   await mkdir(fdir, { recursive: true });
   // pula o primeiro 0,5 s (costuma ter tela preta ou logo) e enquadra em tela cheia 1080x1920
   await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "0.5", "-i", file, "-t", String(maxSec),
-    "-vf", `fps=30,scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h}`, "-q:v", "5", path.join(fdir, "%04d.jpg")]);
+    "-vf", `fps=${clipFpsPara(maxSec)},scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h}`, "-q:v", maxSec > 6 ? "7" : "5", path.join(fdir, "%04d.jpg")]);
   const names = (await readdir(fdir)).filter((f) => f.endsWith(".jpg")).sort();
   return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
 }
@@ -371,7 +374,9 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   };
   if (clip?.file) {
     const sc = scenes.find((x) => x.key === "produto");
-    data.clip = await clipFrames(clip.file, (layout === "limpo" ? total : sc.dur) + 0.2, tmp, layout === "mascara" ? W - 80 : W, layout === "mascara" ? 1040 : H).catch((e) => { log(`  vídeo do produto: ${e.message}`); return []; });
+    const segClip = (layout === "limpo" ? total : sc.dur) + 0.2;
+    data.clipFps = clipFpsPara(segClip);
+    data.clip = await clipFrames(clip.file, segClip, tmp, layout === "mascara" ? W - 80 : W, layout === "mascara" ? 1040 : H).catch((e) => { log(`  vídeo do produto: ${e.message}`); return []; });
     log(`  vídeo do produto: ${data.clip.length} quadros`);
   }
   // formato limpo sem vídeo: a foto do produto fica de fundo o tempo todo
