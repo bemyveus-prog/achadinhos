@@ -1,0 +1,77 @@
+name: Roteiro (transcrever e reescrever)
+
+# Disparado pelo bot (/roteiro): transcreve a fala do vídeo (Whisper) e a IA escreve uma narração nova.
+on:
+  workflow_dispatch:
+    inputs:
+      video:
+        description: "Vídeo guardado pelo bot (Storage reels-videos)"
+        default: ""
+      url:
+        description: "Ou link do vídeo (TikTok, Kwai...)"
+        default: ""
+      contexto:
+        description: "Informação extra sobre o produto (opcional)"
+        default: ""
+
+env:
+  MARCA: ${{ vars.MARCA }}
+
+jobs:
+  roteiro:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: automacao
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CONTEXTO: ${{ inputs.contexto }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pegar o vídeo
+        env:
+          VIDEO: ${{ inputs.video }}
+          URL: ${{ inputs.url }}
+        run: |
+          npm ci
+          command -v ffmpeg >/dev/null || bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
+          if [ -n "$VIDEO" ]; then
+            KEY=$(printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | tr -d '[:space:]'); BASE=$(printf '%s' "$SUPABASE_URL" | tr -d '[:space:]')
+            curl -sSf -H "Authorization: Bearer $KEY" -H "apikey: $KEY" "$BASE/storage/v1/object/reels-videos/$VIDEO" -o v.mp4
+          else
+            pip install -q -U "yt-dlp[default,curl-cffi]"
+            yt-dlp -q --no-warnings --impersonate chrome -f "b[ext=mp4]/b" -o v.mp4 "$URL"
+          fi
+          ls -la v.mp4
+          ffmpeg -v error -y -i v.mp4 -vn -ac 1 -ar 16000 a.wav
+      - name: Transcrever (Whisper)
+        run: |
+          pip install -q faster-whisper
+          python - <<'PY'
+          from faster_whisper import WhisperModel
+          m = WhisperModel("small", device="cpu", compute_type="int8")
+          segs, info = m.transcribe("a.wav", language="pt", vad_filter=True)
+          txt = " ".join(s.text.strip() for s in segs)
+          open("transcricao.txt", "w").write(txt)
+          print("TRANSCRIÇÃO:", txt)
+          PY
+      - name: Escrever a narração nova
+        run: node roteiro.mjs transcricao.txt
+      - name: Avisar se falhar
+        if: failure()
+        run: |
+          TOKEN=$(printf '%s' "$TELEGRAM_BOT_TOKEN" | tr -d '[:space:]'); CHAT=$(echo "$TELEGRAM_CHAT_ID" | tr ',; ' '\n' | head -1 | tr -d '[:space:]')
+          curl -sS -d chat_id="$CHAT" --data-urlencode text="⚠️ Não consegui transcrever esse vídeo. Se for link do TikTok bloqueado, salve o vídeo e mande com a legenda /roteiro." "https://api.telegram.org/bot$TOKEN/sendMessage" >/dev/null

@@ -30,6 +30,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
 🖼️ <b>Fotos → vídeo</b>: mande várias fotos de uma vez (álbum) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Vira vídeo com zoom nas fotos, narração e o final.
+📝 <b>/roteiro</b>: mande um vídeo com a legenda /roteiro (ou /roteiro link-do-tiktok) e a IA transcreve a fala e escreve uma narração nova com as nossas palavras. Depois use <b>/reels 227 roteiro</b> (ou /shopee, /link) para gerar o vídeo com ela.
 📌 <b>Link do Pinterest ou do TikTok</b>: cole o link do vídeo (pin.it/…, vm.tiktok.com/…) e o bot devolve o vídeo baixado.
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
@@ -125,6 +126,11 @@ async function onText(msg) {
   }
   // link do Pinterest: baixa o vídeo do pin e devolve aqui
   // link de vídeo do TikTok (ou Kwai): o GitHub baixa com yt-dlp e manda aqui
+  if (/^\/roteiro\b/i.test(text)) {
+    const u = (text.match(/https?:\/\/\S+/) || [])[0];
+    if (!u) return say(chat, "Mande o vídeo com a legenda <b>/roteiro</b>, ou: <b>/roteiro link-do-tiktok</b>");
+    return pedirRoteiro(chat, { url: u, contexto: text.replace(/^\/roteiro\S*/i, "").replace(u, "").trim() });
+  }
   const tt = (text.match(TIKTOK_RE) || [])[0];
   if (tt && !text.startsWith("/")) {
     try { await dispatchWorkflow("baixar-video.yml", { url: tt, tipo: "ytdlp", legenda: "🎵 Vídeo do TikTok baixado." }); }
@@ -600,6 +606,11 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const args = parts.filter(Boolean);
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
+  // "roteiro": usa a última narração criada pelo /roteiro
+  if (!fala && args.some((a) => /^roteiro$/i.test(a)) && hasDb()) {
+    const { data: rt } = await db().from("bot_config").select("value").eq("key", "ultimo_roteiro").maybeSingle();
+    if (rt?.value) fala = rt.value;
+  }
   // formato do vídeo: "mascara" (headline em cima, vídeo no meio, chamada embaixo) ou "cheio"; sem nada, sorteia
   // ordem: palavra no comando > palavra na legenda do vídeo/fotos (vem no contexto) > /formato
   const ctxLayout = (String(extra.contexto || "").match(LAYOUT_RE) || [])[1] || "";
@@ -607,7 +618,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const layout = args.some((a) => /^m[aá]scara$/i.test(a)) ? "mascara" : args.some((a) => /^cheio$/i.test(a)) ? "cheio" : args.some((a) => /^limpo$/i.test(a)) ? "limpo"
     : ctxLayout ? (/^cheio$/i.test(ctxLayout) ? "cheio" : /^limpo$/i.test(ctxLayout) ? "limpo" : "mascara") : await getFormato();
   // depois do número: SKU da CJ (tem letras e números, ex.: CJYD2300009) e, sem "texto:", o resto vira narração
-  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio|limpo)$/i.test(a));
+  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio|limpo|roteiro)$/i.test(a));
   const looksSku = (a) => /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
   const sku = rest[0] && looksSku(rest[0]) ? rest[0] : "";
   if (!fala) fala = rest.slice(sku ? 1 : 0).join(" ").trim();
@@ -651,6 +662,13 @@ async function onVideo(msg) {
   if (!isAllowed(chat)) return say(chat, `Este bot é privado. Seu chat: <code>${chat}</code>`);
   const cap = (msg.caption || "").trim();
   const shopeeUrl = (cap.match(/https?:\/\/(?:s\.shopee\.com\.br|(?:[a-z]{2,3}\.)?shope\.ee|(?:[a-z]{2,3}\.)?shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
+  // /roteiro na legenda do vídeo: transcreve a fala e a IA reescreve com as nossas palavras
+  if (/^\/?roteiro\b/i.test(cap)) {
+    const v = msg.video || msg.document;
+    if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "Esse vídeo passa de 20 MB (limite do Telegram para o bot baixar).");
+    let name; try { name = await saveTelegramVideo(v); } catch (e) { return say(chat, esc(e.message)); }
+    return pedirRoteiro(chat, { video: name, contexto: cap.replace(/^\/?roteiro\S*/i, "").trim() });
+  }
   const isCmd = /^\/?(reels|shopee|link)\b/i.test(cap);
   const amzUrl = (cap.match(AMAZON_RE) || [])[0];
   if (!isCmd && amzUrl) return amazonVideo(msg, cap, amzUrl);
@@ -968,6 +986,13 @@ async function importGroupVideo(msg, cap, shopeeUrl) {
 
 // ---------- vídeo do grupo sem link de produto: identificação pela IA ----------
 const isVideoLink = (u) => Boolean(u) && /sv\.shopee|share-video|universal-link/i.test(decodeURIComponent(u));
+
+// transcrição + narração nova (workflow roteiro.yml)
+async function pedirRoteiro(chat, { video = "", url = "", contexto = "" }) {
+  try { await dispatchWorkflow("roteiro.yml", { video, url, contexto: String(contexto).slice(0, 500) }); }
+  catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+  return say(chat, "📝 Transcrevendo a fala do vídeo e escrevendo uma narração nova com as nossas palavras… chega aqui em ~2 minutos.");
+}
 
 async function saveTelegramVideo(v) {
   const f = await tg("getFile", { file_id: v.file_id });
