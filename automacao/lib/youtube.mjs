@@ -18,9 +18,10 @@ async function accessToken() {
 }
 
 // título curto (máx. 100) a partir da legenda; descrição com o link direto do produto
-export function textosYouTube(legenda, { link = "" } = {}) {
+export function textosYouTube(legenda, { link = "", titulo: tituloPronto = "" } = {}) {
   const linhas = String(legenda || "").split("\n").map((l) => l.trim()).filter(Boolean);
-  let titulo = (linhas[0] || "Achadinho do dia").replace(/#\S+/g, "").replace(/\s+/g, " ").trim();
+  // título de curiosidade (headline da IA) quando houver; senão a 1ª linha da legenda
+  let titulo = (String(tituloPronto).replace(/\*/g, "").trim() || linhas[0] || "Achadinho do dia").replace(/#\S+/g, "").replace(/\s+/g, " ").trim();
   if (titulo.length > 90) titulo = titulo.slice(0, 88).replace(/\s+\S*$/, "") + "…";
   titulo = `${titulo} #shorts`;
   const tags = [...new Set((String(legenda).match(/#[\p{L}\p{N}_]+/gu) || []).map((t) => t.slice(1)).filter((t) => !/^\d+$/.test(t)))].slice(0, 15);
@@ -49,4 +50,44 @@ export async function postShort(fileOrUrl, { titulo, descricao, tags = [] }, log
   const url = `https://youtube.com/shorts/${j.id}`;
   log(`  YouTube: ${url} (${j.status?.privacyStatus || meta.status.privacyStatus})`);
   return { url, privacy: j.status?.privacyStatus || meta.status.privacyStatus };
+}
+
+
+// ---------- regras para o canal crescer (o YouTube corta entrega de conteúdo repetido/parado) ----------
+// 1) só vídeo com imagem em movimento (vídeo real ou várias fotos), 2) nunca o mesmo produto duas vezes,
+// 3) no máximo YT_MAX_DIA por dia (padrão 3) e YT_INTERVALO_H horas entre um e outro (padrão 3).
+// "manual" (botão ▶️ ou lote escolhido por você) ignora só o limite/intervalo.
+export async function regrasYouTube(sb, { offerId = null, temVideo = false, manual = false } = {}) {
+  if (!temVideo && !manual) return { ok: false, motivo: "vídeo só com foto parada (não vai pro YouTube)" };
+  if (offerId) {
+    const { data } = await sb.from("bot_config").select("value").eq("key", `yt_offer_${offerId}`).maybeSingle();
+    if (data?.value) return { ok: false, motivo: `o produto #${offerId} já está no YouTube: ${data.value}` };
+  }
+  if (!manual) {
+    const { data: cfg } = await sb.from("bot_config").select("value").eq("key", "yt_postados").maybeSingle();
+    let ts = []; try { ts = JSON.parse(cfg?.value || "[]"); } catch {}
+    const agora = Date.now();
+    const max = Number(env("YT_MAX_DIA", "3")), intervalo = Number(env("YT_INTERVALO_H", "3")) * 3600000;
+    if (ts.filter((t) => agora - t < 86400000).length >= max) return { ok: false, motivo: `limite de ${max} Shorts por dia atingido` };
+    const ultimo = Math.max(0, ...ts);
+    if (agora - ultimo < intervalo) return { ok: false, motivo: `último Short foi há menos de ${env("YT_INTERVALO_H", "3")} h` };
+  }
+  return { ok: true };
+}
+
+export async function registrarYouTube(sb, { offerId = null, url }) {
+  if (offerId) await sb.from("bot_config").upsert({ key: `yt_offer_${offerId}`, value: url, updated_at: new Date().toISOString() });
+  const { data: cfg } = await sb.from("bot_config").select("value").eq("key", "yt_postados").maybeSingle();
+  let ts = []; try { ts = JSON.parse(cfg?.value || "[]"); } catch {}
+  ts = [...ts.filter((t) => Date.now() - t < 7 * 86400000), Date.now()];
+  await sb.from("bot_config").upsert({ key: "yt_postados", value: JSON.stringify(ts), updated_at: new Date().toISOString() });
+}
+
+// dados do vídeo para o YouTube, guardados quando o Reels é gerado (bot_config "yt_meta_<id>")
+export async function salvarMetaYouTube(sb, reelsId, meta) {
+  await sb.from("bot_config").upsert({ key: `yt_meta_${reelsId}`, value: JSON.stringify(meta), updated_at: new Date().toISOString() });
+}
+export async function lerMetaYouTube(sb, reelsId) {
+  const { data } = await sb.from("bot_config").select("value").eq("key", `yt_meta_${reelsId}`).maybeSingle();
+  try { return data?.value ? JSON.parse(data.value) : null; } catch { return null; }
 }

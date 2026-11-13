@@ -28,10 +28,15 @@ async function fish(text, out) {
   return true;
 }
 
+// rodízio entre as vozes femininas (uma por vídeo); EDGE_VOICE fixa uma voz específica
+const VOZES_FEMININAS = ["pt-BR-FranciscaNeural", "pt-BR-ThalitaMultilingualNeural"];
+const vozFixa = env("EDGE_VOICE", "");
+export const VOZ_DO_VIDEO = vozFixa && vozFixa !== "rodizio" ? vozFixa : VOZES_FEMININAS[Math.floor(Math.random() * VOZES_FEMININAS.length)];
+
 async function edge(text, out) {
   const { MsEdgeTTS, OUTPUT_FORMAT } = await import("msedge-tts");
   const tts = new MsEdgeTTS();
-  await tts.setMetadata(env("EDGE_VOICE", "pt-BR-FranciscaNeural"), OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+  await tts.setMetadata(VOZ_DO_VIDEO, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
   const dir = path.dirname(out);
   const { audioFilePath } = await tts.toFile(dir, text, { rate: env("EDGE_RATE", "+12%") });
   tts.close();
@@ -58,7 +63,7 @@ export async function narrate(lines, dir, log = console.log) {
       try {
         if (await fn(fala, file)) {
           ok = true;
-          if (!chosen) { chosen = [name, fn]; log(`Narração: ${name}`); }
+          if (!chosen) { chosen = [name, fn]; log(`Narração: ${name}${name === "voz Microsoft" ? ` (${VOZ_DO_VIDEO.replace("pt-BR-", "").replace("Neural", "")})` : ""}`); }
           break;
         }
       } catch (e) {

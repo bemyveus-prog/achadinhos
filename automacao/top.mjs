@@ -134,6 +134,7 @@ async function main() {
       try {
         const [video_url] = await uploadPublic([file], `top-${Date.now()}`, "video/mp4");
         const { data, error: e } = await sb.from("reels_pendentes").insert({ offer_id: items[0].id, video_url, caption: legenda }).select("id").single();
+        if (!e && data) { const { salvarMetaYouTube } = await import("./lib/youtube.mjs"); await salvarMetaYouTube(sb, data.id, { temVideo: items.some((it) => it.clipFile), titulo: r.title, top: true }).catch(() => {}); }
         if (e) throw new Error(e.message);
         markup = { inline_keyboard: [[{ text: "📤 Postar no Instagram", callback_data: `pub:${data.id}` }], [{ text: "▶️ Postar no YouTube", callback_data: `yt:${data.id}` }], [{ text: "🗑️ Descartar", callback_data: `nopub:${data.id}` }]] };
       } catch (e) { log(`  aprovação: ${e.message}`); }
@@ -146,7 +147,13 @@ async function main() {
     log(`Postado: ${await postReel(file, legenda, `top-${Date.now()}`)}`);
     const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
     if (hasYouTube()) {
-      try { const { url: yt } = await postShort(file, textosYouTube(legenda, { link: BRAND.site }), log); if (hasTelegram()) await sendText(`▶️ Short no YouTube: ${yt}`).catch(() => {}); }
+      try {
+        // Top só vai pro YouTube quando tem vídeo real de algum produto (só fotos paradas o canal não entrega)
+        const { regrasYouTube, registrarYouTube } = await import("./lib/youtube.mjs");
+        const regra = await regrasYouTube(sb, { temVideo: items.some((it) => it.clipFile) });
+        if (!regra.ok) log(`  YouTube pulado: ${regra.motivo}`);
+        else { const { url: yt } = await postShort(file, textosYouTube(legenda, { link: BRAND.site }), log); await registrarYouTube(sb, { url: yt }); if (hasTelegram()) await sendText(`▶️ Short no YouTube: ${yt}`).catch(() => {}); }
+      }
       catch (e) { log(`  YouTube: ${e.message}`); }
     }
   }

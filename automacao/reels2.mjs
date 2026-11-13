@@ -276,6 +276,24 @@ async function main() {
   if (modo === "link") log("Modo link: final genérico chamando para o link abaixo (sem citar a loja)");
   if (modo === "shopee") log("Modo Shopee Vídeo: final chamando para o produto vinculado");
   const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, modo, layout, headline, handle: BRAND.handle, log });
+
+  // ---------- versão do YouTube: só quando há imagem em movimento (vídeo real ou 2+ fotos) ----------
+  // formato limpo (vídeo em tela cheia desde o 1º segundo) com uma frase de curiosidade no começo e título de curiosidade
+  const { hasYouTube: temYT } = await import("./lib/youtube.mjs");
+  const temVideo = Boolean(clip?.file) && (fotosBaixadas.length === 0 || fotosBaixadas.length >= 2);
+  let yt = { temVideo, titulo: "", file: null };
+  if (temVideo && temYT() && modo !== "shopee") {
+    try {
+      const gancho = headline || (await gerarHeadline(p, { fala, log })) || "";
+      yt.titulo = gancho.replace(/\*/g, "");
+      if (layout === "limpo" && headline) yt.file = file;
+      else {
+        const r = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir: path.join(outDir, "youtube"), clip, fala, cupom, avatar, modo, layout: "limpo", headline: gancho, ganchoTopo: gancho, handle: BRAND.handle, log });
+        yt.file = r.file;
+      }
+      log(`  versão YouTube pronta (título: ${yt.titulo || "-"})`);
+    } catch (e) { log(`  versão YouTube: ${e.message}`); }
+  } else log(`  YouTube: ${temVideo ? "modo Shopee Vídeo" : "sem vídeo em movimento"} → não vai pro YouTube`);
   log(`Vídeo pronto: ${seconds.toFixed(1)} s`);
 
   const legenda = [
@@ -323,6 +341,11 @@ async function main() {
         const [video_url] = await uploadPublic([file], `reels2-${offerId}-${Date.now()}`, "video/mp4");
         const { data, error } = await sb.from("reels_pendentes").insert({ offer_id: offerId, video_url, caption: legenda }).select("id").single();
         if (error) throw new Error(error.message);
+        try {
+          const { salvarMetaYouTube } = await import("./lib/youtube.mjs");
+          const ytUrl = yt.file && yt.file !== file ? (await uploadPublic([yt.file], `reels2yt-${offerId}-${Date.now()}`, "video/mp4"))[0] : null;
+          await salvarMetaYouTube(sb, data.id, { temVideo: yt.temVideo && Boolean(yt.file), titulo: yt.titulo, videoUrl: ytUrl });
+        } catch (e) { log(`  meta YouTube: ${e.message}`); }
         markup = { inline_keyboard: [[{ text: "📤 Postar no Instagram", callback_data: `pub:${data.id}` }], [{ text: "▶️ Postar no YouTube", callback_data: `yt:${data.id}` }], [{ text: "🗑️ Descartar", callback_data: `nopub:${data.id}` }]] };
       } catch (e) { log(`  aprovação: ${e.message}`); }
     }
@@ -341,12 +364,17 @@ async function main() {
         if (hasTelegram()) await sendText(`🧵 Postado no Threads: ${tl}`).catch(() => {});
       }
     } catch (e) { log(`  Threads: ${e.message}`); }
-    const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
+    const { hasYouTube, postShort, textosYouTube, regrasYouTube, registrarYouTube } = await import("./lib/youtube.mjs");
     if (hasYouTube()) {
       const VIT = BRAND.site;
       try {
-        const { url: yt } = await postShort(file, textosYouTube(legenda, { link: `${VIT}/r/${offerId}` }), log);
-        if (hasTelegram()) await sendText(`▶️ Short no YouTube: ${yt}`).catch(() => {});
+        const regra = await regrasYouTube(sb, { offerId, temVideo: yt.temVideo && Boolean(yt.file) });
+        if (!regra.ok) log(`  YouTube pulado: ${regra.motivo}`);
+        else {
+          const { url: ytUrl } = await postShort(yt.file, textosYouTube(legenda, { link: `${VIT}/r/${offerId}`, titulo: yt.titulo }), log);
+          await registrarYouTube(sb, { offerId, url: ytUrl });
+          if (hasTelegram()) await sendText(`▶️ Short no YouTube: ${ytUrl}`).catch(() => {});
+        }
       } catch (e) { log(`  YouTube: ${e.message}`); }
     }
   }

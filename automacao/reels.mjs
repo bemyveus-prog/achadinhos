@@ -74,10 +74,8 @@ async function main() {
     const url = await postReel(file, texts.legenda, `reels-${folder}`);
     log(`Postado no Instagram: ${url}`);
     const { hasYouTube, postShort, textosYouTube } = await import("./lib/youtube.mjs");
-    if (hasYouTube()) {
-      try { const { url: yt } = await postShort(file, textosYouTube(texts.legenda, { link: BRAND.site }), log); log(`YouTube: ${yt}`); }
-      catch (e) { log(`  YouTube: ${e.message}`); }
-    }
+    // Reels de capa/foto parada não vai pro YouTube (o canal não entrega esse tipo de vídeo)
+    if (hasYouTube()) log("  YouTube: vídeo só com foto parada → não vai pro YouTube");
   }
 }
 

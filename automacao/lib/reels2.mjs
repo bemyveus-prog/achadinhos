@@ -135,6 +135,9 @@ function pageHtml() {
   #marrow{font-size:84px;line-height:1}
   /* formato "limpo": só o vídeo em tela cheia do começo ao fim, com a legenda e uma chamada pequena no final */
   #lcta{left:60px;right:60px;top:1500px;text-align:center;opacity:0}
+  #lhook{left:50px;right:50px;top:230px;text-align:center;opacity:0}
+  #lhook b{display:inline;background:#fff;color:#1c1917;font-weight:800;font-size:70px;line-height:1.3;padding:6px 18px;border-radius:16px;-webkit-box-decoration-break:clone;box-decoration-break:clone;box-shadow:0 14px 34px rgba(0,0,0,.35)}
+  #lhook b mark{background:#FFD54A;color:#1c1917;padding:0 6px;border-radius:10px}
   #lcta span{display:inline-block;background:#fff;color:#2E1020;font-weight:800;font-size:54px;line-height:1.15;padding:22px 42px;border-radius:999px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
   body.limpo #clip img{object-fit:cover}
   body.limpo.foto #clip img{object-fit:contain}
@@ -165,7 +168,7 @@ function pageHtml() {
   <div id="shpcard"><img id="shpimg"><div><b id="shpname"></b><i id="shpprice"></i></div><em>Comprar</em></div></div>
 <div id="mtop" class="abs"><div id="mwho"><div id="mava"></div><span id="mhandle"></span></div><div id="mhead"></div></div>
 <div id="mbot" class="abs"><div id="mcta"></div><div id="marrow"></div></div>
-<div id="lcta" class="abs"><span id="lctat"></span></div>
+<div id="lcta" class="abs"><span id="lctat"></span></div><div id="lhook" class="abs"><b id="lhookt"></b></div>
 <div id="flash" class="abs"></div>
 <script>
 const $=(i)=>document.getElementById(i);
@@ -184,6 +187,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   $("shph").innerHTML=d.ctaTela||"Gostou? <span>Toque no produto</span> aqui embaixo";$("shpimg").src=d.img;$("shpname").textContent=d.nome||"";$("shpprice").textContent=d.price||(D.modo==="link"?"Veja o preço no link":"Toque para ver o preço");
   if(!d.number)$("num").style.display="none";
   if(d.layout==="limpo"){document.body.classList.add("limpo");if(d.soFoto)document.body.classList.add("foto");
+    if(d.ganchoTopoHtml)$("lhookt").innerHTML=d.ganchoTopoHtml;
     $("lctat").textContent=d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":"🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆";}
   if(d.layout==="mascara"){document.body.classList.add("mask");
     $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
@@ -283,7 +287,11 @@ window.renderClip=(t)=>{
     for(const id of ["card","name","chips","prof","finger","ring","cta","shp","mtop","mbot","dark","flash","cliptag"])$(id).style.opacity=0;
     $("sub").style.top="1240px";
     const kc=kj==="cta"?ease(ltj/0.35):0;
-    $("lcta").style.opacity=kc;$("lcta").style.transform="translateY("+((1-kc)*40)+"px) scale("+(1+0.03*Math.sin(t*6))+")";
+    $("lcta").style.opacity=kc;
+    // frase de curiosidade nos primeiros segundos (prende quem está rolando o feed)
+    const kh=D.ganchoTopoHtml?Math.min(ease(t/0.25),clamp((3.2-t)/0.4)):0;
+    $("lhook").style.opacity=kh;$("lhook").style.transform="scale("+(0.9+0.1*ease(t/0.3))+")";
+    if(kh>0)$("sub").style.opacity=0;$("lcta").style.transform="translateY("+((1-kc)*40)+"px) scale("+(1+0.03*Math.sin(t*6))+")";
     return;
   }
   let i=0;while(i<starts.length-1&&t>=starts[i+1])i++;
@@ -316,7 +324,7 @@ async function clipFrames(file, maxSec, dir, w = 1080, h = 1920) {
   return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
 }
 
-export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, modo = "instagram", layout = "cheio", headline = "", log = console.log }) {
+export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, modo = "instagram", layout = "cheio", headline = "", ganchoTopo = "", log = console.log }) {
   const { chromium } = await import("playwright");
   await mkdir(outDir, { recursive: true });
   const tmp = path.join(outDir, "_tmp");
@@ -371,6 +379,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     cupom,
     layout,
     headHtml: hookHtml(headline || cover?.hook || ""),
+    ganchoTopoHtml: ganchoTopo ? hookHtml(ganchoTopo) : "",
   };
   if (clip?.file) {
     const sc = scenes.find((x) => x.key === "produto");

@@ -6,7 +6,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { postReelUrl } from "./lib/social.mjs";
 import { hasTelegram, sendText } from "./lib/telegram.mjs";
-import { hasYouTube, postShort, textosYouTube } from "./lib/youtube.mjs";
+import { hasYouTube, postShort, textosYouTube, regrasYouTube, registrarYouTube, lerMetaYouTube } from "./lib/youtube.mjs";
 import { BRAND } from "../lib/brand.mjs";
 import { hasThreads, postThreadsVideo, textoThreads } from "./lib/threads.mjs";
 
@@ -24,24 +24,27 @@ async function threads(r) {
 
 const VITRINE = BRAND.site;
 
-const MARCA = (id) => `yt/reels-${id}.txt`;
-async function jaNoYouTube(id) {
-  const { data } = await sb.storage.from("capas").download(MARCA(id)).catch(() => ({ data: null }));
-  return data ? (await data.text()).trim() : "";
-}
-
-// o mesmo vídeo também vira Short no YouTube (falha no YouTube não atrapalha o Instagram)
+// o mesmo vídeo também vira Short no YouTube (falha no YouTube não atrapalha o Instagram).
+// Regras do canal: só vídeo com movimento, produto nunca repetido, até 3 por dia com intervalo (ver lib/youtube.mjs).
 async function youtube(r) {
   if (!hasYouTube()) {
     if (soYouTube && hasTelegram()) await sendText("⚠️ YouTube não configurado: faltam os segredos YT_CLIENT_ID, YT_CLIENT_SECRET e YT_REFRESH_TOKEN no GitHub.").catch(() => {});
     return;
   }
-  const feito = await jaNoYouTube(r.id);
-  if (feito) { console.log("Já está no YouTube:", feito); if (soYouTube && hasTelegram()) await sendText(`▶️ Esse já está no YouTube:\n${feito}`).catch(() => {}); return; }
+  const { data: feito } = await sb.from("bot_config").select("value").eq("key", `yt_reels_${r.id}`).maybeSingle();
+  if (feito?.value) { console.log("Já está no YouTube:", feito.value); if (soYouTube && hasTelegram()) await sendText(`▶️ Esse já está no YouTube:\n${feito.value}`).catch(() => {}); return; }
+  const meta = (await lerMetaYouTube(sb, r.id)) || {};
+  const regra = await regrasYouTube(sb, { offerId: meta.top ? null : r.offer_id, temVideo: Boolean(meta.temVideo), manual: soYouTube });
+  if (!regra.ok) {
+    console.log("YouTube pulado:", regra.motivo);
+    if (hasTelegram()) await sendText(`⏭️ Não fui pro YouTube: ${regra.motivo}.${soYouTube ? "" : " (Use ▶️ Postar no YouTube se quiser mesmo assim.)"}`).catch(() => {});
+    return;
+  }
   try {
-    const t = textosYouTube(r.caption, { link: r.offer_id ? `${VITRINE}/r/${r.offer_id}` : VITRINE });
-    const { url, privacy } = await postShort(r.video_url, t);
-    await sb.storage.from("capas").upload(MARCA(r.id), Buffer.from(url), { contentType: "text/plain", upsert: true }).catch(() => {});
+    const t = textosYouTube(r.caption, { link: r.offer_id ? `${VITRINE}/r/${r.offer_id}` : VITRINE, titulo: meta.titulo || "" });
+    const { url, privacy } = await postShort(meta.videoUrl || r.video_url, t);
+    await sb.from("bot_config").upsert({ key: `yt_reels_${r.id}`, value: url, updated_at: new Date().toISOString() });
+    await registrarYouTube(sb, { offerId: meta.top ? null : r.offer_id, url });
     if (hasTelegram()) await sendText(`▶️ Short no YouTube${privacy !== "public" ? ` (${privacy})` : ""}:\n${url}`).catch(() => {});
   } catch (e) {
     console.error("YouTube:", e.message);
