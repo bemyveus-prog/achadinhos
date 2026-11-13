@@ -41,13 +41,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Instalar
+        run: |
+          npm ci
+          bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
       - name: Pegar o vídeo
         env:
           VIDEO: ${{ inputs.video }}
           URL: ${{ inputs.url }}
         run: |
-          npm ci
-          command -v ffmpeg >/dev/null || bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
           if [ -n "$VIDEO" ]; then
             KEY=$(printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | tr -d '[:space:]'); BASE=$(printf '%s' "$SUPABASE_URL" | tr -d '[:space:]')
             curl -sSf -H "Authorization: Bearer $KEY" -H "apikey: $KEY" "$BASE/storage/v1/object/reels-videos/$VIDEO" -o v.mp4
