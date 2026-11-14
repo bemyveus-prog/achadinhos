@@ -29,7 +29,7 @@ async function graph(method, p, params = {}, json = null) {
   if (j.error) throw new Error(`${j.error.message}${j.error.error_subcode ? ` [${j.error.error_subcode}]` : ""}`);
   return j;
 }
-const enviar = (recipient, message) => graph("POST", `${PAGE || IG}/messages`, {}, { recipient, message });
+const enviar = (recipient, message) => graph("POST", `${PAGE || IG}/messages`, {}, { recipient, message, messaging_type: "RESPONSE" });
 
 async function main() {
   if (!T || !IG) { log("Sem META_PAGE_TOKEN/META_IG_USER_ID; nada a fazer."); return; }
@@ -107,7 +107,21 @@ async function main() {
         delete pend[outro.username];
         n2++;
         log("  ✓ link enviado");
-      } catch (e) { log(`  link: ${e.message}`); }
+      } catch (e) {
+        log(`  link: ${e.message}`);
+        // o Instagram bloqueou link no direct desta conta (restrição temporária): manda o caminho pela bio, sem link
+        if (/2534122|compartilhar link|share link/i.test(e.message)) {
+          const semLink = [
+            `O link${p.n ? ` do achadinho #${p.n}` : ""} tá na minha bio 👆`,
+            p.n ? `É só tocar no link do perfil e buscar ${p.n} na vitrine que ele aparece certinho.` : "É só tocar no link do perfil que tá tudo lá.",
+            "",
+            BRAND.canalTelegram ? "🔥 Lá também tem o botão do meu grupo VIP do Telegram, com as ofertas exclusivas." : "",
+            "Me segue pra ver um achado novo todo dia! ✨",
+          ].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n");
+          try { await enviar({ id: outro.id }, { text: semLink }); delete pend[outro.username]; n2++; log("  ✓ enviado o caminho pela bio (Instagram bloqueou link no direct)"); }
+          catch (e2) { log(`  sem link: ${e2.message}`); }
+        }
+      }
     }
   }
   // convite sem resposta em 24 h: a conversa fecha (regra do Instagram)
