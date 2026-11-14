@@ -10,7 +10,7 @@ import { writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { gql, hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
-import { gerarNarracao, gerarLegendaShopee, gerarHeadline } from "./lib/narracao.mjs";
+import { gerarNarracao, gerarLegendaShopee, gerarHeadline, resumoAnalise } from "./lib/narracao.mjs";
 import { normalize, score } from "./lib/escolha.mjs";
 import { pickCover, categoriesWithImages, coverConfig, categoryOf } from "./lib/capas.mjs";
 import { execFile } from "child_process";
@@ -344,8 +344,8 @@ async function main() {
     await writeFile(path.join(outDir, "legenda-shopee.txt"), legShopee + "\n");
     if (hasTelegram()) {
       const info = modo === "link"
-        ? `🔗 Vídeo com link #${offerId} (${seconds.toFixed(0)} s)\nPoste com o link do produto${off?.link ? `:\n${off.link}` : ""}\n\nLegenda (${legShopee.length}/150) 👇`
-        : `🛍️ Shopee Vídeo #${offerId} (${seconds.toFixed(0)} s)\nNo app Shopee: Vídeo → postar → vincule o produto #${offerId}${off?.link ? `\n${off.link}` : ""}\n\nLegenda (${legShopee.length}/150) 👇`;
+        ? `🔗 Vídeo com link #${offerId} (${seconds.toFixed(0)} s)\nPoste com o link do produto${off?.link ? `:\n${off.link}` : ""}${resumoAnalise() ? `\n\n${resumoAnalise()}` : ""}\n\nLegenda (${legShopee.length}/150) 👇`
+        : `🛍️ Shopee Vídeo #${offerId} (${seconds.toFixed(0)} s)\nNo app Shopee: Vídeo → postar → vincule o produto #${offerId}${off?.link ? `\n${off.link}` : ""}${resumoAnalise() ? `\n\n${resumoAnalise()}` : ""}\n\nLegenda (${legShopee.length}/150) 👇`;
       // botão que copia SÓ a legenda
       try { await sendVideo(file, info.slice(0, 1024), { inline_keyboard: [[{ text: "📋 Copiar legenda", copy_text: { text: legShopee } }]] }); }
       catch (e) { log(`  botão de copiar recusado (${e.message}); enviando sem`); await sendVideo(file, info.slice(0, 1024)); }
@@ -373,7 +373,7 @@ async function main() {
         markup = { inline_keyboard: [[{ text: "📤 Postar no Instagram", callback_data: `pub:${data.id}` }], [{ text: "▶️ Postar no YouTube", callback_data: `yt:${data.id}` }], [{ text: "🗑️ Descartar", callback_data: `nopub:${data.id}` }]] };
       } catch (e) { log(`  aprovação: ${e.message}`); }
     }
-    await sendVideo(file, `🎬 Reels #${offerId} (${seconds.toFixed(0)} s)${postarJa ? " · postando no Instagram…" : ""}\n\nLegenda:\n\n${legenda}`.slice(0, 1024), markup);
+    await sendVideo(file, `🎬 Reels #${offerId} (${seconds.toFixed(0)} s)${postarJa ? " · postando no Instagram…" : ""}${resumoAnalise() ? `\n\n${resumoAnalise()}` : ""}\n\nLegenda:\n\n${legenda}`.slice(0, 1024), markup);
     log("Enviado no Telegram.");
   }
   if (postarJa) {

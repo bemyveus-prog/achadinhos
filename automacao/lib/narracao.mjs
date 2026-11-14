@@ -29,7 +29,7 @@ export const GANCHOS = [
   { nome: "lista rápida", modelo: "Três motivos pra você querer isso na sua [casa/rotina]." },
   { nome: "exagero leve", modelo: "Sua [cozinha/rotina/casa] nunca mais vai ser a mesma." },
 ];
-const FECHOS = [
+const FECHOS_ANTIGOS = [
   "convite curto para conferir o preço de hoje, sem mencionar valor",
   "frase de efeito curta e original sobre como a rotina fica melhor (crie uma frase nova, não use clichês)",
   "urgência leve e honesta sobre o preço poder mudar, sem prometer estoque acabando",
@@ -37,39 +37,64 @@ const FECHOS = [
   "frase direta de recomendação, curta e confiante",
 ];
 
-export async function gerarNarracao(p, { contexto = "", max = 280, generico = false, log = console.log } = {}) {
+// ---------- Estrategista de vendas (prompt mestre do Jonas): análise psicológica + 3 a 5 gatilhos por produto ----------
+export const GATILHOS = ["Curiosidade", "FOMO", "Prova social", "Identificação", "Aversão à perda", "Ancoragem", "Antecipação", "Demonstração",
+  "Especificidade", "Efeito manada", "Reciprocidade", "Redução de risco", "Efeito Zeigarnik", "Linguagem sensorial", "Transformação"];
+// a última análise feita (para mostrar no Telegram junto do vídeo)
+export let ultimaAnalise = null;
+
+export async function gerarNarracao(p, { contexto = "", max = 300, generico = false, log = console.log } = {}) {
   const key = env("ANTHROPIC_API_KEY");
   if (!key) { log("  narração: modelo de texto (sem ANTHROPIC_API_KEY)"); return modelo(p); }
-  // um estilo de gancho e um de fechamento sorteados a cada vídeo (sempre a partir da DOR que o produto resolve)
+  // variedade: um estilo de abertura e um gatilho "sugerido" sorteados (a IA usa se combinar com o produto)
   const gancho = GANCHOS[Math.floor(Math.random() * GANCHOS.length)];
-  const fecho = FECHOS[Math.floor(Math.random() * FECHOS.length)];
-  const prompt = `Você é um copywriter de vídeos curtos de achadinhos${generico ? "" : " da Shopee"} (afiliado). Escreva a NARRAÇÃO falada de um vídeo de produto, em português do Brasil.
-Produto: "${p.name}"
-Texto que veio junto com o vídeo (pode ter a descrição do produto): """${String(contexto).slice(0, 800)}"""
+  const sugerido = GATILHOS[Math.floor(Math.random() * GATILHOS.length)];
+  const prompt = `Você é um estrategista profissional de marketing, copywriting, comportamento do consumidor e vendas online. Sua especialidade é transformar produtos comuns em ofertas desejáveis com psicologia de consumo, storytelling, persuasão ÉTICA e retenção de vídeos curtos.
 
-Passo 1 (pense, não escreva): qual DOR, incômodo ou desejo do dia a dia esse produto resolve, e para quem.
-Passo 2: escreva a narração assim:
-- ABERTURA no estilo: ${gancho.nome}. Modelo: "${gancho.modelo}". Adapte ao produto e à dor (não copie o modelo palavra por palavra).
-- MEIO: o produto como a solução e o ganho concreto na rotina, de forma visual.
-- FECHAMENTO no estilo: ${fecho}.
-Regras:
-- No máximo ${max} caracteres, ${max <= 160 ? "1 ou 2 frases curtas" : "2 ou 3 frases"}, ritmo rápido, linguagem falada.
-- PROIBIDO usar estas expressões gastas: "para tudo", "olha isso", "cansada de", "cansado de", "cansou de", "aproveita enquanto", "garante o seu", "você não vai acreditar", "achadinho incrível", "como vivia sem", "vale cada centavo".
-- NÃO fale de nota, avaliações, vendas nem preço exato (aparecem na tela).
-- Use SÓ o que dá para saber pelo nome e pelo texto acima. Não invente medidas, materiais, recursos, resultados ou promessas de saúde, nem características como "cabe em qualquer lugar", "fácil de limpar", "não enferruja" se isso não estiver escrito.
-- Não diga que você comprou ou usa o produto. Não fale de link, bio, cupom, seguir ou comentar${generico ? ", nem cite nenhuma loja ou plataforma (Amazon, Shopee etc.)" : ""}. Sem emojis, hashtags ou travessão.
-Responda só com o texto da narração.`;
+PRODUTO: "${p.name}"
+INFORMAÇÕES QUE VIERAM JUNTO (podem trazer descrição ou o que aparece nas fotos/vídeo): """${String(contexto).slice(0, 900)}"""
+
+1) ANÁLISE (antes de escrever): categoria, público provável, principal dor/problema que resolve, desejo oculto, benefício mais desejável, diferencial, principal objeção de compra e por que alguém compraria.
+
+2) GATILHOS: escolha de 3 a 5 desta lista, os que MAIS combinam com a categoria: ${GATILHOS.join(", ")}.
+Se fizer sentido para este produto, inclua "${sugerido}" (se não combinar, ignore). Os gatilhos devem soar naturais na fala.
+Por categoria: BELEZA E MODA → identificação, autoestima, desejo, linguagem sensorial, transformação realista. CASA E COZINHA → praticidade, demonstração, economia de tempo, solução de problema do dia a dia. ELETRÔNICOS → curiosidade, especificidade, demonstração, redução de risco. SAÚDE E BEM-ESTAR → informação responsável, confiança, características verificáveis, NUNCA prometa cura ou resultado médico. ACESSÓRIOS → identificação, estilo, praticidade, custo-benefício. INFANTIS → praticidade para os responsáveis, utilidade e segurança só se comprovada.
+PROIBIDO: inventar escassez, estoque acabando, avaliações, números de vendas, preços, resultados ou características que não estejam no nome/informações acima. FOMO, prova social, efeito manada e ancoragem só se houver dado real nas informações (se não houver, não use).
+
+3) HOOK (primeiros 3 segundos): interrompa a rolagem com um dos gatilhos escolhidos, começando direto pelo desejo, dor ou curiosidade. Inspiração de estilo (adapte, não copie): ${gancho.nome}, "${gancho.modelo}". Nunca comece com "Olá", "Hoje vim mostrar", "Você conhece esse produto?".
+
+4) NARRAÇÃO (texto que a voz vai ler): ATENÇÃO (o hook) → IDENTIFICAÇÃO (situação em que a pessoa se reconhece) → DESEJO → DEMONSTRAÇÃO (características e benefícios reais, de forma visual) → CONFIANÇA (quebre a principal objeção sem prometer nada). Deve parecer uma recomendação espontânea de amiga, não propaganda. Cada frase precisa ajudar na decisão; sem repetir benefício; venda o benefício, não só descreva o objeto.
+A chamada final (ação) NÃO entra na narração: o vídeo já tem uma tela final com o convite. Então não fale de link, bio, cupom, seguir ou comentar${generico ? ", nem cite loja ou plataforma (Amazon, Shopee etc.)" : ""}.
+- No máximo ${max} caracteres (${max <= 160 ? "1 ou 2 frases curtas" : "vídeo de ~15 a 20 s"}), linguagem falada do Brasil, frases curtas, ritmo rápido.
+- Não diga que você comprou ou usa o produto. Não fale de nota, avaliações, vendas nem preço exato.
+- Expressões proibidas (gastas): "para tudo", "olha isso", "cansada de", "cansado de", "cansou de", "aproveita enquanto", "garante o seu", "você não vai acreditar", "achadinho incrível", "como vivia sem", "vale cada centavo".
+- Sem emojis, hashtags, travessão, aspas ou indicações técnicas (nada de [pausa], cena, etc.).
+
+Responda SOMENTE com um JSON válido, sem nada antes ou depois:
+{"categoria":"...","publico":"...","dor":"...","desejo":"...","objecao":"...","gatilhos":[{"nome":"...","como":"como foi usado, em poucas palavras"}],"hook":"...","narracao":"texto completo para a voz, começando pelo hook"}`;
   try {
-    const raw = await claude({ model: env("ANTHROPIC_MODEL_NARRACAO", "claude-haiku-5-5"), content: prompt, max: 400 });
-    let t = raw.replace(/\s+/g, " ").replace(/[—–]/g, ",").replace(/^["']|["']$/g, "").trim();
+    const raw = await claude({ model: env("ANTHROPIC_MODEL_NARRACAO", "claude-haiku-5-5"), content: prompt, max: 900 });
+    let j = null;
+    try { j = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)); } catch {}
+    let t = String(j?.narracao || (j ? "" : raw)).replace(/\s+/g, " ").replace(/[—–]/g, ",").replace(/^["']|["']$/g, "").trim();
     if (t.length > max + 30) t = t.slice(0, max + 20).replace(/[^.!?]*$/, "").trim() || t.slice(0, max + 20);
     if (!t) throw new Error("resposta vazia");
-    log(`  narração (IA, gancho "${gancho.nome}"): "${t}"`);
+    ultimaAnalise = j ? { categoria: j.categoria, publico: j.publico, dor: j.dor, desejo: j.desejo, objecao: j.objecao, gatilhos: (j.gatilhos || []).map((g) => g.nome || g).filter(Boolean).slice(0, 5), hook: j.hook } : null;
+    log(`  análise: ${j ? `${j.categoria} | público: ${j.publico} | dor: ${j.dor} | desejo: ${j.desejo} | objeção: ${j.objecao}` : "(sem JSON)"}`);
+    log(`  gatilhos: ${ultimaAnalise?.gatilhos?.join(", ") || "?"}`);
+    log(`  narração (IA): "${t}"`);
     return t;
   } catch (e) {
     log(`  narração: IA falhou (${e.message}); usando modelo de texto`);
     return modelo(p);
   }
+}
+
+// linha curta para a mensagem do Telegram
+export function resumoAnalise() {
+  const a = ultimaAnalise;
+  if (!a) return "";
+  return `🧠 Gatilhos: ${a.gatilhos.join(", ")}${a.publico ? `\n🎯 Público: ${String(a.publico).slice(0, 90)}` : ""}${a.objecao ? `\n🛡️ Objeção tratada: ${String(a.objecao).slice(0, 90)}` : ""}`;
 }
 
 // ---------- legenda do Shopee Vídeo: no máximo 150 caracteres, com hashtags do produto ----------
