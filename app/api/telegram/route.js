@@ -628,9 +628,12 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
     : ctxLayout ? (/^cheio$/i.test(ctxLayout) ? "cheio" : /^limpo$/i.test(ctxLayout) ? "limpo" : "mascara") : await getFormato();
   // depois do número: SKU da CJ (tem letras e números, ex.: CJYD2300009) e, sem "texto:", o resto vira narração
   const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio|limpo|roteiro)$/i.test(a));
-  const looksSku = (a) => /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
+  const looksSku = (a) => !/^(https?:|www\.)/i.test(a) && /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
   const sku = rest[0] && looksSku(rest[0]) ? rest[0] : "";
   if (!fala) fala = rest.slice(sku ? 1 : 0).join(" ").trim();
+  // link colado junto do número não é narração (a voz leria o endereço letra por letra)
+  fala = String(fala).replace(/(?:https?:\/\/|www\.)\S+/gi, " ").replace(/\s+/g, " ").trim();
+  if (!fala && extra.fotos && !extra.gerarFala) extra = { ...extra, gerarFala: true };
   if (!num) return say(chat, "Use assim: <b>/reels 105 CJYD2300009</b>\n(número da vitrine e, se quiser, o SKU da CJ; acrescente <i>postar</i> para postar direto)\nPara narrar o seu texto: <b>/reels 105 CJYD2300009 texto: seu texto aqui</b>");
   if (fala.length > 400) return say(chat, `O texto ficou com ${fala.length} letras. Use até 400 (uns 25 segundos de fala).`);
   const token = (process.env.GITHUB_TOKEN || "").trim();

@@ -265,7 +265,7 @@ async function main() {
   const c = cfg[slug] || {};
   const ganchos = c.ganchos?.length ? c.ganchos : ["Eu *não acreditei* quando vi isso"];
   const cover = { hook: ganchos[Math.floor(Date.now() / 3600000) % ganchos.length], accent: c.cor || BRAND.accent };
-  let fala = (process.env.REELS_FALA || "").replace(/\s+/g, " ").trim().slice(0, 400);
+  let fala = (process.env.REELS_FALA || "").replace(/(?:https?:\/\/|www\.)\S+/gi, " ").replace(/\s+/g, " ").trim().slice(0, 400);
   // sem texto seu: com a chave da IA, a narração é escrita para este produto (senão usa o texto padrão)
   if (!fala && (env("REELS_GERAR_FALA", "") === "1" || env("ANTHROPIC_API_KEY", ""))) fala = await gerarNarracao(p, { contexto: [visto?.det ? `O que aparece nas fotos: ${visto.det}` : "", nomeGenerico(env("REELS_CONTEXTO", "")) ? "" : env("REELS_CONTEXTO", "")].filter(Boolean).join(". "), generico: env("REELS_MODO", "").startsWith("link"), log });
   if (fala) log(`Narração própria: "${fala}"`);
