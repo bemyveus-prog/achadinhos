@@ -48,7 +48,7 @@ def blocos(linhas):
         for b in out:
             ultimo = b["linhas"][-1]
             hx = min(b["x1"], l["x1"]) - max(b["x0"], l["x0"])
-            if 0 <= l["y0"] - ultimo["y1"] < 0.9 * h and hx > -0.2 * (l["x1"] - l["x0"]) and abs(h - (ultimo["y1"] - ultimo["y0"])) < 0.6 * h:
+            if -0.5 * h <= l["y0"] - ultimo["y1"] < 0.9 * h and hx > -0.2 * (l["x1"] - l["x0"]) and abs(h - (ultimo["y1"] - ultimo["y0"])) < 0.7 * h:
                 alvo = b
                 break
         if alvo:
@@ -107,8 +107,103 @@ def ler_texto(video, tmp, W, H):
         # texto mais comum (o OCR erra uma letra aqui e ali)
         s["texto"] = max(set(s["textos"]), key=lambda x: (s["textos"].count(x), len(x)))
     segs = [s for s in segs if len(s["textos"]) >= 2 or (s["fim"] - s["ini"]) > 0]
-    log(f"  {len(quadros)} quadros lidos, {len(segs)} textos na tela")
-    return segs
+    # mesmo texto que "piscou" (o OCR perdeu 1 ou 2 quadros): vira um trecho só
+    segs.sort(key=lambda s: s["ini"])
+    juntos = []
+    for s in segs:
+        a = next((j for j in juntos if s["ini"] - j["fim"] <= 0.8 and iou(j["box"], s["box"]) > 0.2
+                  and SequenceMatcher(None, j["texto"].lower(), s["texto"].lower()).ratio() > 0.8), None)
+        if a:
+            a["fim"] = max(a["fim"], s["fim"])
+            for k, fn in (("x0", min), ("y0", min), ("x1", max), ("y1", max)):
+                a["box"][k] = fn(a["box"][k], s["box"][k])
+        else:
+            juntos.append(s)
+    log(f"  {len(quadros)} quadros lidos, {len(juntos)} textos na tela")
+    return juntos
+
+
+def quadros_cinza(video, W, H, fps=15, larg=360):
+    """todos os quadros em tons de cinza, pequenos (para acertar o tempo de entrada/saída de cada texto)"""
+    h = int(round(H * larg / W / 2) * 2)
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", video, "-vf", f"fps={fps},scale={larg}:{h},format=gray", "-f", "rawvideo", "-"],
+                         check=True, capture_output=True).stdout
+    n = len(raw) // (larg * h)
+    return [raw[i * larg * h:(i + 1) * larg * h] for i in range(n)], larg, h, fps
+
+
+def acertar_tempo(segs, video, W, H, ocr=None):
+    """o OCR olha 3 quadros por segundo: aqui relê só o pedaço da tela de cada texto, 15 vezes por segundo,
+    para achar o quadro exato em que o texto entra e sai (sem pegar o texto do trecho vizinho)"""
+    import numpy as np
+    try:
+        qs, lw, lh_, fps = quadros_cinza(video, W, H, larg=540)
+    except Exception as e:
+        log(f"  acertar tempo: {e}")
+        return
+    ocr = ocr or RapidOCR()
+    e = lw / W
+    for s in segs:
+        b = s["box"]
+        pad = int(s["lh"] * e * 0.4) + 2
+        x0, y0 = max(0, int(b["x0"] * e) - pad), max(0, int(b["y0"] * e) - pad)
+        x1, y1 = min(lw, int(b["x1"] * e) + pad), min(lh_, int(b["y1"] * e) + pad)
+        alvo = s["texto"].lower()
+        def presente(k):
+            img = np.frombuffer(qs[k], dtype=np.uint8).reshape(lh_, lw)[y0:y1, x0:x1]
+            r, _ = ocr(np.ascontiguousarray(img))
+            lido = " ".join(str(t) for _, t, c in (r or []) if float(c) > 0.4).lower()
+            return bool(lido) and (SequenceMatcher(None, alvo, lido).ratio() > 0.5 or (len(lido) > 3 and lido in alvo))
+        ki = min(len(qs) - 1, int(round(s["ini"] * fps)))
+        kf = min(len(qs) - 1, int(round(s["fim"] * fps)))
+        k = ki
+        while k - 1 >= 0 and ki - (k - 1) <= 0.5 * fps and presente(k - 1):
+            k -= 1
+        s["ini"] = k / fps
+        k = kf
+        while k + 1 < len(qs) and (k + 1) - kf <= 0.5 * fps and presente(k + 1):
+            k += 1
+        s["fim"] = (k + 1) / fps
+        if os.environ.get("TRADUZIR_DEBUG"):
+            log("   dbg", s["texto"][:20], f"{s['ini']:.2f}-{s['fim']:.2f}")
+
+
+def alargar(video, s, W, H):
+    """emojis e enfeites ao lado do texto (o OCR não lê): estica a caixa até cobrir"""
+    f = tempfile.mktemp(suffix=".png")
+    t = (s["ini"] + s["fim"]) / 2
+    try:
+        sh("ffmpeg", "-v", "error", "-y", "-ss", f"{t:.2f}", "-i", video, "-frames:v", "1", f)
+        im = Image.open(f).convert("HSV")
+    except Exception:
+        return
+    finally:
+        if os.path.exists(f):
+            os.remove(f)
+    b, lh = s["box"], s["lh"]
+    y0, y1 = int(max(0, b["y0"])), int(min(H - 1, b["y1"]))
+    passo = max(1, int(lh / 12))
+    def tinta(x):
+        for y in range(y0, y1 + 1, passo):
+            hh, ss, vv = im.getpixel((x, y))
+            if (ss > 115 and vv > 90) or vv > 215:
+                return True
+        return False
+    for lado in (1, -1):
+        x = int(b["x1"]) if lado == 1 else int(b["x0"])
+        ultimo, vazio = x, 0
+        while 0 < x < W - 1 and abs(x - (b["x1"] if lado == 1 else b["x0"])) < 3.2 * lh:
+            x += lado * 2
+            if tinta(x):
+                ultimo, vazio = x, 0
+            else:
+                vazio += 2
+                if vazio > 0.7 * lh:
+                    break
+        if lado == 1:
+            b["x1"] = max(b["x1"], ultimo)
+        else:
+            b["x0"] = min(b["x0"], ultimo)
 
 
 def traduzir(textos):
@@ -218,10 +313,11 @@ def main(entrada, saida):
         log("SEM_TEXTO")
         sh("cp", entrada, saida)
         return
+    acertar_tempo(segs, entrada, W, H)
     trad = traduzir([s["texto"] for s in segs])
     usar = []
     for s, pt in zip(segs, trad):
-        log(f"  {s['ini']:.1f}-{s['fim']:.1f}s  {s['texto']!r} → {pt!r}")
+        log(f"  {s['ini']:.2f}-{s['fim']:.2f}s  {s['texto']!r} → {pt!r}")
         if pt and pt.strip().lower() != s["texto"].strip().lower():
             s["pt"] = pt
             usar.append(s)
@@ -232,11 +328,12 @@ def main(entrada, saida):
     entradas, filtros, ant = ["-i", entrada], [], "[0:v]"
     for i, s in enumerate(usar):
         meio = (s["ini"] + s["fim"]) / 2
+        alargar(entrada, s, W, H)
         fundo, cor = cor_fundo(entrada, meio, s["box"])
         png = os.path.join(tmp, f"t{i}.png")
         x, y = caixa_png(s["pt"], s["box"], s["lh"], fundo, cor, W, H, png)
         entradas += ["-i", png]
-        ini, fim = max(0, s["ini"] - 0.5 / FPS_OCR), min(dur, s["fim"] + 1.0 / FPS_OCR)
+        ini, fim = max(0, s["ini"]), min(dur, s["fim"])
         lab = f"[v{i}]"
         filtros.append(f"{ant}[{i + 1}:v]overlay={x}:{y}:enable='between(t,{ini:.2f},{fim:.2f})'{lab}")
         ant = lab
