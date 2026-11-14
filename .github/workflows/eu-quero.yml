@@ -20,7 +20,7 @@ jobs:
   responder:
     if: (github.event_name != 'schedule' || github.repository == 'bemyveus-prog/achadinhos' || vars.AGENDA == 'ligada') && (github.event_name != 'schedule' || vars.EU_QUERO == 'ligado')
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: automacao

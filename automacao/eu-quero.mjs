@@ -75,6 +75,7 @@ async function main() {
   }
 
   // ---------- passo 2: quem respondeu (tocou no botão) recebe o link ----------
+  const passo2 = async () => {
   const nomes = Object.keys(pend);
   if (nomes.length) {
     let convs = [];
@@ -123,6 +124,15 @@ async function main() {
         }
       }
     }
+  }
+  };
+  await passo2();
+  // o agendamento do GitHub atrasa: com convite recente, fica de olho por até ~12 min (a cada 20 s)
+  const recente = () => Object.values(pend).some((p) => Date.now() - p.at < 20 * 60000);
+  const fim = Date.now() + Number(env("EU_QUERO_ESPERA_MIN", "12")) * 60000;
+  while (!teste && recente() && Date.now() < fim) {
+    await new Promise((r) => setTimeout(r, 20000));
+    await passo2();
   }
   // convite sem resposta em 24 h: a conversa fecha (regra do Instagram)
   for (const [u, p] of Object.entries(pend)) if (Date.now() - p.at > 24 * 3600000) delete pend[u];
