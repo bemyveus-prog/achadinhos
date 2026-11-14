@@ -352,6 +352,10 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   if (clip?.file) {
     try { clipDur = Math.max(0, Math.min(clip.maxSec || 5, (await audioDuration(clip.file)) - 0.6)); } catch { clipDur = 4; }
   }
+  // o vídeo não segura a cena além da fala: sobra de vídeo depois da narração vira pausa muda antes do final
+  const iProd = scenes.findIndex((s) => s.key === "produto");
+  const falaProd = iProd >= 0 ? voice[iProd]?.duration || 0 : 0;
+  if (clipDur && falaProd) clipDur = Math.min(clipDur, falaProd + 0.6);
   scenes.forEach((s, i) => {
     const min = s.key === "produto" && clipDur ? Math.max(s.min, clipDur) : s.min;
     s.dur = Math.max(min, voice[i].duration + 0.25); s.start = acc; acc += s.dur;
