@@ -297,10 +297,14 @@ async function main() {
   const FORMATOS = ["mascara", "cheio", "limpo"];
   const layout = FORMATOS.includes(layoutRaw) ? layoutRaw : FORMATOS.includes(padrao) ? padrao : (Math.random() < 0.5 ? "mascara" : "cheio");
   log(`Formato: ${layout === "mascara" ? "máscara (headline + vídeo + chamada)" : layout === "limpo" ? "limpo (só o vídeo + narração)" : "tela cheia"}`);
-  const headline = layout === "mascara" ? await gerarHeadline(p, { fala, log }) : "";
+  // frase de curiosidade: na máscara fica no topo o tempo todo; nos outros formatos com vídeo, aparece nos primeiros 3 s
+  // (prende quem está rolando o feed no Instagram, no Shopee Vídeo e no YouTube). GANCHO_TELA=nao desliga.
+  const comGancho = layout === "mascara" || (clip?.file && env("GANCHO_TELA", "sim") !== "nao");
+  const headline = comGancho ? await gerarHeadline(p, { fala, log }) : "";
+  const ganchoTopo = layout !== "mascara" && clip?.file ? headline : "";
   if (modo === "link") log("Modo link: final genérico chamando para o link abaixo (sem citar a loja)");
   if (modo === "shopee") log("Modo Shopee Vídeo: final chamando para o produto vinculado");
-  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, modo, layout, headline, handle: BRAND.handle, log });
+  const { file, seconds, scenes } = await renderReel2(p, { cover, nome, number: `#${offerId}`, outDir, clip, fala, cupom, avatar, modo, layout, headline, ganchoTopo, handle: BRAND.handle, log });
 
   // ---------- versão do YouTube: só quando há imagem em movimento (vídeo real ou 2+ fotos) ----------
   // formato limpo (vídeo em tela cheia desde o 1º segundo) com uma frase de curiosidade no começo e título de curiosidade

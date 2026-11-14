@@ -304,6 +304,12 @@ window.renderClip=(t)=>{
   if(on){$("card").style.opacity=0;$("name").style.opacity=0;$("chips").style.top=D.layout==="mascara"?"1380px":"1560px";if(D.layout==="mascara")$("chips").style.opacity=0}
   else{$("chips").style.top="1290px"}
   $("cliptag").style.opacity=0;
+  // tela cheia com vídeo: a mesma frase de curiosidade nos primeiros 3 s
+  if(D.layout==="cheio"&&D.ganchoTopoHtml){
+    const kh=on?Math.min(ease(t/0.25),clamp((3.2-t)/0.4)):0;
+    $("lhook").style.opacity=kh;$("lhook").style.transform="scale("+(0.9+0.1*ease(t/0.3))+")";
+    if(kh>0)$("sub").style.opacity=0;
+  }
 };
 </script></body></html>`;
 }
