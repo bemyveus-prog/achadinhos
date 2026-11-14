@@ -29,7 +29,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
-🖼️ <b>Fotos → vídeo</b>: mande várias fotos de uma vez (álbum) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Vira vídeo com zoom nas fotos, narração e o final.
+🖼️ <b>Fotos/vídeos → vídeo</b>: mande várias fotos ou vídeos de uma vez (álbum, pode misturar) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Os vídeos são emendados com transição, ganham narração, legenda e o final.
 📝 <b>/roteiro</b>: mande um vídeo com a legenda /roteiro (ou /roteiro link-do-tiktok) e a IA transcreve a fala e escreve uma narração nova com as nossas palavras. Depois use <b>/reels 227 roteiro</b> (ou /shopee, /link) para gerar o vídeo com ela.
 📌 <b>Link do Pinterest ou do TikTok</b>: cole o link do vídeo (pin.it/…, vm.tiktok.com/…) e o bot devolve o vídeo baixado.
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
@@ -383,14 +383,19 @@ async function fotosProduto(msg, cap) {
   const grupo = msg.media_group_id || `m${msg.message_id}`;
   const pasta = `fotos/${grupo}`;
   const doc = msg.document && /^image\//.test(msg.document.mime_type || "") ? msg.document : null;
-  const fileId = doc ? doc.file_id : msg.photo?.[msg.photo.length - 1]?.file_id;
-  if (fileId) {
+  const vid = msg.video || (msg.document && /^video\//.test(msg.document.mime_type || "") ? msg.document : null);
+  const fileId = vid ? vid.file_id : doc ? doc.file_id : msg.photo?.[msg.photo.length - 1]?.file_id;
+  if (vid && (vid.file_size || 0) > 20 * 1024 * 1024) { if (cap || !msg.media_group_id) await say(chat, "⚠️ Um dos vídeos passa de 20 MB (limite do Telegram para o bot baixar) e ficou de fora."); }
+  else if (fileId) {
     try {
       const f = await tg("getFile", { file_id: fileId });
       const res = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/${f.file_path}`, { cache: "no-store" });
-      const ext = (f.file_path.split(".").pop() || "jpg").toLowerCase().replace("jpeg", "jpg");
-      await db().storage.from("reels-videos").upload(`${pasta}/${String(msg.message_id).padStart(12, "0")}.${["png", "webp"].includes(ext) ? ext : "jpg"}`, Buffer.from(await res.arrayBuffer()), { contentType: ext === "png" ? "image/png" : "image/jpeg", upsert: true });
-    } catch (e) { if (cap) return say(chat, `Erro ao guardar a foto: ${esc(e.message)}`); }
+      let ext = (f.file_path.split(".").pop() || "jpg").toLowerCase().replace("jpeg", "jpg");
+      if (vid && !["mp4", "mov", "webm", "m4v"].includes(ext)) ext = "mp4";
+      if (!vid && !["png", "webp"].includes(ext)) ext = "jpg";
+      const type = vid ? (ext === "mov" ? "video/quicktime" : ext === "webm" ? "video/webm" : "video/mp4") : ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+      await db().storage.from("reels-videos").upload(`${pasta}/${String(msg.message_id).padStart(12, "0")}.${ext}`, Buffer.from(await res.arrayBuffer()), { contentType: type, upsert: true });
+    } catch (e) { if (cap) return say(chat, `Erro ao guardar ${vid ? "o vídeo" : "a foto"}: ${esc(e.message)}`); }
   }
   if (!cap) return; // demais fotos do álbum: só guarda
 
@@ -436,7 +441,7 @@ async function fotosProduto(msg, cap) {
     for (const m of modos) await startReels(chat, [String(offerId)], "", "", m, { fotos: pasta, gerarFala: true, contexto: cap.replace(url, "").trim() });
     return;
   }
-  return say(chat, "Para virar vídeo, mande as fotos com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>.");
+  return say(chat, "Para virar vídeo, mande as fotos/vídeos (de uma vez, como álbum) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>.");
 }
 
 async function listCovers(chat) {
@@ -645,7 +650,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
     let msg = t; try { msg = JSON.parse(t).message || t; } catch {}
     return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? `Confira o GITHUB_TOKEN da Vercel: precisa ter acesso ao repositório ${REPO} com a permissão Actions: Read and write.` : ""}`);
   }
-  if (extra.fotos) return say(chat, `🖼️ Gerando o vídeo do <b>#${num}</b> com as suas fotos${modo === "link" ? " e final genérico (clique no link abaixo)" : modo === "shopee" ? " para o Shopee Vídeo" : " para o Reels"}. Chega aqui em uns 3 minutos.`);
+  if (extra.fotos) return say(chat, `🖼️ Gerando o vídeo do <b>#${num}</b> com as suas fotos/vídeos (emendados)${modo === "link" ? " e final genérico (clique no link abaixo)" : modo === "shopee" ? " para o Shopee Vídeo" : " para o Reels"}. Chega aqui em uns 3 minutos.`);
   if (modo === "link") return say(chat, `🔗 Gerando o vídeo do <b>#${num}</b> com final genérico (clique no link abaixo, sem citar a loja). Chega aqui em uns 2 minutos.`);
   if (modo === "shopee") return say(chat, `🛍️ Gerando o vídeo do <b>#${num}</b> para o <b>Shopee Vídeo</b>${video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " e a sua narração" : ""}.\nChega aqui em uns 2 minutos.`);
   return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${video && sku ? ` com o seu vídeo + o vídeo da CJ (<code>${esc(sku)}</code>)` : video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " com a sua narração" : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
@@ -673,6 +678,8 @@ async function onVideo(msg) {
     let name; try { name = await saveTelegramVideo(v); } catch (e) { return say(chat, esc(e.message)); }
     return pedirRoteiro(chat, { video: name, contexto: cap.replace(/^\/?roteiro\S*/i, "").trim() });
   }
+  // vários vídeos de uma vez (álbum, pode misturar com fotos): emenda tudo num vídeo só
+  if (msg.media_group_id) return fotosProduto(msg, cap);
   const isCmd = /^\/?(reels|shopee|link)\b/i.test(cap);
   const amzUrl = (cap.match(AMAZON_RE) || [])[0];
   if (!isCmd && amzUrl) return amazonVideo(msg, cap, amzUrl);

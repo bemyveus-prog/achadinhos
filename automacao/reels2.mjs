@@ -158,18 +158,42 @@ async function main() {
   }
   // várias fotos mandadas pelo bot (pasta no Storage reels-videos): viram o vídeo do produto
   const pastaFotos = (process.env.REELS_FOTOS || "").trim();
-  let fotosBaixadas = [];
+  let fotosBaixadas = [], temVideoEnviado = false;
   if (pastaFotos && !clip) {
     const { mkdir } = await import("fs/promises");
     await mkdir(outDir, { recursive: true });
-    const { data: lista } = await sb.storage.from("reels-videos").list(pastaFotos, { limit: 20, sortBy: { column: "name", order: "asc" } });
-    const fotos = [];
-    for (const f of (lista || []).filter((x) => /\.(jpe?g|png|webp)$/i.test(x.name))) {
+    // as mensagens do álbum chegam uma por uma: espera a pasta parar de crescer (até ~45 s)
+    let lista = [];
+    for (let i = 0; i < 6; i++) {
+      const { data } = await sb.storage.from("reels-videos").list(pastaFotos, { limit: 30, sortBy: { column: "name", order: "asc" } });
+      const nova = (data || []).filter((x) => /\.(jpe?g|png|webp|mp4|mov|webm|m4v)$/i.test(x.name));
+      if (i > 0 && nova.length === lista.length) { lista = nova; break; }
+      lista = nova;
+      await new Promise((r) => setTimeout(r, i === 0 ? 4000 : 8000));
+    }
+    const fotos = [], midias = [];
+    for (const f of lista.slice(0, 20)) {
       const { data } = await sb.storage.from("reels-videos").download(`${pastaFotos}/${f.name}`);
       if (!data) continue;
-      const file = path.join(outDir, `foto-${fotos.length + 1}${path.extname(f.name)}`);
+      const video = /\.(mp4|mov|webm|m4v)$/i.test(f.name);
+      const file = path.join(outDir, `${video ? "clipe" : "foto"}-${midias.length + 1}${path.extname(f.name)}`);
       await writeFile(file, Buffer.from(await data.arrayBuffer()));
-      fotos.push(file);
+      midias.push({ file, video });
+      if (!video) fotos.push(file);
+    }
+    const videosEnviados = midias.filter((m) => m.video).map((m) => m.file);
+    // vídeo enviado: tira 1 quadro para a IA olhar e para servir de foto do produto
+    for (const [i, v] of videosEnviados.slice(0, 3).entries()) {
+      const q = path.join(outDir, `quadro-video-${i + 1}.jpg`);
+      try { await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "1", "-i", v, "-frames:v", "1", "-vf", "scale=1080:-2", q]); fotos.push(q); } catch {}
+    }
+    if (videosEnviados.length) {
+      const { midiasParaVideo } = await import("./lib/fotosvideo.mjs");
+      const falaPrev = (process.env.REELS_FALA || "").length || 230;
+      const v = await midiasParaVideo(midias, path.join(outDir, "midias.mp4"), { alvo: Math.max(14, falaPrev / 15 + 3), log });
+      clip = { file: v.file, maxSec: 60 };
+      temVideoEnviado = true;
+      log(`Usando ${videosEnviados.length} vídeo(s) e ${midias.length - videosEnviados.length} foto(s) enviados, emendados (${pastaFotos})`);
     }
     fotosBaixadas = fotos;
     // produto sem foto (ex.: link da Shein/AliExpress que não trouxe imagem): a 1ª foto enviada vira a foto do produto
@@ -181,7 +205,8 @@ async function main() {
         log("  sem foto do produto: usando a 1ª foto enviada");
       } catch (e) { p.imageUrl = fotos[0]; log(`  foto do produto: ${e.message}`); }
     }
-    if (fotos.length) {
+    if (clip) { /* vídeos enviados já viraram o clipe */ }
+    else if (fotos.length) {
       const { fotosParaVideo } = await import("./lib/fotosvideo.mjs");
       // tempo de cada foto acompanha mais ou menos a narração (~15 letras por segundo)
       const falaPrev = (process.env.REELS_FALA || "").length || 230;
@@ -280,7 +305,7 @@ async function main() {
   // ---------- versão do YouTube: só quando há imagem em movimento (vídeo real ou 2+ fotos) ----------
   // formato limpo (vídeo em tela cheia desde o 1º segundo) com uma frase de curiosidade no começo e título de curiosidade
   const { hasYouTube: temYT } = await import("./lib/youtube.mjs");
-  const temVideo = Boolean(clip?.file) && (fotosBaixadas.length === 0 || fotosBaixadas.length >= 2);
+  const temVideo = Boolean(clip?.file) && (temVideoEnviado || fotosBaixadas.length === 0 || fotosBaixadas.length >= 2);
   let yt = { temVideo, titulo: "", file: null };
   if (temVideo && temYT() && modo !== "shopee") {
     try {
