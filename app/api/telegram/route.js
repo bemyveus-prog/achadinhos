@@ -35,6 +35,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
+🌎 <b>/traduzir</b> → mande o vídeo com essa legenda (ou /traduzir link): o texto escrito na tela em outra língua ganha a legenda em português por cima
 🎙️ <b>/vozes</b> → ouvir e escolher a voz da narração (ElevenLabs) · <b>/voz</b> mostra a voz atual e os créditos
 🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (só o vídeo com a narração) no comando ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
@@ -131,6 +132,19 @@ async function onText(msg) {
     const u = (text.match(/https?:\/\/\S+/) || [])[0];
     if (!u) return say(chat, "Mande o vídeo com a legenda <b>/roteiro</b>, ou: <b>/roteiro link-do-tiktok</b>");
     return pedirRoteiro(chat, { url: u, contexto: text.replace(/^\/roteiro\S*/i, "").replace(u, "").trim() });
+  }
+  // /traduzir link: baixa o vídeo e coloca a legenda em português por cima do texto escrito na tela
+  if (/^\/traduzir\b/i.test(text)) {
+    const u = (text.match(/https?:\/\/\S+/) || [])[0];
+    if (!u) return say(chat, "Mande o vídeo com a legenda <b>/traduzir</b>, ou: <b>/traduzir link-do-vídeo</b> (TikTok, Instagram, Pinterest, Kwai).");
+    return pedirTraducao(chat, { url: u });
+  }
+  // link do Instagram: tenta baixar (o Instagram costuma bloquear servidores; aí é salvar pelo app)
+  const ig = (text.match(INSTA_RE) || [])[0];
+  if (ig && !text.startsWith("/")) {
+    try { await dispatchWorkflow("baixar-video.yml", { url: ig, tipo: "ytdlp", legenda: "📸 Vídeo do Instagram baixado." }); }
+    catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+    return say(chat, "📸 Tentando baixar o vídeo do Instagram… chega aqui em ~1 minuto. (Se o Instagram bloquear, salve o Reels pelo app e mande aqui.)");
   }
   const tt = (text.match(TIKTOK_RE) || [])[0];
   if (tt && !text.startsWith("/")) {
@@ -675,6 +689,12 @@ async function onVideo(msg) {
   const cap = (msg.caption || "").trim();
   const shopeeUrl = (cap.match(/https?:\/\/(?:s\.shopee\.com\.br|(?:[a-z]{2,3}\.)?shope\.ee|(?:[a-z]{2,3}\.)?shp\.ee|(?:www\.)?shopee\.com\.br)\/[^\s)>\]]+/i) || [])[0];
   // /roteiro na legenda do vídeo: transcreve a fala e a IA reescreve com as nossas palavras
+  if (/^\/?traduzir\b/i.test(cap)) {
+    const v = msg.video || msg.document;
+    if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "Esse vídeo passa de 20 MB (limite do Telegram para o bot baixar).");
+    let name; try { name = await saveTelegramVideo(v); } catch (e) { return say(chat, esc(e.message)); }
+    return pedirTraducao(chat, { video: name });
+  }
   if (/^\/?roteiro\b/i.test(cap)) {
     const v = msg.video || msg.document;
     if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "Esse vídeo passa de 20 MB (limite do Telegram para o bot baixar).");
@@ -1100,6 +1120,13 @@ async function shopeeVideoMp4(link) {
 }
 
 // ---------- Pinterest: baixar o vídeo de um pin ----------
+const INSTA_RE = /https?:\/\/(?:www\.)?instagram\.com\/(?:reels?|p|tv)\/[^\s)>\]]+/i;
+// tradução do texto da tela (workflow traduzir.yml)
+async function pedirTraducao(chat, { video = "", url = "" }) {
+  try { await dispatchWorkflow("traduzir.yml", { video, url }); }
+  catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+  return say(chat, "🌎 Lendo o texto da tela e traduzindo para o português… o vídeo chega aqui em ~2 minutos.");
+}
 const TIKTOK_RE = /https?:\/\/(?:(?:www|m|vm|vt)\.)?(?:tiktok\.com|kwai\.com|kw\.ai)\/[^\s)>\]]+/i;
 const PIN_RE = /https?:\/\/(?:pin\.it|(?:[a-z]{2,3}\.|www\.)?pinterest\.[a-z.]+\/pin)\/[^\s)>\]]+/i;
 async function pinterestVideo(link) {

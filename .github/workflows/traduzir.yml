@@ -1,0 +1,59 @@
+name: Traduzir texto da tela
+
+# Disparado pelo bot (/traduzir): lê o texto escrito no vídeo (OCR), traduz para o português e coloca por cima.
+on:
+  workflow_dispatch:
+    inputs:
+      video:
+        description: "Arquivo no Storage (reels-videos)"
+        default: ""
+      url:
+        description: "Ou link do vídeo (TikTok, Instagram, Pinterest, Kwai)"
+        default: ""
+
+env:
+  MARCA: ${{ vars.MARCA }}
+
+jobs:
+  traduzir:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: automacao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar
+        run: |
+          pip install -q rapidocr-onnxruntime pillow "yt-dlp[default,curl-cffi]"
+          command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg >/dev/null)
+      - name: Traduzir e enviar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          VIDEO: ${{ inputs.video }}
+          URL: ${{ inputs.url }}
+        run: |
+          CHAT=$(echo "$TELEGRAM_CHAT_ID" | tr ',; ' '\n' | head -1 | tr -d '[:space:]')
+          TOKEN=$(printf '%s' "$TELEGRAM_BOT_TOKEN" | tr -d '[:space:]')
+          avisa() { curl -sS -d chat_id="$CHAT" --data-urlencode text="$1" "https://api.telegram.org/bot$TOKEN/sendMessage" >/dev/null; }
+          if [ -n "$VIDEO" ]; then
+            curl -sSf -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_URL/storage/v1/object/reels-videos/$VIDEO" -o in.mp4 || { avisa "⚠️ Não achei o vídeo guardado."; exit 1; }
+          else
+            yt-dlp -q --no-warnings --impersonate chrome -f "b[ext=mp4][filesize<45M]/b[ext=mp4]/b" --merge-output-format mp4 -o in.mp4 "$URL" || true
+            [ -s in.mp4 ] || { avisa "⚠️ Não consegui baixar esse vídeo (o Instagram e alguns TikToks bloqueiam servidores). Salve pelo app e mande aqui com a legenda /traduzir."; exit 1; }
+          fi
+          python traduzir.py in.mp4 out.mp4 | tee log.txt || { avisa "⚠️ Deu erro ao traduzir esse vídeo."; exit 1; }
+          if grep -q "SEM_TEXTO" log.txt; then
+            avisa "🌎 Não achei texto em outra língua escrito na tela desse vídeo (ou já estava em português). Ele segue igual."
+          fi
+          N=$(grep -oP 'TRADUZIDO \K\d+' log.txt || echo 0)
+          curl -sS -F chat_id="$CHAT" -F supports_streaming=true -F video=@out.mp4 -F caption="🌎 Vídeo com o texto da tela em português ($N trecho(s) traduzido(s)).
+          Para virar vídeo com narração, encaminhe de volta com o link do produto (ou /reels NÚMERO) na legenda." \
+            "https://api.telegram.org/bot$TOKEN/sendVideo" | head -c 300
