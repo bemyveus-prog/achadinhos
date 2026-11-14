@@ -60,6 +60,11 @@ export const CTAS_INSTA = TEM_TG ? [
   { say: "Me segue pra não perder os próximos! E o link tá na bio{N}.", tela: "Me segue ➕ pra ver os próximos achados" },
   { say: "Segue o perfil e toca no link da bio pra pegar o seu{N}!", tela: "Segue ➕ e pega no link da bio" },
 ];
+// "Comenta EU QUERO": só entra quando a resposta automática no direct está ligada (variável EU_QUERO=ligado)
+export const euQueroLigado = () => (process.env.EU_QUERO || "").trim() === "ligado";
+export const CTA_EU_QUERO = TEM_TG
+  ? { say: "Quer o link? Comenta EU QUERO que eu te mando no direct! E me segue e entra no grupo VIP do Telegram.", tela: "Comenta EU QUERO 💬 que te mando o link" }
+  : { say: "Quer o link? Comenta EU QUERO que eu te mando no direct! E me segue pra ver mais achados.", tela: "Comenta EU QUERO 💬 que te mando o link" };
 export const textoCtaInsta = (cta, n, cupom) => cta.say.replace("{N}", n ? `, é o número ${n}` : "") + (cupom ? " Tem cupom também!" : "");
 
 export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false, modo = "instagram", ctaShopee = null, ctaInsta = null }) {
@@ -192,7 +197,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   if(!d.number)$("num").style.display="none";
   if(d.ganchoTopoHtml)$("lhookt").innerHTML=d.ganchoTopoHtml;
   if(d.layout==="limpo"){document.body.classList.add("limpo");if(d.soFoto)document.body.classList.add("foto");
-    $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":(d.temTg?"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+"\\n🔥 Ofertas VIP no Telegram":"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆");}
+    $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":(d.euQuero?"💬 Comenta EU QUERO\\n📩 Te mando o link no direct":d.temTg?"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+"\\n🔥 Ofertas VIP no Telegram":"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆");}
   if(d.layout==="mascara"){document.body.classList.add("mask");
     $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
     if(d.avatar){$("mava").style.backgroundImage="url("+d.avatar+")"}else{$("mava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
@@ -342,7 +347,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   comment = comment || "Quanto você chutou? Comenta aí!";
   const lista = modo === "link" ? CTAS_LINK : CTAS_SHOPEE;
   const ctaShopee = lista[Math.floor(Math.random() * lista.length)];
-  const ctaInsta = CTAS_INSTA[Math.floor(Math.random() * CTAS_INSTA.length)];
+  const ctaInsta = euQueroLigado() && Math.random() < 0.5 ? CTA_EU_QUERO : CTAS_INSTA[Math.floor(Math.random() * CTAS_INSTA.length)];
   const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom, modo, ctaShopee, ctaInsta });
   // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)
   process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
@@ -396,6 +401,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     ganchoTopoHtml: ganchoTopo ? hookHtml(ganchoTopo) : "",
     destino,
     temTg: TEM_TG,
+    euQuero: ctaInsta === CTA_EU_QUERO,
   };
   if (clip?.file) {
     const sc = scenes.find((x) => x.key === "produto");

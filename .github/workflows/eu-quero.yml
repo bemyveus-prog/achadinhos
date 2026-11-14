@@ -1,0 +1,41 @@
+name: Eu quero (comentário → link no direct)
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      teste:
+        description: "sim = só mostra o que faria"
+        default: "nao"
+
+env:
+  MARCA: ${{ vars.MARCA }}
+
+concurrency:
+  group: eu-quero
+  cancel-in-progress: false
+
+jobs:
+  responder:
+    if: (github.event_name != 'schedule' || github.repository == 'bemyveus-prog/achadinhos' || vars.AGENDA == 'ligada') && (github.event_name != 'schedule' || vars.EU_QUERO == 'ligado')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: automacao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: npm ci --omit=dev --ignore-scripts
+      - run: node eu-quero.mjs ${{ inputs.teste == 'sim' && '--teste' || '' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
+          META_PAGE_ID: ${{ secrets.META_PAGE_ID }}

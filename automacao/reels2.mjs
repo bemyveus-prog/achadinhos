@@ -327,7 +327,7 @@ async function main() {
   const legenda = [
     `${(fala || cover.hook).replace(/\*/g, "").slice(0, 150)} 👀`,
     "",
-    "Você usaria? Comenta aqui 👇",
+    (process.env.EU_QUERO || "").trim() === "ligado" ? "💬 Comenta EU QUERO que eu te mando o link no direct!" : "Você usaria? Comenta aqui 👇",
     "",
     "🔖 Salva pra não perder e manda pra quem precisa!",
     `🔎 Link na bio! Procura o #${offerId} na busca da vitrine${cupom ? " (e tem cupom da Shopee lá 🎟️)" : ""}.`,
