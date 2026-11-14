@@ -192,7 +192,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   if(!d.number)$("num").style.display="none";
   if(d.layout==="limpo"){document.body.classList.add("limpo");if(d.soFoto)document.body.classList.add("foto");
     if(d.ganchoTopoHtml)$("lhookt").innerHTML=d.ganchoTopoHtml;
-    $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":(d.temTg?"➕ Me segue\n🔗 Link na bio"+(d.number?" · "+d.number:"")+"\n🔥 Ofertas VIP no Telegram":"➕ Me segue\n🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆");}
+    $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":(d.temTg?"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+"\\n🔥 Ofertas VIP no Telegram":"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆");}
   if(d.layout==="mascara"){document.body.classList.add("mask");
     $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
     if(d.avatar){$("mava").style.backgroundImage="url("+d.avatar+")"}else{$("mava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
