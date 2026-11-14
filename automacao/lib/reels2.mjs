@@ -48,15 +48,19 @@ export const CTAS_SHOPEE = [
 ];
 
 // Final do Instagram: chamadas que geram salvamento, compartilhamento e comentário (sorteia uma por vídeo)
-export const CTAS_INSTA = [
-  { say: "Salva esse vídeo pra não perder e manda pra quem precisa!", tela: "Salva pra não perder 🔖 e manda pra quem precisa" },
-  { say: "Marca aqui nos comentários quem precisa disso!", tela: "Marca quem precisa disso 👇" },
-  { say: "Manda esse vídeo pra aquela pessoa que vive precisando disso!", tela: "Manda pra quem vive precisando disso 📲" },
-  { say: "Comenta aqui: você usaria ou não?", tela: "Você usaria? Comenta aqui 💬" },
-  { say: "Me segue pra não perder os próximos achados!", tela: "Me segue pra não perder os próximos achados" },
-  { say: "Salva pra lembrar depois e segue pra ver mais achados assim!", tela: "Salva 🔖 e segue pra ver mais" },
+// final do Instagram: seguir + link na bio (produto pelo número) + ofertas exclusivas no Telegram (quando a marca tem canal)
+// {N} = "é o número 227" (ou vazio). Sem canal do Telegram, usa as versões sem ele.
+const TEM_TG = Boolean(BRAND.canalTelegram);
+export const CTAS_INSTA = TEM_TG ? [
+  { say: "Me segue pra não perder os próximos! No link da bio você pega esse{N}, e entra no meu grupo do Telegram com ofertas exclusivas.", tela: "Me segue ➕ e entra no grupo VIP do Telegram" },
+  { say: "Segue o perfil e toca no link da bio: lá tá esse produto{N}, e o grupo do Telegram com oferta que só sai lá!", tela: "Segue ➕ · produto e grupo VIP no link da bio" },
+  { say: "Gostou? Link na bio{N}. E me segue e entra no grupo do Telegram, que lá tem oferta exclusiva todo dia!", tela: "🔥 Oferta exclusiva no grupo do Telegram" },
+  { say: "Corre no link da bio pra pegar o seu{N}. Me segue e entra no grupo VIP do Telegram, que as melhores ofertas saem lá primeiro!", tela: "Segue ➕ e entra no grupo VIP 🔥" },
+] : [
+  { say: "Me segue pra não perder os próximos! E o link tá na bio{N}.", tela: "Me segue ➕ pra ver os próximos achados" },
+  { say: "Segue o perfil e toca no link da bio pra pegar o seu{N}!", tela: "Segue ➕ e pega no link da bio" },
 ];
-export const ctaInstaFim = (cupom, alvo) => cupom ? " O link tá na bio, e tem cupom da Shopee te esperando!" : ` O link tá na bio, ${alvo}!`;
+export const textoCtaInsta = (cta, n, cupom) => cta.say.replace("{N}", n ? `, é o número ${n}` : "") + (cupom ? " Tem cupom também!" : "");
 
 export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom = false, modo = "instagram", ctaShopee = null, ctaInsta = null }) {
   const n = number ? String(number).replace("#", "") : "";
@@ -66,7 +70,7 @@ export function buildScenes2(p, { hook, nome, number, comment, fala = "", cupom 
     { key: "produto", say: fala || padrao, min: 3.0 },
     modo === "shopee" || modo === "link"
       ? { key: "cta", say: (ctaShopee || CTAS_SHOPEE[0]).say, min: 3.4 }
-      : { key: "cta", say: (ctaInsta || CTAS_INSTA[0]).say + ctaInstaFim(cupom, n ? `procura o número ${n}` : "procura na vitrine"), min: 4.2 },
+      : { key: "cta", say: textoCtaInsta(ctaInsta || CTAS_INSTA[0], n, cupom), min: 4.2 },
   ];
 }
 
@@ -134,11 +138,11 @@ function pageHtml() {
   #mcta i{font-style:normal;background:var(--ac);color:#fff;padding:2px 18px;border-radius:999px;margin-left:8px}
   #marrow{font-size:84px;line-height:1}
   /* formato "limpo": só o vídeo em tela cheia do começo ao fim, com a legenda e uma chamada pequena no final */
-  #lcta{left:60px;right:60px;top:1500px;text-align:center;opacity:0}
+  #lcta{left:60px;right:60px;top:1400px;text-align:center;opacity:0}
   #lhook{left:50px;right:50px;top:230px;text-align:center;opacity:0}
   #lhook b{display:inline;background:#fff;color:#1c1917;font-weight:800;font-size:70px;line-height:1.3;padding:6px 18px;border-radius:16px;-webkit-box-decoration-break:clone;box-decoration-break:clone;box-shadow:0 14px 34px rgba(0,0,0,.35)}
   #lhook b mark{background:#FFD54A;color:#1c1917;padding:0 6px;border-radius:10px}
-  #lcta span{display:inline-block;background:#fff;color:#2E1020;font-weight:800;font-size:54px;line-height:1.15;padding:22px 42px;border-radius:999px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+  #lcta span{display:inline-block;white-space:pre-line;background:#fff;color:#2E1020;font-weight:800;font-size:54px;line-height:1.15;padding:22px 42px;border-radius:999px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
   body.limpo #clip img{object-fit:cover}
   body.limpo.foto #clip img{object-fit:contain}
   body.mask #clip{left:40px;top:440px;width:${W - 80}px;height:1040px;border-radius:44px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
@@ -188,7 +192,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   if(!d.number)$("num").style.display="none";
   if(d.layout==="limpo"){document.body.classList.add("limpo");if(d.soFoto)document.body.classList.add("foto");
     if(d.ganchoTopoHtml)$("lhookt").innerHTML=d.ganchoTopoHtml;
-    $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":"🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆";}
+    $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":(d.temTg?"➕ Me segue\n🔗 Link na bio"+(d.number?" · "+d.number:"")+"\n🔥 Ofertas VIP no Telegram":"➕ Me segue\n🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆");}
   if(d.layout==="mascara"){document.body.classList.add("mask");
     $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
     if(d.avatar){$("mava").style.backgroundImage="url("+d.avatar+")"}else{$("mava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
@@ -391,6 +395,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     headHtml: hookHtml(headline || cover?.hook || ""),
     ganchoTopoHtml: ganchoTopo ? hookHtml(ganchoTopo) : "",
     destino,
+    temTg: TEM_TG,
   };
   if (clip?.file) {
     const sc = scenes.find((x) => x.key === "produto");

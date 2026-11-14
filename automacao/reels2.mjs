@@ -331,6 +331,7 @@ async function main() {
     "",
     "🔖 Salva pra não perder e manda pra quem precisa!",
     `🔎 Link na bio! Procura o #${offerId} na busca da vitrine${cupom ? " (e tem cupom da Shopee lá 🎟️)" : ""}.`,
+    `➕ Me segue pra ver um achado novo todo dia${BRAND.canalTelegram ? "\n🔥 No link da bio tem o grupo VIP do Telegram, com ofertas que só saem lá" : ""}`,
     "",
     "#achadinhos #achadinhosshopee #shopee #achadosdashopee #comprinhas",
   ].join("\n");
