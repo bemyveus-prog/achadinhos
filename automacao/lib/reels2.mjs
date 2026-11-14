@@ -190,8 +190,8 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   $("coupon").style.display=d.cupom?"inline-block":"none";
   $("shph").innerHTML=d.ctaTela||"Gostou? <span>Toque no produto</span> aqui embaixo";$("shpimg").src=d.img;$("shpname").textContent=d.nome||"";$("shpprice").textContent=d.price||(D.modo==="link"?"Veja o preço no link":"Toque para ver o preço");
   if(!d.number)$("num").style.display="none";
+  if(d.ganchoTopoHtml)$("lhookt").innerHTML=d.ganchoTopoHtml;
   if(d.layout==="limpo"){document.body.classList.add("limpo");if(d.soFoto)document.body.classList.add("foto");
-    if(d.ganchoTopoHtml)$("lhookt").innerHTML=d.ganchoTopoHtml;
     $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":(d.temTg?"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+"\\n🔥 Ofertas VIP no Telegram":"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆");}
   if(d.layout==="mascara"){document.body.classList.add("mask");
     $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
