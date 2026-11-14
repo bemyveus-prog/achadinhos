@@ -314,6 +314,18 @@ def main(entrada, saida):
         sh("cp", entrada, saida)
         return
     acertar_tempo(segs, entrada, W, H)
+    # depois de acertar o tempo, o mesmo texto em dois trechos colados vira um só (sem a caixa "piscar")
+    segs.sort(key=lambda s: s["ini"])
+    unidos = []
+    for s in segs:
+        a = next((u for u in unidos if s["ini"] <= u["fim"] + 0.15 and u["texto"].lower() == s["texto"].lower()), None)
+        if a:
+            a["fim"] = max(a["fim"], s["fim"])
+            for k, fn in (("x0", min), ("y0", min), ("x1", max), ("y1", max)):
+                a["box"][k] = fn(a["box"][k], s["box"][k])
+        else:
+            unidos.append(s)
+    segs = unidos
     trad = traduzir([s["texto"] for s in segs])
     usar = []
     for s, pt in zip(segs, trad):
