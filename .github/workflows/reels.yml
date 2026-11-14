@@ -54,6 +54,8 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # Voz da Fish Audio (opcional). Sem ela, usa a voz neural da Microsoft (grátis).
           FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
           FISH_VOICE_ID: ${{ vars.FISH_VOICE_ID }}
           EDGE_VOICE: ${{ vars.EDGE_VOICE }}
           INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE }}

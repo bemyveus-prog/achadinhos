@@ -35,6 +35,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
+🎙️ <b>/vozes</b> → ouvir e escolher a voz da narração (ElevenLabs) · <b>/voz</b> mostra a voz atual e os créditos
 🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (só o vídeo com a narração) no comando ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon / Shein / AliExpress</b>: cole o seu link de afiliado (amzn.to/…, onelink.shein.com/…, s.click.aliexpress.com/…) e o produto entra na vitrine com a etiqueta da loja. Na AliExpress, mande as fotos ou o vídeo com o link na legenda (a IA identifica o produto). Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
@@ -155,6 +156,8 @@ async function onText(msg) {
   if (cmd === "top") return startTop(chat, text);
   if (cmd === "modo") return setModo(chat, arg);
   if (cmd === "formato") return setFormato(chat, arg);
+  if (cmd === "vozes") return listarVozes(chat, arg);
+  if (cmd === "voz") return escolherVoz(chat, arg);
   if (cmd === "relatorio" || cmd === "relatório" || cmd === "vendas") return relatorio(chat, arg);
   if (cmd === "reels" || cmd === "shopee" || cmd === "link") {
     const { head, fala } = parseReels(text);
@@ -259,6 +262,7 @@ async function onButton(q) {
   if (data.startsWith("ls:")) return addShop(chat, q, data.split(":")[1]);
   if (data.startsWith("pub:") || data.startsWith("nopub:")) return approveReels(chat, q, data);
   if (data.startsWith("yt:")) return postYouTube(chat, q, data);
+  if (data.startsWith("ev:")) return usarVozBotao(chat, q, data);
   if (data.startsWith("gp:") || data.startsWith("gpx:")) return chooseGroupProduct(chat, q, data);
 
   if (data.startsWith("more:")) {
@@ -828,6 +832,70 @@ async function setFormato(chat, arg) {
   if (!["mascara", "cheio", "limpo", "alternar"].includes(v)) return say(chat, `Formato atual dos vídeos: <b>${(await getFormato()) || "alternar"}</b>\nUse: /formato mascara · /formato cheio · /formato limpo · /formato alternar`);
   await db().from("bot_config").upsert({ key: "formato", value: v, updated_at: new Date().toISOString() });
   return say(chat, `✅ Daqui pra frente os vídeos saem: <b>${v === "mascara" ? "sempre com máscara" : v === "cheio" ? "sempre em tela cheia" : v === "limpo" ? "sempre limpos (só o vídeo com narração)" : "alternando entre tela cheia e máscara"}</b>\n(Para um vídeo só, escreva <i>mascara</i> ou <i>cheio</i> no comando ou na legenda.)`);
+}
+
+// ---------- vozes da ElevenLabs: /vozes mostra as amostras, o botão escolhe a voz da narração ----------
+const EL = (path, init = {}) => fetch(`https://api.elevenlabs.io${path}`, { ...init, headers: { "xi-api-key": (process.env.ELEVENLABS_API_KEY || "").trim(), "Content-Type": "application/json", ...(init.headers || {}) } });
+async function vozAtual() {
+  const { data } = await db().from("bot_config").select("value").eq("key", "voz_eleven").maybeSingle();
+  return data?.value || "";
+}
+async function salvarVoz(v) {
+  await db().from("bot_config").upsert({ key: "voz_eleven", value: v, updated_at: new Date().toISOString() });
+}
+async function listarVozes(chat, arg) {
+  if (!(process.env.ELEVENLABS_API_KEY || "").trim()) return say(chat, "Falta a chave <b>ELEVENLABS_API_KEY</b> na Vercel (e no GitHub, para os vídeos).");
+  const genero = /mascul|homem/i.test(arg || "") ? "male" : "female";
+  const lista = [];
+  try { // vozes brasileiras da biblioteca, as mais usadas
+    const j = await (await EL(`/v1/shared-voices?page_size=8&language=pt&locale=pt-BR&gender=${genero}&sort=usage_character_count_7d`)).json();
+    for (const v of j.voices || []) lista.push({ id: v.voice_id, nome: v.name, prev: v.preview_url, dono: v.public_owner_id, desc: v.description || v.descriptive || "" });
+  } catch {}
+  try { // vozes que já estão na sua conta
+    const j = await (await EL("/v1/voices")).json();
+    if (j.detail) return say(chat, `⚠️ ElevenLabs: ${esc(j.detail.message || j.detail.status || JSON.stringify(j.detail))}`);
+    for (const v of (j.voices || []).filter((v) => v.category !== "premade").slice(0, 5)) if (!lista.some((x) => x.id === v.voice_id)) lista.push({ id: v.voice_id, nome: v.name, prev: v.preview_url, desc: "na sua conta" });
+  } catch (e) { return say(chat, `⚠️ ElevenLabs não respondeu: ${esc(e.message)}`); }
+  if (!lista.length) return say(chat, "Não achei vozes em português agora. Tente de novo em instantes.");
+  await db().from("bot_config").upsert({ key: "vozes_lista", value: JSON.stringify(lista), updated_at: new Date().toISOString() });
+  const atual = (await vozAtual()).split("|")[1] || "voz da Microsoft (rodízio)";
+  await say(chat, `🎙️ Voz atual: <b>${esc(atual)}</b>\nOuça as amostras e toque em <b>✅ Usar essa</b>. (/vozes masculina mostra vozes de homem · /voz microsoft volta para a voz grátis)`);
+  for (const [i, v] of lista.entries()) {
+    const cap = `${i + 1}. ${v.nome}${v.desc ? ` · ${String(v.desc).slice(0, 80)}` : ""}`;
+    const kb = { inline_keyboard: [[{ text: `✅ Usar essa (${v.nome.slice(0, 20)})`, callback_data: `ev:${i}` }]] };
+    if (v.prev) await tg("sendAudio", { chat_id: chat, audio: v.prev, caption: cap, title: v.nome, reply_markup: kb }).catch(() => tg("sendMessage", { chat_id: chat, text: cap, reply_markup: kb }));
+    else await tg("sendMessage", { chat_id: chat, text: cap, reply_markup: kb });
+  }
+}
+async function usarVozBotao(chat, q, data) {
+  const { data: cfg } = await db().from("bot_config").select("value").eq("key", "vozes_lista").maybeSingle();
+  let lista = []; try { lista = JSON.parse(cfg?.value || "[]"); } catch {}
+  const v = lista[Number(data.split(":")[1])];
+  if (!v) return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Lista antiga: mande /vozes de novo" });
+  await tg("answerCallbackQuery", { callback_query_id: q.id, text: `Escolhendo ${v.nome}…` });
+  let id = v.id;
+  if (v.dono) { // voz da biblioteca: adiciona na sua conta (precisa estar lá para narrar)
+    const r = await EL(`/v1/voices/add/${v.dono}/${v.id}`, { method: "POST", body: JSON.stringify({ new_name: v.nome.slice(0, 40) }) });
+    const j = await r.json().catch(() => ({}));
+    if (j.voice_id) id = j.voice_id;
+    else if (!/already|exist/i.test(JSON.stringify(j))) return say(chat, `⚠️ Não consegui adicionar essa voz na sua conta: ${esc(j.detail?.message || JSON.stringify(j).slice(0, 200))}\n(O plano grátis tem limite de vozes salvas: apague alguma em elevenlabs.io → My Voices.)`);
+  }
+  await salvarVoz(`${id}|${v.nome}`);
+  return say(chat, `✅ Pronto! Os próximos vídeos serão narrados pela voz <b>${esc(v.nome)}</b> (ElevenLabs).\nQuando os créditos do mês acabarem, volta sozinho para a voz da Microsoft.`);
+}
+async function escolherVoz(chat, arg) {
+  const a = String(arg || "").trim();
+  if (/^(microsoft|gratis|grátis|padrao|padrão)$/i.test(a)) { await salvarVoz("microsoft"); return say(chat, "✅ Voltei para a voz grátis da Microsoft (rodízio entre as femininas)."); }
+  if (/^[A-Za-z0-9]{15,40}$/.test(a)) { // Voice ID copiado do site da ElevenLabs
+    let nome = a;
+    try { const j = await (await EL(`/v1/voices/${a}`)).json(); if (j.name) nome = j.name; else if (j.detail) return say(chat, `⚠️ Essa voz não está na sua conta da ElevenLabs. No site, toque em <b>Add to my voices</b> e mande o ID de novo.`); } catch {}
+    await salvarVoz(`${a}|${nome}`);
+    return say(chat, `✅ Voz escolhida: <b>${esc(nome)}</b>. Os próximos vídeos saem com ela.`);
+  }
+  const atual = await vozAtual();
+  let creditos = "";
+  try { const j = await (await EL("/v1/user/subscription")).json(); if (j.character_limit) creditos = `\nCréditos do mês: <b>${(j.character_limit - j.character_count).toLocaleString("pt-BR")}</b> de ${j.character_limit.toLocaleString("pt-BR")}`; } catch {}
+  return say(chat, `🎙️ Voz atual: <b>${esc(atual && atual !== "microsoft" ? atual.split("|")[1] || atual : "Microsoft (rodízio grátis)")}</b>${creditos}\n\n/vozes → ouvir e escolher vozes brasileiras\n/voz microsoft → voz grátis\n/voz ID → usar uma voz pelo Voice ID`);
 }
 
 // ---------- relatório: vendas da Shopee (API de afiliado) + cliques do site ----------
