@@ -350,7 +350,7 @@ def main(entrada, saida):
         filtros.append(f"{ant}[{i + 1}:v]overlay={x}:{y}:enable='between(t,{ini:.2f},{fim:.2f})'{lab}")
         ant = lab
     sh("ffmpeg", "-v", "error", "-y", *entradas, "-filter_complex", ";".join(filtros), "-map", ant, "-map", "0:a?",
-       "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", saida)
+       "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-pix_fmt", "yuv420p", "-c:a", "copy", "-map_metadata", "-1", "-movflags", "+faststart", saida)
     log(f"TRADUZIDO {len(usar)}")
 
 
