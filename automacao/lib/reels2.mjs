@@ -301,6 +301,7 @@ window.renderClip=(t)=>{
     const kh=D.ganchoTopoHtml?Math.min(ease(t/0.25),clamp((3.2-t)/0.4)):0;
     $("lhook").style.opacity=kh;$("lhook").style.transform="scale("+(0.9+0.1*ease(t/0.3))+")";
     if(kh>0)$("sub").style.opacity=0;$("lcta").style.transform="translateY("+((1-kc)*40)+"px) scale("+(1+0.03*Math.sin(t*6))+")";
+    if(D.semTexto){$("sub").style.opacity=0;$("lcta").style.opacity=0;$("lhook").style.opacity=0}
     return;
   }
   let i=0;while(i<starts.length-1&&t>=starts[i+1])i++;
@@ -339,7 +340,7 @@ async function clipFrames(file, maxSec, dir, w = 1080, h = 1920) {
   return Promise.all(names.map(async (f) => "data:image/jpeg;base64," + (await readFile(path.join(fdir, f))).toString("base64")));
 }
 
-export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, modo = "instagram", layout = "cheio", headline = "", ganchoTopo = "", destino = "", log = console.log }) {
+export async function renderReel2(p, { cover, nome, number, handle, comment, outDir, clip = null, fala = "", avatar = null, cupom = false, modo = "instagram", layout = "cheio", headline = "", ganchoTopo = "", destino = "", semTexto = false, log = console.log }) {
   const { chromium } = await import("playwright");
   await mkdir(outDir, { recursive: true });
   const tmp = path.join(outDir, "_tmp");
@@ -401,6 +402,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     ganchoTopoHtml: ganchoTopo ? hookHtml(ganchoTopo) : "",
     destino,
     temTg: TEM_TG,
+    semTexto,
     euQuero: ctaInsta === CTA_EU_QUERO,
   };
   if (clip?.file) {

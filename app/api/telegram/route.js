@@ -37,7 +37,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 🌎 <b>/traduzir</b> → mande o vídeo com essa legenda (ou /traduzir link): o texto escrito na tela em outra língua ganha a legenda em português por cima
 🎙️ <b>/vozes</b> → ouvir e escolher a voz da narração (ElevenLabs) · <b>/voz</b> mostra a voz atual e os créditos
-🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (só o vídeo com a narração) no comando ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
+🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (vídeo cheio + narração + legenda) ou <i>puro</i> (só o vídeo e a narração, sem texto nenhum) no comando ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon / Shein / AliExpress</b>: cole o seu link de afiliado (amzn.to/…, onelink.shein.com/…, s.click.aliexpress.com/…) e o produto entra na vitrine com a etiqueta da loja. Na AliExpress, mande as fotos ou o vídeo com o link na legenda (a IA identifica o produto). Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
@@ -638,10 +638,10 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   // ordem: palavra no comando > palavra na legenda do vídeo/fotos (vem no contexto) > /formato
   const ctxLayout = (String(extra.contexto || "").match(LAYOUT_RE) || [])[1] || "";
   if (ctxLayout) extra = { ...extra, contexto: String(extra.contexto).replace(LAYOUT_RE, " ").trim() };
-  const layout = args.some((a) => /^m[aá]scara$/i.test(a)) ? "mascara" : args.some((a) => /^cheio$/i.test(a)) ? "cheio" : args.some((a) => /^limpo$/i.test(a)) ? "limpo"
-    : ctxLayout ? (/^cheio$/i.test(ctxLayout) ? "cheio" : /^limpo$/i.test(ctxLayout) ? "limpo" : "mascara") : await getFormato();
+  const layout = args.some((a) => /^m[aá]scara$/i.test(a)) ? "mascara" : args.some((a) => /^cheio$/i.test(a)) ? "cheio" : args.some((a) => /^limpo$/i.test(a)) ? "limpo" : args.some((a) => /^puro$/i.test(a)) ? "puro"
+    : ctxLayout ? (/^cheio$/i.test(ctxLayout) ? "cheio" : /^limpo$/i.test(ctxLayout) ? "limpo" : /^puro$/i.test(ctxLayout) ? "puro" : "mascara") : await getFormato();
   // depois do número: SKU da CJ (tem letras e números, ex.: CJYD2300009) e, sem "texto:", o resto vira narração
-  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio|limpo|roteiro)$/i.test(a));
+  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio|limpo|puro|roteiro)$/i.test(a));
   const looksSku = (a) => !/^(https?:|www\.)/i.test(a) && /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
   const sku = rest[0] && looksSku(rest[0]) ? rest[0] : "";
   if (!fala) fala = rest.slice(sku ? 1 : 0).join(" ").trim();
@@ -851,17 +851,17 @@ async function getModo() {
   return ["shopee", "reels", "ambos"].includes(data?.value) ? data.value : "shopee";
 }
 // formato padrão dos vídeos: máscara, tela cheia ou alternar (sorteio)
-const LAYOUT_RE = /(?:^|\s)(m[aá]scara|cheio|limpo)(?=\s|$)/i;
+const LAYOUT_RE = /(?:^|\s)(m[aá]scara|cheio|limpo|puro)(?=\s|$)/i;
 async function getFormato() {
   if (!hasDb()) return "";
   const { data } = await db().from("bot_config").select("value").eq("key", "formato").maybeSingle();
-  return ["mascara", "cheio", "limpo"].includes(data?.value) ? data.value : "";
+  return ["mascara", "cheio", "limpo", "puro"].includes(data?.value) ? data.value : "";
 }
 async function setFormato(chat, arg) {
   const v = String(arg || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  if (!["mascara", "cheio", "limpo", "alternar"].includes(v)) return say(chat, `Formato atual dos vídeos: <b>${(await getFormato()) || "alternar"}</b>\nUse: /formato mascara · /formato cheio · /formato limpo · /formato alternar`);
+  if (!["mascara", "cheio", "limpo", "puro", "alternar"].includes(v)) return say(chat, `Formato atual dos vídeos: <b>${(await getFormato()) || "alternar"}</b>\nUse: /formato mascara · /formato cheio · /formato limpo · /formato puro · /formato alternar`);
   await db().from("bot_config").upsert({ key: "formato", value: v, updated_at: new Date().toISOString() });
-  return say(chat, `✅ Daqui pra frente os vídeos saem: <b>${v === "mascara" ? "sempre com máscara" : v === "cheio" ? "sempre em tela cheia" : v === "limpo" ? "sempre limpos (só o vídeo com narração)" : "alternando entre tela cheia e máscara"}</b>\n(Para um vídeo só, escreva <i>mascara</i> ou <i>cheio</i> no comando ou na legenda.)`);
+  return say(chat, `✅ Daqui pra frente os vídeos saem: <b>${v === "mascara" ? "sempre com máscara" : v === "cheio" ? "sempre em tela cheia" : v === "limpo" ? "sempre limpos (vídeo cheio + narração + legenda)" : v === "puro" ? "sempre puros (só o vídeo cheio e a narração, sem nenhum texto na tela)" : "alternando entre tela cheia e máscara"}</b>\n(Para um vídeo só, escreva <i>mascara</i> ou <i>cheio</i> no comando ou na legenda.)`);
 }
 
 // ---------- vozes da ElevenLabs: /vozes mostra as amostras, o botão escolhe a voz da narração ----------
