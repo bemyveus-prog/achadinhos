@@ -132,6 +132,7 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
       </header>
 
       <BannerCarousel banners={banners} />
+      <PopupVip c={profile.canais} />
 
       <div className="sticky">
         <label className="search">
@@ -330,6 +331,46 @@ function ProductCard({ p, eager, onShare }) {
 }
 
 // convite para os canais de ofertas relâmpago
+// pop-up do grupo VIP: aparece uns 4 s depois de abrir o site, no máximo 1 vez a cada 12 h por pessoa
+function PopupVip({ c }) {
+  const [aberto, setAberto] = useState(false);
+  useEffect(() => {
+    if (!c?.telegram) return;
+    let ultimo = 0;
+    try { ultimo = Number(localStorage.getItem("vipPopup") || 0); } catch {}
+    if (Date.now() - ultimo < 12 * 3600000) return;
+    const t = setTimeout(() => {
+      setAberto(true);
+      try { localStorage.setItem("vipPopup", String(Date.now())); } catch {}
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [c?.telegram]);
+  useEffect(() => {
+    if (!aberto) return;
+    const esc = (e) => e.key === "Escape" && setAberto(false);
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [aberto]);
+  if (!aberto) return null;
+  return (
+    <div className="vip-fundo" onClick={() => setAberto(false)} role="dialog" aria-modal="true" aria-label="Grupo VIP de ofertas">
+      <div className="vip-caixa" onClick={(e) => e.stopPropagation()}>
+        <button className="vip-x" onClick={() => setAberto(false)} aria-label="Fechar">✕</button>
+        <div className="vip-emoji">🔥</div>
+        <h3>Entra no grupo VIP de ofertas</h3>
+        <p>Ofertas relâmpago e cupons que <b>não aparecem aqui</b>. Quem está no grupo recebe primeiro, antes de acabar.</p>
+        <ul>
+          <li>⚡ Promoções que somem em horas</li>
+          <li>🎟️ Cupons exclusivos</li>
+          <li>💸 Grátis, sai quando quiser</li>
+        </ul>
+        <a className="vip-btn" href="/vip" target="_blank" rel="noopener" onClick={() => setTimeout(() => setAberto(false), 300)}>✈️ Entrar no grupo VIP</a>
+        <button className="vip-depois" onClick={() => setAberto(false)}>Agora não</button>
+      </div>
+    </div>
+  );
+}
+
 function Canais({ c }) {
   if (!c?.telegram && !c?.whatsapp) return null;
   return (

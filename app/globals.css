@@ -475,3 +475,20 @@ a { color: inherit; text-decoration: none; }
     max-width: 100%;
   }
 }
+
+/* ===== Pop-up do grupo VIP ===== */
+.vip-fundo { position: fixed; inset: 0; z-index: 90; background: rgba(15, 10, 8, .55); display: flex; align-items: flex-end; justify-content: center; padding: 16px; animation: vipFade .25s ease; }
+.vip-caixa { position: relative; width: 100%; max-width: 380px; background: #fff; color: #1c1917; border-radius: 24px; padding: 26px 22px 18px; text-align: center; box-shadow: 0 24px 60px rgba(0,0,0,.35); animation: vipSobe .35s cubic-bezier(.2,.9,.3,1.2); margin-bottom: max(8px, env(safe-area-inset-bottom)); }
+.vip-x { position: absolute; top: 10px; right: 12px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: #f1ebe4; color: #57534e; font-size: 15px; cursor: pointer; }
+.vip-emoji { font-size: 40px; line-height: 1; }
+.vip-caixa h3 { font-size: 21px; font-weight: 800; margin: 10px 0 6px; }
+.vip-caixa p { font-size: 14.5px; color: #57534e; margin: 0 0 12px; }
+.vip-caixa ul { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.vip-btn { display: block; background: #229ED9; color: #fff; text-decoration: none; font-weight: 800; font-size: 16.5px; padding: 15px; border-radius: 999px; box-shadow: 0 10px 22px -8px #229ED9cc; animation: vipPulsa 1.6s ease-in-out infinite; }
+.vip-btn:active { transform: scale(.97); }
+.vip-depois { margin-top: 8px; background: none; border: 0; color: #8a817a; font-size: 13.5px; padding: 8px; cursor: pointer; }
+@media (min-width: 640px) { .vip-fundo { align-items: center; } }
+@keyframes vipFade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes vipSobe { from { transform: translateY(40px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes vipPulsa { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.035) } }
+@media (prefers-reduced-motion: reduce) { .vip-fundo, .vip-caixa, .vip-btn { animation: none } }

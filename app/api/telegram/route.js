@@ -969,6 +969,16 @@ async function relatorio(chat, arg) {
       const pp = porProduto.get(k) || { n: 0, c: 0 }; pp.n += it.qty; pp.c += Number(it.itemTotalCommission) || 0; porProduto.set(k, pp);
     }
   }
+  // quem tocou no pop-up/botão do grupo VIP (bot_config "vip_cliques_AAAA-MM-DD", dia de Brasília)
+  let vip = 0;
+  if (hasDb()) {
+    try {
+      const dias = [];
+      for (let t = inicio; t <= fim; t += 86400) dias.push(`vip_cliques_${new Date((t - 3 * 3600) * 1000).toISOString().slice(0, 10)}`);
+      const { data: vv } = await db().from("bot_config").select("value").in("key", [...new Set(dias)].slice(0, 62));
+      vip = (vv || []).reduce((a, r) => a + (Number(r.value) || 0), 0);
+    } catch {}
+  }
   // cliques do site no mesmo período
   let cliques = 0, topCliques = [], maisClicados = [];
   if (hasDb()) {
@@ -1018,7 +1028,7 @@ async function relatorio(chat, arg) {
     const form = new FormData();
     form.append("chat_id", String(chat));
     form.append("photo", new Blob([await img.arrayBuffer()], { type: "image/png" }), "relatorio.png");
-    form.append("caption", `📊 Relatório de ${periodo}: ${pedidos} pedido${pedidos === 1 ? "" : "s"} · ${brl(comissao)} de comissão estimada · ${cliques} cliques no site${erro ? `\n⚠️ Shopee: ${erro.slice(0, 120)}` : ""}\nOutros períodos: /relatorio ontem · /relatorio 7 · /relatorio 30`);
+    form.append("caption", `📊 Relatório de ${periodo}: ${pedidos} pedido${pedidos === 1 ? "" : "s"} · ${brl(comissao)} de comissão estimada · ${cliques} cliques no site · ✈️ ${vip} no grupo VIP${erro ? `\n⚠️ Shopee: ${erro.slice(0, 120)}` : ""}\nOutros períodos: /relatorio ontem · /relatorio 7 · /relatorio 30`);
     const r = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/sendPhoto`, { method: "POST", body: form });
     const j = await r.json();
     if (!j.ok) throw new Error(j.description);
