@@ -1120,7 +1120,7 @@ async function shopeeVideoMp4(link) {
 }
 
 // ---------- Pinterest: baixar o vídeo de um pin ----------
-const INSTA_RE = /https?:\/\/(?:www\.)?instagram\.com\/(?:reels?|p|tv)\/[^\s)>\]]+/i;
+const INSTA_RE = /https?:\/\/(?:www\.|m\.)?(?:instagram\.com\/(?:share\/)?(?:reels?|p|tv)\/|instagr\.am\/)[^\s)>\]]+/i;
 // tradução do texto da tela (workflow traduzir.yml)
 async function pedirTraducao(chat, { video = "", url = "" }) {
   try { await dispatchWorkflow("traduzir.yml", { video, url }); }
