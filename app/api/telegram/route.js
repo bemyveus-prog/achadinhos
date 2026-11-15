@@ -37,7 +37,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 🌎 <b>/traduzir</b> → mande o vídeo com essa legenda (ou /traduzir link): o texto escrito na tela em outra língua ganha a legenda em português por cima
 🎙️ <b>/vozes</b> → ouvir e escolher a voz da narração (ElevenLabs) · <b>/voz</b> mostra a voz atual e os créditos
-🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (vídeo cheio + narração + legenda) ou <i>puro</i> (só o vídeo e a narração, sem texto nenhum) no comando ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
+🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (vídeo cheio + narração + legenda) ou <i>puro</i> (só o vídeo e a narração, sem texto nenhum) no comando; <i>semfrase</i> tira só a frase de curiosidade do começo (/frase nao deixa assim sempre) ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon / Shein / AliExpress</b>: cole o seu link de afiliado (amzn.to/…, onelink.shein.com/…, s.click.aliexpress.com/…) e o produto entra na vitrine com a etiqueta da loja. Na AliExpress, mande as fotos ou o vídeo com o link na legenda (a IA identifica o produto). Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
@@ -170,6 +170,12 @@ async function onText(msg) {
   if (cmd === "top") return startTop(chat, text);
   if (cmd === "modo") return setModo(chat, arg);
   if (cmd === "formato") return setFormato(chat, arg);
+  if (cmd === "frase") {
+    const v = /^(nao|não|off|desligar|tirar|sem)$/i.test(arg) ? "nao" : /^(sim|on|ligar|com|voltar)$/i.test(arg) ? "sim" : "";
+    if (!v) { const { data: fr } = await db().from("bot_config").select("value").eq("key", "frase_topo").maybeSingle(); return say(chat, `Frase de curiosidade no começo dos vídeos: <b>${fr?.value === "nao" ? "desligada" : "ligada"}</b>\nUse: /frase nao · /frase sim\n(Para um vídeo só, escreva <i>semfrase</i> no comando ou na legenda.)`); }
+    await db().from("bot_config").upsert({ key: "frase_topo", value: v, updated_at: new Date().toISOString() });
+    return say(chat, v === "nao" ? "✅ Frase de curiosidade desligada: os vídeos saem só com a legenda da narração (o YouTube continua com a frase, que lá ajuda nas visualizações)." : "✅ Frase de curiosidade ligada de novo nos primeiros 3 segundos.");
+  }
   if (cmd === "vozes") return listarVozes(chat, arg);
   if (cmd === "voz") return escolherVoz(chat, arg);
   if (cmd === "relatorio" || cmd === "relatório" || cmd === "vendas") return relatorio(chat, arg);
@@ -636,12 +642,18 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   }
   // formato do vídeo: "mascara" (headline em cima, vídeo no meio, chamada embaixo) ou "cheio"; sem nada, sorteia
   // ordem: palavra no comando > palavra na legenda do vídeo/fotos (vem no contexto) > /formato
+  // "semfrase": tira a frase de curiosidade dos primeiros segundos (legenda e narração continuam)
+  const SEMFRASE_RE = /(?:^|\s)sem[\s-]?frase(?=\s|$)/i;
+  let semFrase = args.some((a) => /^sem-?frase$/i.test(a)) || SEMFRASE_RE.test(String(extra.contexto || "")) || SEMFRASE_RE.test(String(fala || ""));
+  if (SEMFRASE_RE.test(String(extra.contexto || ""))) extra = { ...extra, contexto: String(extra.contexto).replace(SEMFRASE_RE, " ").trim() };
+  if (SEMFRASE_RE.test(String(fala || ""))) fala = String(fala).replace(SEMFRASE_RE, " ").trim();
+  if (!semFrase && hasDb()) { const { data: fr } = await db().from("bot_config").select("value").eq("key", "frase_topo").maybeSingle(); semFrase = fr?.value === "nao"; }
   const ctxLayout = (String(extra.contexto || "").match(LAYOUT_RE) || [])[1] || "";
   if (ctxLayout) extra = { ...extra, contexto: String(extra.contexto).replace(LAYOUT_RE, " ").trim() };
   const layout = args.some((a) => /^m[aá]scara$/i.test(a)) ? "mascara" : args.some((a) => /^cheio$/i.test(a)) ? "cheio" : args.some((a) => /^limpo$/i.test(a)) ? "limpo" : args.some((a) => /^puro$/i.test(a)) ? "puro"
     : ctxLayout ? (/^cheio$/i.test(ctxLayout) ? "cheio" : /^limpo$/i.test(ctxLayout) ? "limpo" : /^puro$/i.test(ctxLayout) ? "puro" : "mascara") : await getFormato();
   // depois do número: SKU da CJ (tem letras e números, ex.: CJYD2300009) e, sem "texto:", o resto vira narração
-  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio|limpo|puro|roteiro)$/i.test(a));
+  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio|limpo|puro|roteiro|sem-?frase)$/i.test(a));
   const looksSku = (a) => !/^(https?:|www\.)/i.test(a) && /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
   const sku = rest[0] && looksSku(rest[0]) ? rest[0] : "";
   if (!fala) fala = rest.slice(sku ? 1 : 0).join(" ").trim();
@@ -659,7 +671,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/reels-v2.yml/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "vitrine-bot" },
-    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, modo: layout ? `${modo}+${layout}` : modo, ...(extra.fotos ? { fotos: extra.fotos } : {}), ...(extra.gerarFala ? { gerar_fala: "1", contexto: String(extra.contexto || "").slice(0, 900) } : {}), ...(postar ? { postar: "true" } : {}) } }),
+    body: JSON.stringify({ ref: "main", inputs: { oferta: num, cj_sku: sku, fala, video, modo: `${modo}+${layout || ""}${semFrase ? "+semfrase" : ""}`.replace(/\+$/, ""), ...(extra.fotos ? { fotos: extra.fotos } : {}), ...(extra.gerarFala ? { gerar_fala: "1", contexto: String(extra.contexto || "").slice(0, 900) } : {}), ...(postar ? { postar: "true" } : {}) } }),
     cache: "no-store",
   });
   if (r.status !== 204) {

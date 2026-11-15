@@ -288,7 +288,8 @@ async function main() {
   } catch (e) { log(`  avatar: ${e.message}`); }
   log(`  final: ${cupom ? `com cupom (${cupons} ativos)` : "sem cupom ativo"} · ${avatar ? "com foto do perfil" : "sem foto do perfil (mande /avatar no bot)"}`);
   // REELS_MODO pode vir com o formato junto: "shopee+mascara", "instagram+cheio"
-  const [modoRaw, layoutRaw] = env("REELS_MODO", "instagram").split("+");
+  const [modoRaw, layoutRaw, ...opcoes] = env("REELS_MODO", "instagram").split("+");
+  const semFrase = opcoes.includes("semfrase");
   const modo = ["shopee", "link"].includes(modoRaw) ? modoRaw : "instagram";
   // formato: máscara (headline em cima, vídeo no meio, chamada embaixo) ou tela cheia; sem escolha, sorteia
   // sem escolha no pedido: vale o /formato do bot (bot_config "formato"); senão sorteia
@@ -299,7 +300,7 @@ async function main() {
   log(`Formato: ${layout === "mascara" ? "máscara (headline + vídeo + chamada)" : layout === "limpo" ? "limpo (vídeo + narração + legenda)" : layout === "puro" ? "puro (só o vídeo + narração, sem texto)" : "tela cheia"}`);
   // frase de curiosidade: na máscara fica no topo o tempo todo; nos outros formatos com vídeo, aparece nos primeiros 3 s
   // (prende quem está rolando o feed no Instagram, no Shopee Vídeo e no YouTube). GANCHO_TELA=nao desliga.
-  const comGancho = layout === "mascara" || (layout !== "puro" && clip?.file && env("GANCHO_TELA", "sim") !== "nao");
+  const comGancho = layout === "mascara" || (layout !== "puro" && !semFrase && clip?.file && env("GANCHO_TELA", "sim") !== "nao");
   const headline = comGancho ? await gerarHeadline(p, { fala, log }) : "";
   const ganchoTopo = layout !== "mascara" && clip?.file ? headline : "";
   if (modo === "link") log("Modo link: final genérico chamando para o link abaixo (sem citar a loja)");
