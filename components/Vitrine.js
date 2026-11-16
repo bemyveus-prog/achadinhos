@@ -339,11 +339,23 @@ function PopupVip({ c }) {
     let ultimo = 0;
     try { ultimo = Number(localStorage.getItem("vipPopup") || 0); } catch {}
     if (Date.now() - ultimo < 12 * 3600000) return;
-    const t = setTimeout(() => {
+    let feito = false;
+    const abrir = () => {
+      if (feito) return;
+      feito = true;
       setAberto(true);
       try { localStorage.setItem("vipPopup", String(Date.now())); } catch {}
-    }, 4000);
-    return () => clearTimeout(t);
+      try { fetch("/vip/visto", { method: "POST", keepalive: true }); } catch {}
+    };
+    // abre depois de 6 s no site; quem toca num produto antes disso vê o convite quando volta da Shopee
+    let saiu = false;
+    const t = setTimeout(() => { if (!saiu) abrir(); }, 6000);
+    const vis = () => {
+      if (document.visibilityState === "hidden") saiu = true;
+      else if (saiu) setTimeout(abrir, 700);
+    };
+    document.addEventListener("visibilitychange", vis);
+    return () => { clearTimeout(t); document.removeEventListener("visibilitychange", vis); };
   }, [c?.telegram]);
   useEffect(() => {
     if (!aberto) return;

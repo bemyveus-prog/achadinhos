@@ -982,15 +982,17 @@ async function relatorio(chat, arg) {
     }
   }
   // quem tocou no pop-up/botão do grupo VIP (bot_config "vip_cliques_AAAA-MM-DD", dia de Brasília)
-  let vip = 0;
+  let vip = 0, vipVistos = 0, membros = null;
   if (hasDb()) {
     try {
       const dias = [];
-      for (let t = inicio; t <= fim; t += 86400) dias.push(`vip_cliques_${new Date((t - 3 * 3600) * 1000).toISOString().slice(0, 10)}`);
-      const { data: vv } = await db().from("bot_config").select("value").in("key", [...new Set(dias)].slice(0, 62));
-      vip = (vv || []).reduce((a, r) => a + (Number(r.value) || 0), 0);
+      for (let t = inicio; t <= fim; t += 86400) dias.push(new Date((t - 3 * 3600) * 1000).toISOString().slice(0, 10));
+      const unicos = [...new Set(dias)].slice(0, 31);
+      const { data: vv } = await db().from("bot_config").select("key,value").in("key", [...unicos.map((d) => `vip_cliques_${d}`), ...unicos.map((d) => `vip_vistos_${d}`)]);
+      for (const r of vv || []) { if (r.key.startsWith("vip_cliques_")) vip += Number(r.value) || 0; else vipVistos += Number(r.value) || 0; }
     } catch {}
   }
+  if (BRAND.canalChat) { try { membros = await tg("getChatMemberCount", { chat_id: BRAND.canalChat }); } catch {} }
   // cliques do site no mesmo período
   let cliques = 0, topCliques = [], maisClicados = [];
   if (hasDb()) {
@@ -1040,7 +1042,7 @@ async function relatorio(chat, arg) {
     const form = new FormData();
     form.append("chat_id", String(chat));
     form.append("photo", new Blob([await img.arrayBuffer()], { type: "image/png" }), "relatorio.png");
-    form.append("caption", `📊 Relatório de ${periodo}: ${pedidos} pedido${pedidos === 1 ? "" : "s"} · ${brl(comissao)} de comissão estimada · ${cliques} cliques no site · ✈️ ${vip} no grupo VIP${erro ? `\n⚠️ Shopee: ${erro.slice(0, 120)}` : ""}\nOutros períodos: /relatorio ontem · /relatorio 7 · /relatorio 30`);
+    form.append("caption", `📊 Relatório de ${periodo}: ${pedidos} pedido${pedidos === 1 ? "" : "s"} · ${brl(comissao)} de comissão estimada · ${cliques} cliques no site · ✈️ grupo VIP: ${vipVistos} viram o convite, ${vip} tocaram${membros != null ? `, ${membros} membros no canal` : ""}${erro ? `\n⚠️ Shopee: ${erro.slice(0, 120)}` : ""}\nOutros períodos: /relatorio ontem · /relatorio 7 · /relatorio 30`);
     const r = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/sendPhoto`, { method: "POST", body: form });
     const j = await r.json();
     if (!j.ok) throw new Error(j.description);
