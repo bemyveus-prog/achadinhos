@@ -1,6 +1,6 @@
 import { db, hasDb } from "@/lib/supabase";
 import { DEMO_OFFERS } from "@/lib/demo";
-import { clickDecision } from "@/lib/clicks";
+import { clickDecision, isBot } from "@/lib/clicks";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +15,17 @@ export async function GET(req, { params }) {
     return Response.redirect(o?.link || home, 302);
   }
 
-  const { data } = await db().from("offers").select("link").eq("id", id).maybeSingle();
+  const { data } = await db().from("offers").select("link,title,image_url").eq("id", id).maybeSingle();
   if (!data?.link) return Response.redirect(home, 302);
+
+  // robôs de prévia (Threads/Mastodon, WhatsApp, Facebook…): recebem só a prévia (título + foto) e NÃO seguem para a Shopee.
+  // Assim eles não viram "cliques" falsos no painel de afiliado da Shopee.
+  if (isBot(req)) {
+    const esc = (t) => String(t || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    const t = esc(String(data.title || "Achadinho").slice(0, 90));
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${t}</title><meta property="og:title" content="${t}"><meta property="og:type" content="product">${data.image_url ? `<meta property="og:image" content="${esc(data.image_url)}">` : ""}<meta property="og:url" content="${esc(new URL(req.url).toString())}"><meta name="robots" content="noindex"></head><body><a href="${esc(new URL(req.url).toString())}">${t}</a></body></html>`;
+    return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store" } });
+  }
 
   // conta o clique só se for gente de verdade, 1 vez por pessoa a cada 24 h (e não conta o admin)
   const d = await clickDecision(req, `o${id}`);
