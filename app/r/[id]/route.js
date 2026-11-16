@@ -23,7 +23,7 @@ export async function GET(req, { params }) {
   if (d.count) {
     await Promise.all([
       db().rpc("increment_clicks", { offer_id: Number(id) }).then(() => {}, () => {}),
-      db().from("click_events").insert({ offer_id: Number(id) }).then(() => {}, () => {}),
+      db().from("click_events").insert({ offer_id: Number(id), ua: (req.headers.get("user-agent") || "").slice(0, 300), ref: (req.headers.get("referer") || "").slice(0, 200) }).then(() => {}, () => {}),
     ]);
   }
   const headers = { Location: data.link, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" };
