@@ -632,7 +632,11 @@ async function amazonVideo(msg, cap, url) {
 // ---------- Reels sob encomenda: dispara o workflow "Reels v2" no GitHub ----------
 const REPO = BRAND.repo;
 async function startReels(chat, parts, fala = "", video = "", modo = "instagram", extra = {}) {
-  const args = parts.filter(Boolean);
+  // "sem frase" escrito separado vira uma palavra só (senão "sem" e "frase" virariam a narração)
+  let args = parts.filter(Boolean);
+  const juntos = args.join(" ");
+  const semFraseCmd = /(?:^|\s)sem[\s-]?frase(?=\s|$)/i.test(juntos);
+  if (semFraseCmd) args = juntos.replace(/(?:^|\s)sem[\s-]?frase(?=\s|$)/gi, " ").split(/\s+/).filter(Boolean);
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
   // "roteiro": usa a última narração criada pelo /roteiro
@@ -644,7 +648,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   // ordem: palavra no comando > palavra na legenda do vídeo/fotos (vem no contexto) > /formato
   // "semfrase": tira a frase de curiosidade dos primeiros segundos (legenda e narração continuam)
   const SEMFRASE_RE = /(?:^|\s)sem[\s-]?frase(?=\s|$)/i;
-  let semFrase = args.some((a) => /^sem-?frase$/i.test(a)) || SEMFRASE_RE.test(String(extra.contexto || "")) || SEMFRASE_RE.test(String(fala || ""));
+  let semFrase = semFraseCmd || SEMFRASE_RE.test(String(extra.contexto || "")) || SEMFRASE_RE.test(String(fala || ""));
   if (SEMFRASE_RE.test(String(extra.contexto || ""))) extra = { ...extra, contexto: String(extra.contexto).replace(SEMFRASE_RE, " ").trim() };
   if (SEMFRASE_RE.test(String(fala || ""))) fala = String(fala).replace(SEMFRASE_RE, " ").trim();
   if (!semFrase && hasDb()) { const { data: fr } = await db().from("bot_config").select("value").eq("key", "frase_topo").maybeSingle(); semFrase = fr?.value === "nao"; }
