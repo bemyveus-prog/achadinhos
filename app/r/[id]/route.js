@@ -26,6 +26,26 @@ export async function GET(req, { params }) {
       db().from("click_events").insert({ offer_id: Number(id), ua: (req.headers.get("user-agent") || "").slice(0, 300), ref: (req.headers.get("referer") || "").slice(0, 200) }).then(() => {}, () => {}),
     ]);
   }
+  // Android dentro do Instagram/Facebook/Threads/TikTok: o navegador interno abre a Shopee na versão web, sem login,
+  // e a pessoa desiste. Aqui tenta abrir direto o APP da Shopee (link "intent"); se não tiver o app, segue no navegador.
+  const ua = req.headers.get("user-agent") || "";
+  const appInterno = /android/i.test(ua) && /instagram|fban|fbav|fb_iab|threads|barcelona|tiktok|musical_ly|bytedance|line\//i.test(ua);
+  let alvo = null;
+  try { alvo = new URL(data.link); } catch {}
+  if (appInterno && alvo && /(^|\.)shopee\.com\.br$|(^|\.)shp\.ee$|(^|\.)shope\.ee$/i.test(alvo.hostname)) {
+    const intent = `intent://${alvo.host}${alvo.pathname}${alvo.search}#Intent;scheme=https;package=com.shopee.br;S.browser_fallback_url=${encodeURIComponent(data.link)};end`;
+    const esc = (t) => t.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Abrindo a Shopee…</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;background:#fff5f2;color:#1c1917;text-align:center;padding:24px}
+.c{max-width:340px}.b{display:block;margin:22px 0 12px;background:#EE4D2D;color:#fff;text-decoration:none;font-weight:800;font-size:18px;padding:16px;border-radius:999px}
+a.n{color:#8a817a;font-size:14px}</style></head><body><div class="c"><div style="font-size:42px">🛍️</div><h2 style="margin:8px 0">Abrindo no app da Shopee…</h2>
+<p style="color:#57534e">Se não abrir sozinho, toque no botão:</p><a class="b" href="${esc(intent)}">Abrir no app da Shopee</a>
+<a class="n" href="${esc(data.link)}">Continuar no navegador</a></div>
+<script>location.href=${JSON.stringify(intent)};setTimeout(function(){if(!document.hidden)location.href=${JSON.stringify(data.link)}},2500);</script></body></html>`;
+    const h = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" };
+    if (d.setCookie) h["Set-Cookie"] = d.setCookie;
+    return new Response(html, { status: 200, headers: h });
+  }
   const headers = { Location: data.link, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" };
   if (d.setCookie) headers["Set-Cookie"] = d.setCookie;
   return new Response(null, { status: 302, headers });
