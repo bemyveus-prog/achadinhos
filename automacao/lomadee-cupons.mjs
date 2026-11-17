@@ -20,14 +20,19 @@ async function main() {
     .sort((a, b) => (b.codigo ? 1 : 0) - (a.codigo ? 1 : 0) || Number(b.destaque) - Number(a.destaque) || b.comissao - a.comissao);
   log(`Campanhas ativas com link: ${lista.length} · boas (comissão ≥ ${minCom}%): ${boas.length}`);
 
-  const { data: ja } = await sb.from("offers").select("description").like("description", "lmdc:%");
+  const { data: ja } = await sb.from("offers").select("description,loja").like("description", "lmdc:%").eq("active", true);
   const existentes = new Set((ja || []).map((r) => r.description));
   const max = Number(env("LOMADEE_MAX_NOVOS", "15"));
   const novos = [];
+  const porLoja = {};
+  for (const r of ja || []) { const l = (r.loja || "").trim(); if (l) porLoja[l] = (porLoja[l] || 0) + 1; }
   for (const c of boas) {
     if (novos.length >= max) break;
     const chave = `lmdc:${c.id}`;
     if (existentes.has(chave)) continue;
+    // no máximo 2 por loja, para a aba de cupons não virar vitrine de uma loja só
+    porLoja[c.loja] = (porLoja[c.loja] || 0) + 1;
+    if (porLoja[c.loja] > 2) continue;
     const titulo = c.nome.replace(/\s+/g, " ").slice(0, 90);
     const { error } = await sb.from("offers").insert({
       kind: "cupom", title: `${c.loja}: ${titulo}`.slice(0, 120), description: chave, link: c.link, platform: "lomadee", loja: c.loja,
