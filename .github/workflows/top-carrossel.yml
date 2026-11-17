@@ -37,6 +37,9 @@ jobs:
       - name: Gerar e postar
         run: node top-carrossel.mjs ${{ github.event_name == 'workflow_dispatch' && !inputs.postar && '--teste' || '' }}
         env:
+          SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+          SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
+          DIAS_NA_VITRINE: ${{ vars.DIAS_NA_VITRINE }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

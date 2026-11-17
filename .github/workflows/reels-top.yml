@@ -57,6 +57,9 @@ jobs:
           YOUTUBE_POSTAR: ${{ vars.YOUTUBE_POSTAR }}
           YOUTUBE_PRIVACIDADE: ${{ vars.YOUTUBE_PRIVACIDADE }}
           CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
+          SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+          SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
+          DIAS_NA_VITRINE: ${{ vars.DIAS_NA_VITRINE }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL_NARRACAO: ${{ vars.ANTHROPIC_MODEL_NARRACAO }}
           ANTHROPIC_MODEL_TOP: ${{ vars.ANTHROPIC_MODEL_TOP }}

@@ -21,8 +21,8 @@ const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_R
 
 // Top automático: a IA escolhe uma dor do dia a dia, um título-gancho e 5 produtos que resolvem (lib/toptema.mjs)
 async function autoRoteiro() {
-  const { escolherTop } = await import("./lib/toptema.mjs");
-  const r = await escolherTop(sb, { log });
+  const { escolherTopShopee } = await import("./lib/toptema.mjs");
+  const r = await escolherTopShopee(sb, { log, subId: "topvideo" });
   return { title: r.title, items: r.items.map((i) => ({ id: i.id, fala: i.fala })), postar: false };
 }
 

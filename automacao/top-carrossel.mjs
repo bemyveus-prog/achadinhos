@@ -9,7 +9,7 @@ import { mkdir, writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
-import { escolherTop } from "./lib/toptema.mjs";
+import { escolherTopShopee } from "./lib/toptema.mjs";
 import { imageDataUri } from "./lib/carrossel.mjs";
 import { shortName } from "./lib/textos.mjs";
 import { hasTelegram, sendPreview, sendText } from "./lib/telegram.mjs";
@@ -67,7 +67,7 @@ function pagina(slides, ac) {
 }
 
 async function main() {
-  const top = await escolherTop(sb, { log, chave: "top_recentes" });
+  const top = await escolherTopShopee(sb, { log, chave: "top_recentes", subId: "topcarrossel" });
   const { data: offers } = await sb.from("offers").select("id,title,image_url,price").in("id", top.items.map((i) => i.id));
   const byId = new Map((offers || []).map((o) => [o.id, o]));
   const itens = [];
