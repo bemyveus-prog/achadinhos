@@ -4,8 +4,8 @@ name: Reels v2 (adivinha o preço)
 # O vídeo chega no Telegram com a legenda sugerida. Com "postar", vai direto para o Instagram.
 on:
   schedule:
-    # 3 Reels por dia, postados no Instagram (Brasília): 11:37, 17:37 e 20:37
-    - cron: "37 14,20,23 * * *"
+    # 1 Reels por dia (~11:37 Brasília). Chega no Telegram para aprovar: o foco do Instagram agora é o Top 5
+    - cron: "37 14 * * *"
   workflow_dispatch:
     inputs:
       busca:
@@ -69,7 +69,7 @@ jobs:
       - name: Gerar o Reels
         run: >
           node reels2.mjs
-          ${{ github.event_name == 'schedule' && (vars.REELS_APROVAR == 'sim' && '--auto' || '--auto --postar') || '' }}
+          ${{ github.event_name == 'schedule' && (vars.REELS_APROVAR == 'nao' && '--auto --postar' || '--auto') || '' }}
           ${{ github.event_name != 'schedule' && (inputs.oferta && format('--oferta {0}', inputs.oferta) || format('--busca "{0}"', inputs.busca || 'blusa feminina')) || '' }}
           ${{ inputs.cj_sku && format('--cj "{0}"', inputs.cj_sku) || '' }}
           ${{ inputs.postar && '--postar' || '' }}

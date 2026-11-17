@@ -1,0 +1,48 @@
+name: Carrossel Top 5 (gancho de dor)
+
+# 1 carrossel por dia (~19:17 Brasília): a IA escolhe uma dor do dia a dia, 5 produtos da vitrine que resolvem,
+# gera o carrossel no estilo "5 achadinhos" e posta no Instagram (+ Threads) quando a variável POSTAR tem "instagram".
+on:
+  schedule:
+    - cron: "17 22 * * *"
+  workflow_dispatch:
+    inputs:
+      postar:
+        description: "Postar de verdade (desmarcado = só a prévia no Telegram)"
+        type: boolean
+        default: false
+
+env:
+  MARCA: ${{ vars.MARCA }}
+
+jobs:
+  top:
+    if: github.event_name != 'schedule' || github.repository == 'bemyveus-prog/achadinhos' || vars.AGENDA == 'ligada'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: automacao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - name: Instalar
+        run: |
+          npm ci
+          bash "$GITHUB_WORKSPACE/.github/prepara-render.sh"
+      - name: Gerar e postar
+        run: node top-carrossel.mjs ${{ github.event_name == 'workflow_dispatch' && !inputs.postar && '--teste' || '' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
+          META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
+          POSTAR: ${{ vars.POSTAR }}

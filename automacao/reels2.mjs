@@ -382,7 +382,9 @@ async function main() {
     await sendVideo(file, `🎬 Reels #${offerId} (${seconds.toFixed(0)} s)${postarJa ? " · postando no Instagram…" : ""}${resumoAnalise() ? `\n\n${resumoAnalise()}` : ""}\n\nLegenda:\n\n${legenda}`.slice(0, 1024), markup);
     log("Enviado no Telegram.");
   }
-  if (postarJa) {
+  if (postarJa && args.includes("--auto") && !temVideo) {
+    log("Não postei no Instagram: vídeo só com foto parada (o Instagram não entrega). Ficou no Telegram para você decidir.");
+  } else if (postarJa) {
     if (!hasMeta()) throw new Error("Falta META_PAGE_TOKEN para postar.");
     const url = await postReel(file, legenda, `reels2-${offerId}`);
     log(`Postado: ${url}`);
