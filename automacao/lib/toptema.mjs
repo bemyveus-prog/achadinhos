@@ -73,10 +73,12 @@ export async function escolherTopShopee(sb, { log = console.log, chave = "top_re
 1) Escolha UMA dor do dia a dia, bem concreta, que 5 produtos baratos (até uns R$ 80) resolvem juntos: mesmo cômodo, mesma situação ou mesmo tipo de pessoa. Ex.: pia sempre bagunçada, cozinha pequena, banheiro com mofo, roupa amassada, maquiagem que derrete no calor, criança entediada em casa, carro sujo, falta de tomada.
    NÃO repita estas dores recentes: ${dores.slice(0, 15).join("; ") || "nenhuma"}.
 2) TÍTULO: gancho que bate nessa dor, até 60 caracteres, começando pela situação em que a pessoa se reconhece e prometendo os 5 achados. Ex.: "Sua pia vive bagunçada? 5 achados que resolvem", "5 achados pra quem odeia lavar louça".
-3) 5 BUSCAS para a Shopee Brasil, uma por linha: 2 a 4 palavras, como um cliente digitaria, cada uma um TIPO de produto DIFERENTE, todos ligados à dor (ex.: "organizador de pia", "escorredor de louça dobrável").
+3) 7 BUSCAS para a Shopee Brasil (5 principais + 2 de reserva), uma por linha: 2 a 4 palavras, como um cliente digitaria, cada uma um TIPO de produto DIFERENTE, popular e barato, todos ligados à dor (ex.: "organizador de pia", "escorredor de louça dobrável"). Prefira produtos comuns, que têm muitas opções na Shopee.
 Responda EXATAMENTE assim:
 DOR: ...
 TITULO: ...
+BUSCA: ...
+BUSCA: ...
 BUSCA: ...
 BUSCA: ...
 BUSCA: ...
@@ -85,24 +87,26 @@ BUSCA: ...`;
   const t1 = await claude({ model: env("ANTHROPIC_MODEL_TOP", "claude-sonnet-5-5"), content: p1, max: 500 });
   const dor = ((t1.match(/DOR:\s*(.+)/i) || [])[1] || "").trim();
   let title = ((t1.match(/TITULO:\s*(.+)/i) || [])[1] || "").trim().replace(/^["']|["']$/g, "");
-  const buscas = [...t1.matchAll(/BUSCA:\s*(.+)/gi)].map((m) => m[1].trim()).filter(Boolean).slice(0, 6);
+  const buscas = [...t1.matchAll(/BUSCA:\s*(.+)/gi)].map((m) => m[1].trim()).filter(Boolean).slice(0, 8);
   if (!title || buscas.length < 3) { log("Resposta da IA:", t1.slice(0, 400)); return escolherTop(sb, { log, chave }); }
   log(`Tema: "${title}" (dor: ${dor}) · buscas: ${buscas.join(" | ")}`);
 
   // melhor produto de cada busca
+  const nota = (x) => x.rating * Math.log10(x.sales + 10) * (0.5 + Math.min(x.commission, 0.25) * 4) * (x.price <= 50 ? 1.25 : x.price <= 80 ? 1.1 : 1);
   const usados = new Set();
   const achados = [];
   for (const kw of buscas) {
     const vistos = new Map();
-    for (const sortType of [2, 5]) {
+    for (const sortType of [2, 5, 1]) {
       try {
         const { nodes = [] } = await searchOffers({ keyword: kw, sortType, page: 1, limit: 40 });
         for (const n of nodes) { const x = normalize(n); if (!vistos.has(x.itemId)) vistos.set(x.itemId, x); }
       } catch (e) { log(`  busca "${kw}": ${e.message}`); }
     }
     const bons = [...vistos.values()]
-      .filter((x) => x.imageUrl && x.price > 0 && x.price <= Number(env("TOP_PRECO_MAX", "120")) && x.rating >= 4.6 && x.sales >= 200 && x.commission >= 0.02 && !usados.has(x.itemId))
-      .sort((a, b) => b.commission * Math.log10(b.sales + 10) * b.rating - a.commission * Math.log10(a.sales + 10) * a.rating);
+      .filter((x) => x.imageUrl && x.price > 0 && x.price <= Number(env("TOP_PRECO_MAX", "100")) && x.rating >= 4.5 && x.sales >= 100 && x.commission >= 0.01 && !usados.has(x.itemId))
+      // nota e vendas pesam mais que comissão; produto barato (impulso) ganha um bônus
+      .sort((a, b) => nota(b) - nota(a));
     const x = bons[0];
     if (!x) { log(`  "${kw}": nada bom`); continue; }
     usados.add(x.itemId);
