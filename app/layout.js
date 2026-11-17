@@ -13,7 +13,8 @@ export const metadata = {
   openGraph: { title: name, description: tagline, type: "website" },
   alternates: { types: { "application/rss+xml": "/rss" } },
   // verificação do site no Pinterest (código de "Reivindicar site", etiqueta HTML)
-  ...(PINTEREST_VERIFY ? { other: { "p:domain_verify": PINTEREST_VERIFY } } : {}),
+  // verificação de domínio: Pinterest e Lomadee (programa de afiliados)
+  ...(PINTEREST_VERIFY || BRAND.lomadee ? { other: { ...(PINTEREST_VERIFY ? { "p:domain_verify": PINTEREST_VERIFY } : {}), ...(BRAND.lomadee ? { lomadee: BRAND.lomadee } : {}) } } : {}),
 };
 
 export const viewport = {
