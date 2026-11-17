@@ -12,8 +12,11 @@ const PLATFORM = {
   amazon: { label: "Amazon", cls: "p-amazon" },
   shein: { label: "Shein", cls: "p-shein" },
   aliexpress: { label: "AliExpress", cls: "p-ali" },
+  lomadee: { label: "Loja", cls: "p-outro" },
   outro: { label: "Loja", cls: "p-outro" },
 };
+// loja parceira (Lomadee): mostra o nome da loja no selo
+const platOf = (o) => (o?.platform === "lomadee" && o.loja ? { label: String(o.loja).slice(0, 18), cls: "p-outro" } : PLATFORM[o?.platform] || PLATFORM.outro);
 
 const norm = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -61,7 +64,7 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
   const [sheet, setSheet] = useState(null);
   async function share(p) {
     const url = `${window.location.origin}/p/${p.id}`;
-    const text = `${p.title}${p.price != null ? ` por ${brl(p.price)}` : ""} 🛍️ Achei ${p.platform === "amazon" ? "na Amazon" : p.platform === "shein" ? "na Shein" : p.platform === "aliexpress" ? "na AliExpress" : "na Shopee"}:`;
+    const text = `${p.title}${p.price != null ? ` por ${brl(p.price)}` : ""} 🛍️ Achei ${p.platform === "amazon" ? "na Amazon" : p.platform === "shein" ? "na Shein" : p.platform === "aliexpress" ? "na AliExpress" : p.platform === "lomadee" ? `na ${p.loja || "loja"}` : "na Shopee"}:`;
     try { await navigator.clipboard?.writeText(url); } catch {}
     try {
       if (navigator.canShare) {
@@ -171,8 +174,8 @@ export default function Vitrine({ offers, profile, demo, banners = [] }) {
             {coupons.map((c) => (
               <button key={c.id} className="coupon" onClick={() => openCoupon(c)}>
                 <div className="coupon-left">
-                  <span className={`pill ${PLATFORM[c.platform]?.cls || "p-outro"}`}>
-                    {PLATFORM[c.platform]?.label || "Loja"}
+                  <span className={`pill ${platOf(c).cls}`}>
+                    {platOf(c).label}
                   </span>
                   <strong className="coupon-title">{c.title}</strong>
                   {c.description && <span className="coupon-desc">{c.description}</span>}
@@ -288,7 +291,7 @@ function ProductCard({ p, eager, onShare }) {
     p.original_price && p.price && p.original_price > p.price
       ? Math.round((1 - p.price / p.original_price) * 100)
       : 0;
-  const plat = PLATFORM[p.platform] || PLATFORM.outro;
+  const plat = platOf(p);
 
   return (
     <div className="cardw">

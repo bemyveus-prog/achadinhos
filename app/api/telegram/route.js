@@ -12,6 +12,7 @@ import { hasShopeeApi, parseShopeeIds, shopeeConversions, shopeeProduct, shopeeS
 import { allowedChat, brl, CAT_ALIAS, CATEGORIAS, commissionLine, esc, hasBot, normalize, pct, score, tg, webhookSecret } from "@/lib/telegramBot";
 import GANCHOS from "@/automacao/capas/ganchos.json";
 import { BRAND } from "@/lib/brand.mjs";
+import { hasLomadee, buscarProdutos as lomadeeBuscar, linkProduto as lomadeeLink } from "@/lib/lomadee.mjs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -36,6 +37,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
 🌎 <b>/traduzir</b> → mande o vídeo com essa legenda (ou /traduzir link): o texto escrito na tela em outra língua ganha a legenda em português por cima
+🏬 <b>/lomadee</b> air fryer (ou "panela até 150") → ofertas das lojas da Lomadee (Casas Bahia, Mondial, Brinox...) com botão para pôr na vitrine
 🎙️ <b>/vozes</b> → ouvir e escolher a voz da narração (ElevenLabs) · <b>/voz</b> mostra a voz atual e os créditos
 🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (vídeo cheio + narração + legenda) ou <i>puro</i> (só o vídeo e a narração, sem texto nenhum) no comando; <i>semfrase</i> tira só a frase de curiosidade do começo (/frase nao deixa assim sempre) ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
@@ -177,6 +179,7 @@ async function onText(msg) {
     return say(chat, v === "nao" ? "✅ Frase de curiosidade desligada: os vídeos saem só com a legenda da narração (o YouTube continua com a frase, que lá ajuda nas visualizações)." : "✅ Frase de curiosidade ligada de novo nos primeiros 3 segundos.");
   }
   if (cmd === "vozes") return listarVozes(chat, arg);
+  if (cmd === "lomadee" || cmd === "lojas") return buscarLomadee(chat, arg);
   if (cmd === "voz") return escolherVoz(chat, arg);
   if (cmd === "relatorio" || cmd === "relatório" || cmd === "vendas") return relatorio(chat, arg);
   if (cmd === "reels" || cmd === "shopee" || cmd === "link") {
@@ -283,6 +286,7 @@ async function onButton(q) {
   if (data.startsWith("pub:") || data.startsWith("nopub:")) return approveReels(chat, q, data);
   if (data.startsWith("yt:")) return postYouTube(chat, q, data);
   if (data.startsWith("ev:")) return usarVozBotao(chat, q, data);
+  if (data.startsWith("lmd:")) return addLomadee(chat, q, data);
   if (data.startsWith("gp:") || data.startsWith("gpx:")) return chooseGroupProduct(chat, q, data);
 
   if (data.startsWith("more:")) {
@@ -878,6 +882,48 @@ async function setFormato(chat, arg) {
   if (!["mascara", "cheio", "limpo", "puro", "alternar"].includes(v)) return say(chat, `Formato atual dos vídeos: <b>${(await getFormato()) || "alternar"}</b>\nUse: /formato mascara · /formato cheio · /formato limpo · /formato puro · /formato alternar`);
   await db().from("bot_config").upsert({ key: "formato", value: v, updated_at: new Date().toISOString() });
   return say(chat, `✅ Daqui pra frente os vídeos saem: <b>${v === "mascara" ? "sempre com máscara" : v === "cheio" ? "sempre em tela cheia" : v === "limpo" ? "sempre limpos (vídeo cheio + narração + legenda)" : v === "puro" ? "sempre puros (só o vídeo cheio e a narração, sem nenhum texto na tela)" : "alternando entre tela cheia e máscara"}</b>\n(Para um vídeo só, escreva <i>mascara</i> ou <i>cheio</i> no comando ou na legenda.)`);
+}
+
+// ---------- Lomadee: produtos de ~130 lojas (Casas Bahia, Mondial, Brinox...) com o seu link de afiliado ----------
+async function buscarLomadee(chat, arg) {
+  if (!hasLomadee()) return say(chat, "Falta a chave <b>LOMADEE_TOKEN</b> na Vercel.");
+  let termo = String(arg || "").trim();
+  const lim = termo.match(/(?:at[eé]|ate)\s*R?\$?\s*(\d+)/i);
+  const precoMax = lim ? Number(lim[1]) : 0;
+  if (lim) termo = termo.replace(lim[0], "").trim();
+  if (!termo) return say(chat, "Use assim: <b>/lomadee air fryer</b> ou <b>/lomadee panela até 150</b>");
+  await tg("sendChatAction", { chat_id: chat, action: "typing" }).catch(() => {});
+  let lista = [];
+  try { lista = await lomadeeBuscar(termo, { limit: 30, precoMax }); } catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+  // mais comissão em reais primeiro (comissão % × preço), sem exagerar no preço
+  lista = lista.sort((a, b) => b.comissao * Math.min(b.preco, 300) - a.comissao * Math.min(a.preco, 300)).slice(0, 6);
+  if (!lista.length) return say(chat, `Não achei "${esc(termo)}" nas lojas da Lomadee.`);
+  await db().from("bot_config").upsert({ key: "lomadee_lista", value: JSON.stringify(lista), updated_at: new Date().toISOString() });
+  await say(chat, `🛒 <b>Lomadee</b>: ${lista.length} ofertas para "${esc(termo)}" (lojas parceiras, comissão de cada loja):`);
+  for (const [i, p] of lista.entries()) {
+    const cap = `<b>${esc(p.nome.slice(0, 120))}</b>\n🏬 ${esc(p.loja)} · 💸 ${String(p.comissao).replace(".", ",")}%\n💰 ${p.precoDe && p.precoDe > p.preco ? `<s>${brl(p.precoDe)}</s> ` : ""}${brl(p.preco)} · comissão ≈ ${brl((p.preco * p.comissao) / 100)}`;
+    const kb = { inline_keyboard: [[{ text: "➕ Colocar na vitrine", callback_data: `lmd:${i}` }]] };
+    await tg("sendPhoto", { chat_id: chat, photo: p.imagem, caption: cap, parse_mode: "HTML", reply_markup: kb }).catch(() => tg("sendMessage", { chat_id: chat, text: cap, parse_mode: "HTML", reply_markup: kb }));
+  }
+}
+async function addLomadee(chat, q, data) {
+  const { data: cfg } = await db().from("bot_config").select("value").eq("key", "lomadee_lista").maybeSingle();
+  let lista = []; try { lista = JSON.parse(cfg?.value || "[]"); } catch {}
+  const p = lista[Number(data.split(":")[1])];
+  if (!p) return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Lista antiga: busque de novo" });
+  await tg("answerCallbackQuery", { callback_query_id: q.id, text: "Colocando na vitrine..." });
+  const { data: dup } = await db().from("offers").select("id").eq("description", `lmd:${p.orgId}:${p.id}`).eq("active", true).limit(1);
+  if (dup?.length) return say(chat, `Esse já está na vitrine: <b>#${dup[0].id}</b>`);
+  let link;
+  try { link = await lomadeeLink(p.orgId, p.url, "botsite"); } catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+  const dias = Number(process.env.DIAS_NA_VITRINE || 15);
+  const { data: row, error } = await db().from("offers").insert({
+    kind: "produto", title: p.nome.slice(0, 120), description: `lmd:${p.orgId}:${p.id}`, image_url: p.imagem,
+    price: p.preco, original_price: p.precoDe && p.precoDe > p.preco ? p.precoDe : null, link, platform: "lomadee", loja: p.loja, active: true,
+    expires_at: dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null,
+  }).select("id").single();
+  if (error) return say(chat, `Erro: ${esc(error.message)}`);
+  return say(chat, `✅ Na vitrine: <b>#${row.id}</b> ${esc(p.nome.slice(0, 80))} (${esc(p.loja)})\n🔗 ${esc(link)}\nPara vídeo: mande o vídeo com <b>/link ${row.id}</b> (final "clique no link", sem citar a loja).`);
 }
 
 // ---------- vozes da ElevenLabs: /vozes mostra as amostras, o botão escolhe a voz da narração ----------

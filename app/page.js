@@ -14,7 +14,7 @@ async function getOffers() {
   try {
     const { data, error } = await db()
       .from("offers")
-      .select("id,kind,title,description,image_url,price,original_price,platform,category,coupon_code,badge,pinned,clicks,expires_at,active,created_at")
+      .select("id,kind,title,description,image_url,price,original_price,platform,loja,category,coupon_code,badge,pinned,clicks,expires_at,active,created_at")
       .eq("active", true)
       .order("pinned", { ascending: false })
       .order("created_at", { ascending: false })

@@ -1,0 +1,35 @@
+name: Cupons da Lomadee
+
+# 1x por dia (~08:43 Brasília): cupons e ofertas das lojas parceiras da Lomadee entram na aba Cupons do site.
+on:
+  schedule:
+    - cron: "43 11 * * *"
+  workflow_dispatch:
+
+env:
+  MARCA: ${{ vars.MARCA }}
+
+jobs:
+  cupons:
+    if: github.event_name != 'schedule' || github.repository == 'bemyveus-prog/achadinhos' || vars.AGENDA == 'ligada'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: automacao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: npm ci --omit=dev --ignore-scripts
+      - run: node lomadee-cupons.mjs
+        env:
+          LOMADEE_TOKEN: ${{ secrets.LOMADEE_TOKEN }}
+          LOMADEE_CANAL: ${{ vars.LOMADEE_CANAL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
