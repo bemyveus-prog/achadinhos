@@ -284,7 +284,7 @@ export default function AdminPanel({ dbReady, shopeeReady, marca }) {
           <input placeholder="Filtrar por nome ou #nº" value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
         {shown.map((o) => (
-          <div key={o.id} className={`item ${o.active ? "" : "off"}`}>
+          <div key={o.id} className={`item ${o.active ? "" : "inativo"}`}>
             {o.image_url ? <img src={o.image_url} alt="" /> : <div className="ph">{o.kind === "cupom" ? "%" : "#"}</div>}
             <div className="meta">
               <b>#{o.id} · {o.title}</b>
