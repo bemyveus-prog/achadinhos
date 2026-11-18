@@ -39,7 +39,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 🌎 <b>/traduzir</b> → mande o vídeo com essa legenda (ou /traduzir link): o texto escrito na tela em outra língua ganha a legenda em português por cima
 🏬 <b>/lomadee</b> air fryer (ou "panela até 150") → ofertas das lojas da Lomadee (Casas Bahia, Mondial, Brinox...) com botão para pôr na vitrine
 🎙️ <b>/vozes</b> → ouvir e escolher a voz da narração (ElevenLabs) · <b>/voz</b> mostra a voz atual e os créditos
-🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (vídeo cheio + narração + legenda) ou <i>puro</i> (só o vídeo e a narração, sem texto nenhum) no comando; <i>semfrase</i> tira só a frase de curiosidade do começo (/frase nao deixa assim sempre) ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>
+🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (vídeo cheio + narração + legenda) ou <i>puro</i> (só o vídeo e a narração, sem texto nenhum) no comando; <i>semfrase</i> tira só a frase de curiosidade do começo (/frase nao deixa assim sempre) ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>. Com <i>ambos</i> na legenda do vídeo sai a versão do Reels e a do Shopee de uma vez: <b>/reels 227 limpo ambos</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon / Shein / AliExpress</b>: cole o seu link de afiliado (amzn.to/…, onelink.shein.com/…, s.click.aliexpress.com/…) e o produto entra na vitrine com a etiqueta da loja. Na AliExpress, mande as fotos ou o vídeo com o link na legenda (a IA identifica o produto). Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
 <b>/link</b> 227 → vídeo com final genérico de um produto que já está na vitrine (com a foto; mande um vídeo com essa legenda para usar o vídeo)
@@ -751,6 +751,13 @@ async function onVideo(msg) {
   if (error) return say(chat, `Erro ao guardar o vídeo: ${esc(error.message)}`);
   const { head, fala } = parseReels(cap);
   const modoV = /^\/?shopee\b/i.test(cap) ? "shopee" : /^\/?link\b/i.test(cap) ? "link" : "instagram";
+  // "ambos" na legenda: gera a versão do Reels e a do Shopee Vídeo com o mesmo vídeo
+  const ambos = /\bambos\b/i.test(cap.split(/texto:/i)[0]);
+  const headLimpo = ambos ? head.filter((w) => !/^ambos$/i.test(w)) : head;
+  if (ambos) {
+    for (const m of ["instagram", "shopee"]) await startReels(chat, headLimpo, fala, name, m, {});
+    return;
+  }
   return startReels(chat, head, fala, name, modoV, modoV === "link" && !fala ? { gerarFala: true } : {});
 }
 

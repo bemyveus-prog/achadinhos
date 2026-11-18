@@ -107,7 +107,13 @@ export async function sendVideo(file, caption = "", markup = null) {
   form.append("supports_streaming", "true");
   if (caption) form.append("caption", caption.slice(0, 1024));
   if (markup) form.append("reply_markup", JSON.stringify(markup));
-  // vídeo demora mais para subir: até 5 min, e tenta mais uma vez se cair
-  try { return await call("sendVideo", form, 300000); }
-  catch (e) { if (!/timeout|aborted|fetch failed/i.test(e.message)) throw e; return call("sendVideo", form, 300000); }
+  // vídeo demora mais para subir: até 5 min por tentativa; se o Telegram cair (502/503/504, timeout), espera e tenta de novo
+  for (let i = 1; ; i++) {
+    try { return await call("sendVideo", form, 240000); }
+    catch (e) {
+      if (i >= 4 || !/timeout|aborted|fetch failed|gateway|bad gateway|unavailable|too many|50[234]|429|reset/i.test(e.message)) throw e;
+      console.log(`  Telegram instável (${e.message}); tentando de novo em ${20 * i} s`);
+      await new Promise((r) => setTimeout(r, 20000 * i));
+    }
+  }
 }
