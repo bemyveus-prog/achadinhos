@@ -945,6 +945,10 @@ async function salvarVoz(v) {
 async function listarVozes(chat, arg) {
   if (!(process.env.ELEVENLABS_API_KEY || "").trim()) return say(chat, "Falta a chave <b>ELEVENLABS_API_KEY</b> na Vercel (e no GitHub, para os vídeos).");
   const genero = /mascul|homem/i.test(arg || "") ? "male" : "female";
+  // plano grátis: a API só aceita as vozes padrão (premade); mostra essas com uma amostra falada em português
+  let plano = "";
+  try { plano = String((await (await EL("/v1/user/subscription")).json()).tier || ""); } catch {}
+  if (/^free$/i.test(plano) || /gratis|grátis|padr/i.test(arg || "")) return vozesGratis(chat, genero);
   const lista = [];
   try { // vozes brasileiras da biblioteca, as mais usadas
     const j = await (await EL(`/v1/shared-voices?page_size=8&language=pt&locale=pt-BR&gender=${genero}&sort=usage_character_count_7d`)).json();
@@ -965,6 +969,44 @@ async function listarVozes(chat, arg) {
     if (v.prev) await tg("sendAudio", { chat_id: chat, audio: v.prev, caption: cap, title: v.nome, reply_markup: kb }).catch(() => tg("sendMessage", { chat_id: chat, text: cap, reply_markup: kb }));
     else await tg("sendMessage", { chat_id: chat, text: cap, reply_markup: kb });
   }
+}
+const AMOSTRA_PT = "Olha esse achadinho que eu encontrei na Shopee! Ele resolve um problema que todo mundo tem em casa, e o preço tá incrível. O link tá na bio!";
+async function vozesGratis(chat, genero) {
+  let vozes = [];
+  try { vozes = ((await (await EL("/v1/voices")).json()).voices || []).filter((v) => v.category === "premade" && (v.labels?.gender || "") === genero).slice(0, 8); }
+  catch (e) { return say(chat, `⚠️ ElevenLabs não respondeu: ${esc(e.message)}`); }
+  if (!vozes.length) return say(chat, "Não achei as vozes padrão agora. Tente de novo em instantes.");
+  const lista = vozes.map((v) => ({ id: v.voice_id, nome: v.name, desc: [v.labels?.age, v.labels?.description || v.labels?.descriptive, v.labels?.use_case].filter(Boolean).join(", ") }));
+  await db().from("bot_config").upsert({ key: "vozes_lista", value: JSON.stringify(lista), updated_at: new Date().toISOString() });
+  // amostras já geradas ficam guardadas (file_id do Telegram) para não gastar crédito de novo
+  const { data: cc } = await db().from("bot_config").select("value").eq("key", "vozes_amostras").maybeSingle();
+  let cache = {}; try { cache = JSON.parse(cc?.value || "{}"); } catch {}
+  const atual = (await vozAtual()).split("|")[1] || "voz da Microsoft (rodízio)";
+  await say(chat, `🎙️ Voz atual: <b>${esc(atual)}</b>\nNo plano grátis da ElevenLabs só dá para usar as vozes padrão. Cada áudio abaixo é a voz falando em português. Toque em <b>✅ Usar essa</b> na que gostar.\n(/vozes masculina mostra as de homem · /voz microsoft volta para a voz grátis)`);
+  const audios = await Promise.all(lista.map(async (v) => {
+    if (cache[v.id]) return null;
+    try {
+      const r = await EL(`/v1/text-to-speech/${v.id}?output_format=mp3_44100_64`, { method: "POST", body: JSON.stringify({ text: AMOSTRA_PT, model_id: "eleven_multilingual_v2" }) });
+      return r.ok ? Buffer.from(await r.arrayBuffer()) : null;
+    } catch { return null; }
+  }));
+  for (const [i, v] of lista.entries()) {
+    const cap = `${i + 1}. ${v.nome}${v.desc ? ` · ${v.desc}` : ""}`.slice(0, 200);
+    const kb = { inline_keyboard: [[{ text: `✅ Usar essa (${v.nome.slice(0, 20)})`, callback_data: `ev:${i}` }]] };
+    try {
+      if (cache[v.id]) { await tg("sendAudio", { chat_id: chat, audio: cache[v.id], caption: cap, title: v.nome, reply_markup: kb }); continue; }
+      if (!audios[i]) throw new Error("sem amostra");
+      const form = new FormData();
+      form.append("chat_id", String(chat));
+      form.append("audio", new Blob([audios[i]], { type: "audio/mpeg" }), `${v.nome}.mp3`);
+      form.append("caption", cap);
+      form.append("title", v.nome);
+      form.append("reply_markup", JSON.stringify(kb));
+      const j = await (await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/sendAudio`, { method: "POST", body: form })).json();
+      if (j.result?.audio?.file_id) cache[v.id] = j.result.audio.file_id;
+    } catch { await tg("sendMessage", { chat_id: chat, text: cap, reply_markup: kb }).catch(() => {}); }
+  }
+  await db().from("bot_config").upsert({ key: "vozes_amostras", value: JSON.stringify(cache), updated_at: new Date().toISOString() });
 }
 async function usarVozBotao(chat, q, data) {
   const { data: cfg } = await db().from("bot_config").select("value").eq("key", "vozes_lista").maybeSingle();
