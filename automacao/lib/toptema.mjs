@@ -4,7 +4,7 @@ import { claude } from "./ia.mjs";
 
 const env = (k, d) => (process.env[k] ?? "").trim() || d;
 
-export async function escolherTop(sb, { log = console.log, chave = "top_recentes" } = {}) {
+export async function escolherTop(sb, { log = console.log, chave = "top_recentes", tema = env("TOP_TEMA", "") } = {}) {
   if (!env("ANTHROPIC_API_KEY")) throw new Error("O Top automático precisa da ANTHROPIC_API_KEY");
   const agora = new Date().toISOString();
   const { data: prods } = await sb.from("offers").select("id,title,price,category").eq("active", true).eq("kind", "produto")
@@ -21,7 +21,7 @@ export async function escolherTop(sb, { log = console.log, chave = "top_recentes
 Produtos disponíveis (id | nome | preço | categoria):
 ${lista}
 
-1) Escolha UMA DOR do dia a dia que 5 desses produtos resolvem JUNTOS (mesmo cômodo, mesma situação ou mesmo tipo de pessoa). Ex.: pia sempre bagunçada, cozinha pequena, pouco tempo pra limpar, roupa amassada, maquiagem que derrete, criança entediada, banheiro com cheiro ruim.
+${tema ? `TEMA OBRIGATÓRIO de hoje: "${tema}". A dor, o título e os 5 produtos têm de ser desse tema.\n` : ""}1) Escolha UMA DOR do dia a dia que 5 desses produtos resolvem JUNTOS (mesmo cômodo, mesma situação ou mesmo tipo de pessoa). Ex.: pia sempre bagunçada, cozinha pequena, pouco tempo pra limpar, roupa amassada, maquiagem que derrete, criança entediada, banheiro com cheiro ruim.
 2) TÍTULO = gancho que bate nessa dor, para parar a rolagem. Até 60 caracteres. Comece pela situação ou pela dor, de um jeito que a pessoa se reconheça, e prometa os 5 achados. Modelos (adapte, não copie): "Sua pia vive bagunçada? 5 achados que resolvem", "5 achados pra quem odeia lavar louça", "Cozinha pequena? Esses 5 salvam espaço", "Gasta horas limpando? 5 achados que cortam pela metade". Se a data combinar (Natal, Black Friday, volta às aulas), pode usar.
 3) Para cada produto:
    - FALA: 1 frase de narração (até 110 caracteres) que liga o produto àquela dor e mostra o ganho na rotina. Cada uma com abertura diferente.
@@ -62,15 +62,15 @@ TITULO: o título
 // 2) cada busca vai na API de afiliados: pega o melhor (nota, vendas, comissão), gera o SEU link e coloca na vitrine;
 // 3) a IA escreve a fala e o cartão de cada produto, já com o nome real.
 // Se a API da Shopee falhar, cai no Top com os produtos que já estão na vitrine.
-export async function escolherTopShopee(sb, { log = console.log, chave = "top_recentes", subId = "top" } = {}) {
+export async function escolherTopShopee(sb, { log = console.log, chave = "top_recentes", subId = "top", tema = env("TOP_TEMA", "") } = {}) {
   const { hasShopeeApi, searchOffers, shortLink } = await import("./shopee.mjs");
   const { normalize } = await import("./escolha.mjs");
-  if (!hasShopeeApi()) { log("  sem API da Shopee: usando a vitrine"); return escolherTop(sb, { log, chave }); }
+  if (!hasShopeeApi()) { log("  sem API da Shopee: usando a vitrine"); return escolherTop(sb, { log, chave, tema }); }
   const { data: dd } = await sb.from("bot_config").select("value").eq("key", "top_dores").maybeSingle();
   let dores = []; try { dores = JSON.parse(dd?.value || "[]"); } catch {}
   const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "long" });
   const p1 = `Hoje é ${hoje}. Você é estrategista de conteúdo de um perfil de achadinhos da Shopee e vai montar um post "Top 5".
-1) Escolha UMA dor do dia a dia, bem concreta, que 5 produtos baratos (até uns R$ 80) resolvem juntos: mesmo cômodo, mesma situação ou mesmo tipo de pessoa. Ex.: pia sempre bagunçada, cozinha pequena, banheiro com mofo, roupa amassada, maquiagem que derrete no calor, criança entediada em casa, carro sujo, falta de tomada.
+${tema ? `TEMA OBRIGATÓRIO de hoje: "${tema}". A dor, o título e as buscas têm de ser desse tema (ignore a regra de não repetir dores).\n` : ""}1) Escolha UMA dor do dia a dia, bem concreta, que 5 produtos baratos (até uns R$ 80) resolvem juntos: mesmo cômodo, mesma situação ou mesmo tipo de pessoa. Ex.: pia sempre bagunçada, cozinha pequena, banheiro com mofo, roupa amassada, maquiagem que derrete no calor, criança entediada em casa, carro sujo, falta de tomada.
    NÃO repita estas dores recentes: ${dores.slice(0, 15).join("; ") || "nenhuma"}.
 2) TÍTULO: gancho que bate nessa dor, até 60 caracteres, começando pela situação em que a pessoa se reconhece e prometendo os 5 achados. Ex.: "Sua pia vive bagunçada? 5 achados que resolvem", "5 achados pra quem odeia lavar louça".
 3) 7 BUSCAS para a Shopee Brasil (5 principais + 2 de reserva), uma por linha: 2 a 4 palavras, como um cliente digitaria, cada uma um TIPO de produto DIFERENTE, popular e barato, todos ligados à dor (ex.: "organizador de pia", "escorredor de louça dobrável"). Prefira produtos comuns, que têm muitas opções na Shopee.
@@ -88,7 +88,7 @@ BUSCA: ...`;
   const dor = ((t1.match(/DOR:\s*(.+)/i) || [])[1] || "").trim();
   let title = ((t1.match(/TITULO:\s*(.+)/i) || [])[1] || "").trim().replace(/^["']|["']$/g, "");
   const buscas = [...t1.matchAll(/BUSCA:\s*(.+)/gi)].map((m) => m[1].trim()).filter(Boolean).slice(0, 8);
-  if (!title || buscas.length < 3) { log("Resposta da IA:", t1.slice(0, 400)); return escolherTop(sb, { log, chave }); }
+  if (!title || buscas.length < 3) { log("Resposta da IA:", t1.slice(0, 400)); return escolherTop(sb, { log, chave, tema }); }
   log(`Tema: "${title}" (dor: ${dor}) · buscas: ${buscas.join(" | ")}`);
 
   // melhor produto de cada busca
@@ -114,7 +114,7 @@ BUSCA: ...`;
     log(`  "${kw}" → ${x.name.slice(0, 60)} · R$ ${x.price} · ${(x.commission * 100).toFixed(1)}% · ${x.sales} vendas`);
     if (achados.length >= 5) break;
   }
-  if (achados.length < 3) { log("  poucos produtos na Shopee para esse tema: usando a vitrine"); return escolherTop(sb, { log, chave }); }
+  if (achados.length < 3) { log("  poucos produtos na Shopee para esse tema: usando a vitrine"); return escolherTop(sb, { log, chave, tema }); }
 
   // na vitrine (com o SEU link); se o produto já estiver lá, reaproveita
   const dias = Number(env("DIAS_NA_VITRINE", "15"));
@@ -132,7 +132,7 @@ BUSCA: ...`;
     a.id = data.id;
   }
   const comId = achados.filter((a) => a.id);
-  if (comId.length < 3) return escolherTop(sb, { log, chave });
+  if (comId.length < 3) return escolherTop(sb, { log, chave, tema });
 
   // falas e cartões com os nomes reais
   const p2 = `Post "Top ${comId.length}" com o título "${title}" (dor: ${dor}).

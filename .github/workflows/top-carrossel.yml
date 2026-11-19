@@ -11,6 +11,10 @@ on:
         description: "Postar de verdade (desmarcado = só a prévia no Telegram)"
         type: boolean
         default: false
+      tema:
+        description: "Tema fixo (opcional), ex.: quarto elegante. Vazio = a IA escolhe"
+        type: string
+        default: ""
 
 env:
   MARCA: ${{ vars.MARCA }}
@@ -49,3 +53,4 @@ jobs:
           META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
           META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
           POSTAR: ${{ vars.POSTAR }}
+          TOP_TEMA: ${{ inputs.tema }}
