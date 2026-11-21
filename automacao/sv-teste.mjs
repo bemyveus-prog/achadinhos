@@ -1,6 +1,8 @@
-import { postFacebookReel } from "./lib/social.mjs";
+import { postFacebookReel, paginasFacebook } from "./lib/social.mjs";
 const url = "https://jsydqcxgcryblxrelavy.supabase.co/storage/v1/object/public/carrosseis/reels2-460-1795125391296/reels.mp4";
-try {
-  const r = await postFacebookReel(url, "🔥 Achadinho do dia! (teste do Reels automático)\n\n🛒 Compre aqui: https://s.shopee.com.br/9fMdd9pJQH");
-  console.log("FBREEL OK:", r);
-} catch (e) { console.log("FBREEL ERRO:", e.message); }
+const extras = paginasFacebook().filter((p) => p.nome !== "principal");
+console.log("PAGINAS EXTRAS:", extras.map((p) => p.nome).join(", ") || "nenhuma");
+for (const pg of extras) {
+  try { console.log(`FBREEL OK (${pg.nome}):`, await postFacebookReel(url, "🔥 Achadinho do dia! (teste do Reels automático)", pg)); }
+  catch (e) { console.log(`FBREEL ERRO (${pg.nome}):`, e.message); }
+}
