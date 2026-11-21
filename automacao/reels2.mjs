@@ -19,7 +19,7 @@ const run = promisify(execFile);
 import { renderReel2 } from "./lib/reels2.mjs";
 import { shortName, brl, salesLabel } from "./lib/textos.mjs";
 import { hasTelegram, sendText, sendVideo } from "./lib/telegram.mjs";
-import { hasMeta, postReel, uploadPublic } from "./lib/social.mjs";
+import { hasMeta, postReel, postFacebookReel, uploadPublic } from "./lib/social.mjs";
 import { hasCJ, productBySku, productVideos, bestFreeVideo, downloadVideo } from "./lib/cj.mjs";
 import { BRAND } from "../lib/brand.mjs";
 import { claude, hasIA } from "./lib/ia.mjs";
@@ -388,6 +388,17 @@ async function main() {
     if (!hasMeta()) throw new Error("Falta META_PAGE_TOKEN para postar.");
     const url = await postReel(file, legenda, `reels2-${offerId}`);
     log(`Postado: ${url}`);
+    // Facebook Reels: mesmo vídeo, legenda com o link direto da Shopee (desligue com FB_REELS=nao)
+    if (process.env.META_PAGE_ID && env("FB_REELS", "") !== "nao") {
+      try {
+        const { data: offFb } = await sb.from("offers").select("link").eq("id", offerId).maybeSingle();
+        const [fbUrl] = await uploadPublic([file], `fbreel-${offerId}-${Date.now()}`, "video/mp4");
+        const desc = legenda.replace(/\n+(#\S+\s*)+$/, "") + (offFb?.link ? `\n\n🛒 Compre aqui: ${offFb.link}` : "");
+        const fbReel = await postFacebookReel(fbUrl, desc);
+        log(`Postado no Facebook: ${fbReel}`);
+        if (hasTelegram()) await sendText(`📘 Reels no Facebook: ${fbReel}`).catch(() => {});
+      } catch (e) { log(`  Facebook Reels: ${e.message}`); if (hasTelegram()) await sendText(`❌ Facebook Reels: ${e.message}`).catch(() => {}); }
+    }
     try {
       const { hasThreads, postThreadsVideo, textoThreads } = await import("./lib/threads.mjs");
       if (await hasThreads()) {

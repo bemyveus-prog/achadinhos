@@ -114,6 +114,25 @@ export async function postReel(videoFile, caption, folder) {
   return postReelUrl(video_url, caption);
 }
 
+// Reels na Página do Facebook (API: video_reels, 3 fases). O vídeo vem de URL pública (Storage).
+export async function postFacebookReel(video_url, description) {
+  const page = process.env.META_PAGE_ID;
+  if (!page) throw new Error("Falta META_PAGE_ID");
+  const st = await graph("POST", `${page}/video_reels`, { upload_phase: "start" });
+  const up = await fetch(st.upload_url, { method: "POST", headers: { Authorization: `OAuth ${process.env.META_PAGE_TOKEN}`, file_url: video_url }, signal: AbortSignal.timeout(120000) });
+  const uj = await up.json().catch(() => ({}));
+  if (!uj.success) throw new Error(`Facebook recusou o envio do Reels: ${JSON.stringify(uj).slice(0, 200)}`);
+  await graph("POST", `${page}/video_reels`, { upload_phase: "finish", video_id: st.video_id, video_state: "PUBLISHED", description: description.slice(0, 2000) });
+  for (let i = 0; i < 60; i++) {
+    await sleep(5000);
+    const s = await graph("GET", st.video_id, { fields: "status,permalink_url" });
+    const v = s.status?.video_status;
+    if (v === "ready" || v === "published") return s.permalink_url ? `https://www.facebook.com${s.permalink_url}` : `https://www.facebook.com/reel/${st.video_id}`;
+    if (v === "error") throw new Error("O Facebook recusou o Reels");
+  }
+  return `https://www.facebook.com/reel/${st.video_id}`;
+}
+
 // Reels a partir de um vídeo que já está no Storage público (usado na aprovação pelo Telegram)
 export async function postReelUrl(video_url, caption) {
   const ig = process.env.META_IG_USER_ID;
