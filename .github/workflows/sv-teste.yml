@@ -1,11 +1,11 @@
-name: Teste página
+name: Teste reel facebook
 on:
   push:
     branches: [sv-teste]
 jobs:
   sv:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: automacao
@@ -14,6 +14,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm install --no-audit --no-fund
       - run: node sv-teste.mjs
         env:
           META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
