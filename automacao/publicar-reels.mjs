@@ -4,7 +4,7 @@
 //   node publicar-reels.mjs --id 12 --so-youtube    (botão "▶️ Postar no YouTube": só o YouTube)
 // Um marcador em storage (capas/yt/reels-<id>.txt) impede postar o mesmo Reels duas vezes no YouTube.
 import { createClient } from "@supabase/supabase-js";
-import { postReelUrl } from "./lib/social.mjs";
+import { postReelUrl, postFacebookReel } from "./lib/social.mjs";
 import { hasTelegram, sendText } from "./lib/telegram.mjs";
 import { hasYouTube, postShort, textosYouTube, regrasYouTube, registrarYouTube, lerMetaYouTube } from "./lib/youtube.mjs";
 import { BRAND } from "../lib/brand.mjs";
@@ -19,6 +19,20 @@ async function threads(r) {
   } catch (e) {
     console.error("Threads:", e.message);
     if (hasTelegram()) await sendText(`⚠️ Threads: ${e.message.slice(0, 300)}`).catch(() => {});
+  }
+}
+
+// o mesmo vídeo na Página do Facebook, com o link direto da Shopee na legenda (o produto marcado você adiciona à mão depois)
+async function facebook(r) {
+  if (!process.env.META_PAGE_ID || (process.env.FB_REELS || "").trim() === "nao") return;
+  try {
+    const { data: off } = r.offer_id ? await sb.from("offers").select("link").eq("id", r.offer_id).maybeSingle() : { data: null };
+    const desc = String(r.caption || "").replace(/\n+(#\S+\s*)+$/, "") + (off?.link ? `\n\n🛒 Compre aqui: ${off.link}` : "");
+    const link = await postFacebookReel(r.video_url, desc);
+    if (hasTelegram()) await sendText(`📘 Reels no Facebook:\n${link}`).catch(() => {});
+  } catch (e) {
+    console.error("Facebook:", e.message);
+    if (hasTelegram()) await sendText(`⚠️ Facebook Reels: ${e.message.slice(0, 300)}`).catch(() => {});
   }
 }
 
@@ -68,6 +82,7 @@ async function main() {
     await sb.from("reels_pendentes").update({ status: "postado", ig_url: url }).eq("id", id);
     console.log("Postado:", url);
     if (hasTelegram()) await sendText(`✅ Reels #${r.offer_id} postado no Instagram:\n${url}`).catch(() => {});
+    await facebook(r);
     await youtube(r);
     await threads(r);
   } catch (e) {
