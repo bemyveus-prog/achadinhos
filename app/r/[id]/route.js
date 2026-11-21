@@ -20,7 +20,10 @@ export async function GET(req, { params }) {
 
   // robôs de prévia (Threads/Mastodon, WhatsApp, Facebook…): recebem só a prévia (título + foto) e NÃO seguem para a Shopee.
   // Assim eles não viram "cliques" falsos no painel de afiliado da Shopee.
-  if (isBot(req)) {
+  // + clique vindo do Facebook/Instagram de fora do Brasil (EUA/Irlanda/Suécia = servidores da Meta, não gente)
+  const pais = (req.headers.get("x-vercel-ip-country") || "").toUpperCase();
+  const refMeta = /facebook\.com|fb\.com|instagram\.com|l\.threads/i.test(req.headers.get("referer") || "");
+  if (isBot(req) || (refMeta && pais && pais !== "BR")) {
     const esc = (t) => String(t || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
     const t = esc(String(data.title || "Achadinho").slice(0, 90));
     const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${t}</title><meta property="og:title" content="${t}"><meta property="og:type" content="product">${data.image_url ? `<meta property="og:image" content="${esc(data.image_url)}">` : ""}<meta property="og:url" content="${esc(new URL(req.url).toString())}"><meta name="robots" content="noindex"></head><body><a href="${esc(new URL(req.url).toString())}">${t}</a></body></html>`;

@@ -133,7 +133,8 @@ async function main() {
   const { results, errors } = await publishSocial(files, {
     folder: path.basename(outDir),
     caption: texts.legenda,
-    link,
+    // Facebook: link da vitrine (/r/id), não o da Shopee — os robôs da Meta abrem o link e viravam cliques falsos na Shopee
+    link: offer?.id ? `${(process.env.VITRINE_URL || BRAND.site).replace(/\/$/, "")}/r/${offer.id}` : link,
     linkThreads: offer?.id ? `${(process.env.VITRINE_URL || BRAND.site).replace(/\/$/, "")}/r/${offer.id}` : null,
     targets,
   });
