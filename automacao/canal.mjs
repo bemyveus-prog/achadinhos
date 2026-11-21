@@ -10,6 +10,7 @@ import { hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
 import { normalize, DEFAULT_KEYWORDS } from "./lib/escolha.mjs";
 import { brl, salesLabel, shortName } from "./lib/textos.mjs";
 import { claude, hasIA } from "./lib/ia.mjs";
+import { RODAPE_CUPONS } from "./lib/telegram.mjs";
 import { BRAND } from "../lib/brand.mjs";
 
 const env = (k, d = "") => (process.env[k] ?? "").trim() || d;
@@ -105,6 +106,8 @@ async function main() {
       prova,
       ``,
       `👉 <a href="${destino}">Pegar a oferta</a>`,
+      ``,
+      RODAPE_CUPONS,
       `<i>Preço pode mudar a qualquer momento.</i>`,
     ].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n");
 

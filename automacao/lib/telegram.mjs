@@ -9,6 +9,8 @@ import { BRAND } from "../../lib/brand.mjs";
 const env = (k, d = "") => (process.env[k] ?? "").trim() || d;
 const API = () => `https://api.telegram.org/bot${env("TELEGRAM_BOT_TOKEN")}`;
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// aviso que entra em TODAS as postagens do canal (o post com os cupons fica fixado lá)
+export const RODAPE_CUPONS = "🎟️ <b>Tem mais cupons fixados no canal!</b>";
 const brl = (v) => "R$ " + Number(v).toFixed(2).replace(".", ",");
 const pct = (v) => (v * 100).toFixed(1).replace(".", ",").replace(",0", "") + "%";
 

@@ -14,30 +14,13 @@ import { hasShopeeApi, searchOffers, shortLink } from "./lib/shopee.mjs";
 import { normalize, score } from "./lib/escolha.mjs";
 import { brl, salesLabel } from "./lib/textos.mjs";
 import { hasTelegram, notify, sendText } from "./lib/telegram.mjs";
+import { CATEGORIAS } from "./lib/categorias-shopee.mjs";
 
 const args = process.argv.slice(2);
 const env = (k, d) => (process.env[k] ?? "").trim() || d;
 const log = (...m) => console.log(new Date().toLocaleTimeString("pt-BR"), ...m);
 const pct = (v) => (v * 100).toFixed(1).replace(".", ",") + "%";
 
-// id da categoria na Shopee → nome do chip na vitrine
-export const CATEGORIAS = {
-  100017: "Moda Feminina",
-  100532: "Calçados Femininos",
-  100016: "Bolsas Femininas",
-  100009: "Acessórios",
-  100630: "Beleza",
-  100001: "Saúde",
-  100636: "Casa",
-  100631: "Pets",
-  100633: "Moda Infantil",
-  100011: "Moda Masculina",
-  100013: "Celulares e Acessórios",
-  100010: "Eletrodomésticos",
-  100637: "Esportes",
-  100534: "Relógios",
-  100535: "Áudio",
-};
 const PADRAO = "100017,100532,100016,100009,100630,100636";
 
 // Modo "pouco disputado": comissão alta, poucas vendas (pouca gente divulgando ainda),

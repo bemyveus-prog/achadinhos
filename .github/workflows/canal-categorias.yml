@@ -1,0 +1,51 @@
+name: Canal - ofertas do dia por categoria (fixado)
+
+# 1 post por dia (~08:13 Brasília): 2 a 3 ofertas de cada uma de 3 categorias, numa mensagem só, fixada no topo do canal do Telegram.
+on:
+  schedule:
+    - cron: "13 11 * * *"
+  workflow_dispatch:
+    inputs:
+      teste:
+        description: "Só mandar a prévia para você, sem postar no canal nem fixar"
+        type: boolean
+        default: false
+      cats:
+        description: "Categorias à mão (ids separados por vírgula, ex.: 100636,100630). Vazio = gira sozinho"
+        default: ""
+
+# mesmo grupo do canal.yml: os dois mexem na lista de produtos já postados
+concurrency:
+  group: canal
+  cancel-in-progress: false
+
+env:
+  MARCA: ${{ vars.MARCA }}
+
+jobs:
+  categorias:
+    if: github.event_name != 'schedule' || github.repository == 'bemyveus-prog/achadinhos' || vars.AGENDA == 'ligada'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: automacao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automacao/package-lock.json
+      - run: npm ci
+      - name: Postar e fixar
+        run: node canal-categorias.mjs ${{ inputs.teste && '--teste' || '' }} ${{ inputs.cats && format('--cats "{0}"', inputs.cats) || '' }}
+        env:
+          SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+          SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CANAL: ${{ vars.TELEGRAM_CANAL }}
+          DIAS_NA_VITRINE: ${{ vars.DIAS_NA_VITRINE }}
