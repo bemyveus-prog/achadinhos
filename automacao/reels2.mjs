@@ -19,7 +19,7 @@ const run = promisify(execFile);
 import { renderReel2 } from "./lib/reels2.mjs";
 import { shortName, brl, salesLabel } from "./lib/textos.mjs";
 import { hasTelegram, sendText, sendVideo } from "./lib/telegram.mjs";
-import { hasMeta, postReel, postFacebookReel, uploadPublic } from "./lib/social.mjs";
+import { hasMeta, postReel, postFacebookReel, paginasFacebook, uploadPublic } from "./lib/social.mjs";
 import { hasCJ, productBySku, productVideos, bestFreeVideo, downloadVideo } from "./lib/cj.mjs";
 import { BRAND } from "../lib/brand.mjs";
 import { claude, hasIA } from "./lib/ia.mjs";
@@ -394,10 +394,14 @@ async function main() {
         const { data: offFb } = await sb.from("offers").select("link").eq("id", offerId).maybeSingle();
         const [fbUrl] = await uploadPublic([file], `fbreel-${offerId}-${Date.now()}`, "video/mp4");
         const desc = legenda.replace(/\n+(#\S+\s*)+$/, "") + (offFb?.link ? `\n\n🛒 Compre aqui: ${offFb.link}` : "");
-        const fbReel = await postFacebookReel(fbUrl, desc);
-        log(`Postado no Facebook: ${fbReel}`);
-        if (hasTelegram()) await sendText(`📘 Reels no Facebook: ${fbReel}`).catch(() => {});
-      } catch (e) { log(`  Facebook Reels: ${e.message}`); if (hasTelegram()) await sendText(`❌ Facebook Reels: ${e.message}`).catch(() => {}); }
+        for (const pg of paginasFacebook()) {
+          try {
+            const fbReel = await postFacebookReel(fbUrl, desc, pg);
+            log(`Postado no Facebook (${pg.nome}): ${fbReel}`);
+            if (hasTelegram()) await sendText(`📘 Reels no Facebook (${pg.nome}): ${fbReel}`).catch(() => {});
+          } catch (e) { log(`  Facebook Reels (${pg.nome}): ${e.message}`); if (hasTelegram()) await sendText(`❌ Facebook Reels (${pg.nome}): ${e.message}`).catch(() => {}); }
+        }
+      } catch (e) { log(`  Facebook Reels: ${e.message}`); }
     }
     try {
       const { hasThreads, postThreadsVideo, textoThreads } = await import("./lib/threads.mjs");

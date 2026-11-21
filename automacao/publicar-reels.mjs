@@ -4,7 +4,7 @@
 //   node publicar-reels.mjs --id 12 --so-youtube    (botão "▶️ Postar no YouTube": só o YouTube)
 // Um marcador em storage (capas/yt/reels-<id>.txt) impede postar o mesmo Reels duas vezes no YouTube.
 import { createClient } from "@supabase/supabase-js";
-import { postReelUrl, postFacebookReel } from "./lib/social.mjs";
+import { postReelUrl, postFacebookReel, paginasFacebook } from "./lib/social.mjs";
 import { hasTelegram, sendText } from "./lib/telegram.mjs";
 import { hasYouTube, postShort, textosYouTube, regrasYouTube, registrarYouTube, lerMetaYouTube } from "./lib/youtube.mjs";
 import { BRAND } from "../lib/brand.mjs";
@@ -28,12 +28,16 @@ async function facebook(r) {
   try {
     const { data: off } = r.offer_id ? await sb.from("offers").select("link").eq("id", r.offer_id).maybeSingle() : { data: null };
     const desc = String(r.caption || "").replace(/\n+(#\S+\s*)+$/, "") + (off?.link ? `\n\n🛒 Compre aqui: ${off.link}` : "");
-    const link = await postFacebookReel(r.video_url, desc);
-    if (hasTelegram()) await sendText(`📘 Reels no Facebook:\n${link}`).catch(() => {});
-  } catch (e) {
-    console.error("Facebook:", e.message);
-    if (hasTelegram()) await sendText(`⚠️ Facebook Reels: ${e.message.slice(0, 300)}`).catch(() => {});
-  }
+    for (const pg of paginasFacebook()) {
+      try {
+        const link = await postFacebookReel(r.video_url, desc, pg);
+        if (hasTelegram()) await sendText(`📘 Reels no Facebook (${pg.nome}):\n${link}`).catch(() => {});
+      } catch (e) {
+        console.error("Facebook:", e.message);
+        if (hasTelegram()) await sendText(`⚠️ Facebook Reels (${pg.nome}): ${e.message.slice(0, 300)}`).catch(() => {});
+      }
+    }
+  } catch (e) { console.error("Facebook:", e.message); }
 }
 
 const VITRINE = BRAND.site;

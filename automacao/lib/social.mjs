@@ -13,8 +13,8 @@ export function hasMeta() {
   return Boolean(process.env.META_PAGE_TOKEN);
 }
 
-async function graph(method, pathname, params = {}) {
-  const body = new URLSearchParams({ ...params, access_token: process.env.META_PAGE_TOKEN });
+async function graph(method, pathname, params = {}, token = process.env.META_PAGE_TOKEN) {
+  const body = new URLSearchParams({ ...params, access_token: token });
   const url = `${GRAPH()}/${pathname}` + (method === "GET" ? `?${body}` : "");
   const r = await fetch(url, {
     method,
@@ -115,17 +115,16 @@ export async function postReel(videoFile, caption, folder) {
 }
 
 // Reels na Página do Facebook (API: video_reels, 3 fases). O vídeo vem de URL pública (Storage).
-export async function postFacebookReel(video_url, description) {
-  const page = process.env.META_PAGE_ID;
+export async function postFacebookReel(video_url, description, { page = process.env.META_PAGE_ID, token = process.env.META_PAGE_TOKEN } = {}) {
   if (!page) throw new Error("Falta META_PAGE_ID");
-  const st = await graph("POST", `${page}/video_reels`, { upload_phase: "start" });
-  const up = await fetch(st.upload_url, { method: "POST", headers: { Authorization: `OAuth ${process.env.META_PAGE_TOKEN}`, file_url: video_url }, signal: AbortSignal.timeout(120000) });
+  const st = await graph("POST", `${page}/video_reels`, { upload_phase: "start" }, token);
+  const up = await fetch(st.upload_url, { method: "POST", headers: { Authorization: `OAuth ${token}`, file_url: video_url }, signal: AbortSignal.timeout(120000) });
   const uj = await up.json().catch(() => ({}));
   if (!uj.success) throw new Error(`Facebook recusou o envio do Reels: ${JSON.stringify(uj).slice(0, 200)}`);
-  await graph("POST", `${page}/video_reels`, { upload_phase: "finish", video_id: st.video_id, video_state: "PUBLISHED", description: description.slice(0, 2000) });
+  await graph("POST", `${page}/video_reels`, { upload_phase: "finish", video_id: st.video_id, video_state: "PUBLISHED", description: description.slice(0, 2000) }, token);
   for (let i = 0; i < 60; i++) {
     await sleep(5000);
-    const s = await graph("GET", st.video_id, { fields: "status,permalink_url" });
+    const s = await graph("GET", st.video_id, { fields: "status,permalink_url" }, token);
     const v = s.status?.video_status;
     if (v === "ready" || v === "published") return s.permalink_url ? `https://www.facebook.com${s.permalink_url}` : `https://www.facebook.com/reel/${st.video_id}`;
     if (v === "error") throw new Error("O Facebook recusou o Reels");
@@ -154,4 +153,12 @@ export async function postReelUrl(video_url, caption) {
   const pub = await graph("POST", `${ig}/media_publish`, { creation_id: c.id });
   const info = await graph("GET", pub.id, { fields: "permalink" }).catch(() => ({}));
   return info.permalink || pub.id;
+}
+
+// Páginas do Facebook que recebem Reels: a principal (META_PAGE_ID/TOKEN) + a 2ª, se existir (META_PAGE_ID_2/TOKEN_2)
+export function paginasFacebook() {
+  const l = [];
+  if (process.env.META_PAGE_ID && process.env.META_PAGE_TOKEN) l.push({ page: process.env.META_PAGE_ID.trim(), token: process.env.META_PAGE_TOKEN.trim(), nome: "principal" });
+  if (process.env.META_PAGE_ID_2 && process.env.META_PAGE_TOKEN_2) l.push({ page: process.env.META_PAGE_ID_2.trim(), token: process.env.META_PAGE_TOKEN_2.trim(), nome: "2ª página" });
+  return l;
 }
