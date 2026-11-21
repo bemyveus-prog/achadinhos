@@ -27,6 +27,10 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+      META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
+      META_PAGE_ID_2: ${{ secrets.META_PAGE_ID_2 }}
+      META_PAGE_TOKEN_2: ${{ secrets.META_PAGE_TOKEN_2 }}
+      META_PAGES_JSON: ${{ secrets.META_PAGES_JSON }}
       META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
