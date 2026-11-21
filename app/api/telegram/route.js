@@ -32,7 +32,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
 🖼️ <b>Fotos/vídeos → vídeo</b>: mande várias fotos ou vídeos de uma vez (álbum, pode misturar) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Os vídeos são emendados com transição, ganham narração, legenda e o final.
 📝 <b>/roteiro</b>: mande um vídeo com a legenda /roteiro (ou /roteiro link-do-tiktok) e a IA transcreve a fala e escreve uma narração nova com as nossas palavras. Depois use <b>/reels 227 roteiro</b> (ou /shopee, /link) para gerar o vídeo com ela.
-📌 <b>Link do Pinterest ou do TikTok</b>: cole o link do vídeo (pin.it/…, vm.tiktok.com/…) e o bot devolve o vídeo baixado.
+📌 <b>Link do Pinterest, TikTok, Instagram ou Facebook</b>: cole o link do vídeo (pin.it/…, vm.tiktok.com/…, facebook.com/share/r/…) e o bot devolve o vídeo baixado.
 🎥 <b>Link do Shopee Vídeo</b>: cole o link (Compartilhar → Copiar link) e o bot baixa o vídeo, identifica o produto e gera o seu vídeo.
 📲 <b>Vídeos de grupos</b>: encaminhe o vídeo com o texto (que tem o link da Shopee). Num grupo do Telegram onde o bot está, mande /grupoid lá dentro para liberar a leitura automática. O bot põe o produto na vitrine com o SEU link, cria a narração e gera o vídeo.
 <b>/modo</b> shopee | reels | ambos → formato dos vídeos encaminhados
@@ -147,6 +147,13 @@ async function onText(msg) {
     try { await dispatchWorkflow("baixar-video.yml", { url: ig, tipo: "ytdlp", legenda: "📸 Vídeo do Instagram baixado." }); }
     catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
     return say(chat, "📸 Tentando baixar o vídeo do Instagram… chega aqui em ~1 minuto. (Se o Instagram bloquear, salve o Reels pelo app e mande aqui.)");
+  }
+  // link de vídeo/Reels do Facebook: mesmo caminho (yt-dlp no GitHub). Páginas privadas ou grupos fechados não baixam.
+  const fb = (text.match(FB_RE) || [])[0];
+  if (fb && !text.startsWith("/")) {
+    try { await dispatchWorkflow("baixar-video.yml", { url: fb, tipo: "ytdlp", legenda: "📘 Vídeo do Facebook baixado." }); }
+    catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
+    return say(chat, "📘 Baixando o vídeo do Facebook… chega aqui em ~1 minuto. (Se o Facebook bloquear ou o vídeo for privado, salve pelo app e mande aqui.)");
   }
   const tt = (text.match(TIKTOK_RE) || [])[0];
   if (tt && !text.startsWith("/")) {
@@ -1257,6 +1264,7 @@ async function pedirTraducao(chat, { video = "", url = "" }) {
   catch (e) { return say(chat, `⚠️ ${esc(e.message)}`); }
   return say(chat, "🌎 Lendo o texto da tela e traduzindo para o português… o vídeo chega aqui em ~2 minutos.");
 }
+const FB_RE = /https?:\/\/(?:(?:www|m|web|mbasic)\.)?(?:facebook\.com\/(?:share\/(?:r|v)\/|reel\/|watch|[^\s\/]+\/videos\/|video\.php)|fb\.watch\/)[^\s)>\]]*/i;
 const TIKTOK_RE = /https?:\/\/(?:(?:www|m|vm|vt)\.)?(?:tiktok\.com|kwai\.com|kw\.ai)\/[^\s)>\]]+/i;
 const PIN_RE = /https?:\/\/(?:pin\.it|(?:[a-z]{2,3}\.|www\.)?pinterest\.[a-z.]+\/pin)\/[^\s)>\]]+/i;
 async function pinterestVideo(link) {
