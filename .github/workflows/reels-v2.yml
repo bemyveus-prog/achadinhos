@@ -100,6 +100,7 @@ jobs:
           META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
           META_PAGE_ID_2: ${{ secrets.META_PAGE_ID_2 }}
           META_PAGE_TOKEN_2: ${{ secrets.META_PAGE_TOKEN_2 }}
+          META_PAGES_JSON: ${{ secrets.META_PAGES_JSON }}
           META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
           FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}

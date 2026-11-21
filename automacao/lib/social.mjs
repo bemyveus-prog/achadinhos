@@ -160,5 +160,9 @@ export function paginasFacebook() {
   const l = [];
   if (process.env.META_PAGE_ID && process.env.META_PAGE_TOKEN) l.push({ page: process.env.META_PAGE_ID.trim(), token: process.env.META_PAGE_TOKEN.trim(), nome: "principal" });
   if (process.env.META_PAGE_ID_2 && process.env.META_PAGE_TOKEN_2) l.push({ page: process.env.META_PAGE_ID_2.trim(), token: process.env.META_PAGE_TOKEN_2.trim(), nome: "2ª página" });
+  // demais páginas: secret META_PAGES_JSON = [{"nome":"Magali","id":"123","token":"EAA..."}, ...]
+  try {
+    for (const x of JSON.parse(process.env.META_PAGES_JSON || "[]")) if (x.id && x.token) l.push({ page: String(x.id).trim(), token: String(x.token).trim(), nome: x.nome || String(x.id) });
+  } catch (e) { console.error("META_PAGES_JSON inválido:", e.message); }
   return l;
 }
