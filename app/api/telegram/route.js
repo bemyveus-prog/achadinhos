@@ -427,7 +427,14 @@ async function fotosProduto(msg, cap) {
   // 1) comando com o número da vitrine
   const cm = cap.match(/^\/?(reels|shopee|link)\b/i);
   if (cm) {
-    const { head, fala } = parseReels(cap);
+    const { head: head0, fala } = parseReels(cap);
+    // "ambos": gera a versão do Reels e a do Shopee Vídeo com as mesmas mídias (a palavra não vira narração)
+    const ambos = head0.some((w) => /^ambos$/i.test(w));
+    const head = head0.filter((w) => !/^ambos$/i.test(w));
+    if (ambos) {
+      for (const m of ["instagram", "shopee"]) await startReels(chat, head, fala, "", m, { fotos: pasta, ...(fala ? {} : { gerarFala: true }) });
+      return;
+    }
     const modo = cm[1].toLowerCase() === "reels" ? "instagram" : cm[1].toLowerCase();
     return startReels(chat, head, fala, "", modo, { fotos: pasta, ...(fala ? {} : { gerarFala: true }) });
   }
@@ -661,7 +668,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const layout = args.some((a) => /^m[aá]scara$/i.test(a)) ? "mascara" : args.some((a) => /^cheio$/i.test(a)) ? "cheio" : args.some((a) => /^limpo$/i.test(a)) ? "limpo" : args.some((a) => /^puro$/i.test(a)) ? "puro"
     : ctxLayout ? (/^cheio$/i.test(ctxLayout) ? "cheio" : /^limpo$/i.test(ctxLayout) ? "limpo" : /^puro$/i.test(ctxLayout) ? "puro" : "mascara") : await getFormato();
   // depois do número: SKU da CJ (tem letras e números, ex.: CJYD2300009) e, sem "texto:", o resto vira narração
-  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio|limpo|puro|roteiro|sem-?frase)$/i.test(a));
+  const rest = args.filter((a) => a.replace("#", "") !== num && !/^postar$/i.test(a) && !/^(m[aá]scara|cheio|limpo|puro|roteiro|sem-?frase|ambos)$/i.test(a));
   const looksSku = (a) => !/^(https?:|www\.)/i.test(a) && /^[A-Za-z0-9_-]{5,60}$/.test(a) && /\d/.test(a) && /[A-Za-z]/.test(a);
   const sku = rest[0] && looksSku(rest[0]) ? rest[0] : "";
   if (!fala) fala = rest.slice(sku ? 1 : 0).join(" ").trim();
