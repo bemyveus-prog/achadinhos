@@ -52,10 +52,10 @@ export const CTAS_SHOPEE = [
 // {N} = "é o número 227" (ou vazio). Sem canal do Telegram, usa as versões sem ele.
 const TEM_TG = Boolean(BRAND.canalTelegram);
 export const CTAS_INSTA = TEM_TG ? [
-  { say: "Me segue pra não perder os próximos! No link da bio você pega esse{N}, e entra no meu grupo do Telegram com ofertas exclusivas.", tela: "Me segue ➕ e entra no grupo VIP do Telegram" },
-  { say: "Segue o perfil e toca no link da bio: lá tá esse produto{N}, e o grupo do Telegram com oferta que só sai lá!", tela: "Segue ➕ · produto e grupo VIP no link da bio" },
-  { say: "Gostou? Link na bio{N}. E me segue e entra no grupo do Telegram, que lá tem oferta exclusiva todo dia!", tela: "🔥 Oferta exclusiva no grupo do Telegram" },
-  { say: "Corre no link da bio pra pegar o seu{N}. Me segue e entra no grupo VIP do Telegram, que as melhores ofertas saem lá primeiro!", tela: "Segue ➕ e entra no grupo VIP 🔥" },
+  { say: "Me segue pra não perder os próximos! No link da bio você pega esse{N}, e entra no grupo VIP do Telegram, que tem cupom pra resgatar.", tela: "Segue ➕ e resgata cupom no grupo VIP 🎟️" },
+  { say: "Segue o perfil e toca no link da bio: lá tá esse produto{N}, e a entrada do grupo do Telegram, com cupom pra você resgatar!", tela: "🎟️ Cupom pra resgatar no grupo VIP · link na bio" },
+  { say: "Gostou? Link na bio{N}. Entra no grupo do Telegram e resgata o cupom do dia, é de graça!", tela: "🎟️ Resgata o cupom no grupo do Telegram" },
+  { say: "Corre no link da bio pra pegar o seu{N}. Me segue e entra no grupo VIP do Telegram pra resgatar o cupom do dia!", tela: "Segue ➕ e resgata o cupom no grupo VIP 🎟️" },
 ] : [
   { say: "Me segue pra não perder os próximos! E o link tá na bio{N}.", tela: "Me segue ➕ pra ver os próximos achados" },
   { say: "Segue o perfil e toca no link da bio pra pegar o seu{N}!", tela: "Segue ➕ e pega no link da bio" },
@@ -63,7 +63,7 @@ export const CTAS_INSTA = TEM_TG ? [
 // "Comenta EU QUERO": só entra quando a resposta automática no direct está ligada (variável EU_QUERO=ligado)
 export const euQueroLigado = () => (process.env.EU_QUERO || "").trim() === "ligado";
 export const CTA_EU_QUERO = TEM_TG
-  ? { say: "Quer o link? Comenta EU QUERO que eu te mando no direct! E me segue e entra no grupo VIP do Telegram.", tela: "Comenta EU QUERO 💬 que te mando o link" }
+  ? { say: "Quer o link? Comenta EU QUERO que eu te mando no direct! E entra no grupo VIP do Telegram pra resgatar cupom, o link tá na bio.", tela: "Comenta EU QUERO 💬 que te mando o link" }
   : { say: "Quer o link? Comenta EU QUERO que eu te mando no direct! E me segue pra ver mais achados.", tela: "Comenta EU QUERO 💬 que te mando o link" };
 export const textoCtaInsta = (cta, n, cupom) => cta.say.replace("{N}", n ? `, é o número ${n}` : "") + (cupom ? " Tem cupom também!" : "");
 

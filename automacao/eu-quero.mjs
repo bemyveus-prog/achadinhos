@@ -98,7 +98,7 @@ async function main() {
         `Aqui está${nome ? ` o ${nome}` : ""}${p.n ? ` (achadinho #${p.n})` : ""} 👇`,
         link,
         "",
-        BRAND.canalTelegram ? `🔥 As ofertas exclusivas saem primeiro no meu grupo VIP do Telegram: ${BRAND.canalTelegram}` : "",
+        BRAND.canalTelegram ? `🎟️ Tem cupom pra resgatar no meu grupo VIP do Telegram (as ofertas exclusivas saem primeiro lá): ${BRAND.canalTelegram}` : "",
         "Me segue pra ver um achado novo todo dia! ✨",
       ].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n");
       log(`@${outro.username} respondeu → link #${p.n || "?"} ${link}`);
@@ -116,7 +116,7 @@ async function main() {
             `O link${p.n ? ` do achadinho #${p.n}` : ""} tá na minha bio 👆`,
             p.n ? `É só tocar no link do perfil e buscar ${p.n} na vitrine que ele aparece certinho.` : "É só tocar no link do perfil que tá tudo lá.",
             "",
-            BRAND.canalTelegram ? "🔥 Lá também tem o botão do meu grupo VIP do Telegram, com as ofertas exclusivas." : "",
+            BRAND.canalTelegram ? "🎟️ Lá também tem o botão do meu grupo VIP do Telegram: entra e resgata o cupom, tem ofertas exclusivas." : "",
             "Me segue pra ver um achado novo todo dia! ✨",
           ].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n");
           try { await enviar({ id: outro.id }, { text: semLink }); delete pend[outro.username]; n2++; log("  ✓ enviado o caminho pela bio (Instagram bloqueou link no direct)"); }

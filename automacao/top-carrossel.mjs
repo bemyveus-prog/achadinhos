@@ -63,6 +63,10 @@ function pagina(slides, ac) {
   .cta h2{font-size:84px;line-height:1.05;font-weight:900}.cta h2 mark{background:none;color:#FFD54A}
   .row{display:flex;align-items:center;gap:26px;background:rgba(255,255,255,.1);border-radius:30px;padding:26px 30px;margin-top:28px;text-align:left;font-size:38px}
   .row em{font-style:normal;font-size:60px}
+  .tk{display:flex;align-items:center;justify-content:space-between;gap:22px;background:#FFD54A;color:#1c1917;border-radius:30px;padding:26px 34px;margin-top:30px;text-align:left;border:4px dashed rgba(28,25,23,.35)}
+  .tk small{display:block;font-size:26px;font-weight:800;letter-spacing:2px;opacity:.75}
+  .tk b{display:block;font-size:46px;line-height:1.05;font-weight:900;margin-top:4px}
+  .tk i{font-style:normal;background:#229ED9;color:#fff;font-size:30px;font-weight:800;padding:14px 26px;border-radius:999px;white-space:nowrap}
   </style></head><body>${slides.join("")}</body></html>`;
 }
 
@@ -89,10 +93,10 @@ async function main() {
     <div class="id">🔎 Busca na vitrine <span>#${it.id}</span></div></section>`);
   const fim = `<section class="s"><div class="glow"></div><div class="handle">${handle}</div><div class="cta">
     <h2>Qual desses <mark>você levaria?</mark></h2>
+    ${BRAND.canalTelegram ? `<div class="tk"><div><small>🎟️ CUPOM PRA RESGATAR</small><b>Entra no grupo VIP do Telegram</b></div><i>link na bio</i></div>` : ""}
     <div class="row"><em>💬</em><div>Comenta o <b>número</b> aqui embaixo</div></div>
     <div class="row"><em>🔖</em><div><b>Salva</b> pra achar depois</div></div>
     <div class="row"><em>🔗</em><div>Link na bio: busca o <b>#número</b> na vitrine</div></div>
-    ${BRAND.canalTelegram ? `<div class="row"><em>🔥</em><div>Ofertas que somem rápido no <b>grupo VIP</b> do Telegram</div></div>` : ""}
     <div class="row"><em>➕</em><div><b>Me segue</b>: achado novo todo dia</div></div></div></section>`;
 
   const outDir = path.join(HERE, "saida", "top-carrossel", `${Date.now()}`);
@@ -120,7 +124,7 @@ async function main() {
     "Qual você levaria? Comenta o número 👇",
     "🔖 Salva pra não perder e manda pra quem precisa!",
     "🔎 Link na bio: busca o número na vitrine.",
-    `➕ Me segue pra ver um achado novo todo dia${BRAND.canalTelegram ? "\n🔥 No link da bio tem o grupo VIP do Telegram" : ""}`,
+    `➕ Me segue pra ver um achado novo todo dia${BRAND.canalTelegram ? "\n🎟️ Tem cupom pra resgatar no grupo VIP do Telegram: o link tá na bio" : ""}`,
     "",
     "#achadinhos #achadinhosshopee #achadosdashopee #utilidadesdomesticas #comprinhas",
   ].join("\n");

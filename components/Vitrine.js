@@ -371,15 +371,15 @@ function PopupVip({ c }) {
     <div className="vip-fundo" onClick={() => setAberto(false)} role="dialog" aria-modal="true" aria-label="Grupo VIP de ofertas">
       <div className="vip-caixa" onClick={(e) => e.stopPropagation()}>
         <button className="vip-x" onClick={() => setAberto(false)} aria-label="Fechar">✕</button>
-        <div className="vip-emoji">🔥</div>
-        <h3>Entra no grupo VIP de ofertas</h3>
-        <p>Ofertas relâmpago e cupons que <b>não aparecem aqui</b>. Quem está no grupo recebe primeiro, antes de acabar.</p>
+        <div className="vip-emoji">🎟️</div>
+        <h3>Tem cupom pra resgatar no grupo VIP</h3>
+        <p>Entra no grupo do Telegram e resgata os <b>cupons e ofertas do dia</b>, que não aparecem aqui. Quem está lá pega primeiro.</p>
         <ul>
+          <li>🎟️ Cupons pra resgatar</li>
           <li>⚡ Promoções que somem em horas</li>
-          <li>🎟️ Cupons exclusivos</li>
           <li>💸 Grátis, sai quando quiser</li>
         </ul>
-        <a className="vip-btn" href="/vip" target="_blank" rel="noopener" onClick={() => setTimeout(() => setAberto(false), 300)}>✈️ Entrar no grupo VIP</a>
+        <a className="vip-btn" href="/vip" target="_blank" rel="noopener" onClick={() => setTimeout(() => setAberto(false), 300)}>🎟️ Resgatar cupom no grupo</a>
         <button className="vip-depois" onClick={() => setAberto(false)}>Agora não</button>
       </div>
     </div>
@@ -390,7 +390,7 @@ function Canais({ c }) {
   if (!c?.telegram && !c?.whatsapp) return null;
   return (
     <div className="canais">
-      <p>⚡ Ofertas relâmpago que somem rápido: receba antes de todo mundo</p>
+      <p>🎟️ Cupons pra resgatar e ofertas relâmpago: entra no grupo e pega antes de todo mundo</p>
       <div>
         {c.telegram && <a className="canal tg" href={c.telegram} target="_blank" rel="noopener">Canal no Telegram</a>}
         {c.whatsapp && <a className="canal zap" href={c.whatsapp} target="_blank" rel="noopener">Canal no WhatsApp</a>}
