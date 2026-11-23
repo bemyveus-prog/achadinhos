@@ -120,6 +120,7 @@ jobs:
           META_PAGE_TOKEN_8: ${{ secrets.META_PAGE_TOKEN_8 }}
           META_PAGE_NOME_8: ${{ secrets.META_PAGE_NOME_8 }}
           META_PAGES_JSON: ${{ secrets.META_PAGES_JSON }}
+          FB_REELS_RASCUNHO: ${{ vars.FB_REELS_RASCUNHO }}
           META_IG_USER_ID: ${{ secrets.META_IG_USER_ID }}
           FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
