@@ -1,5 +1,6 @@
-import { postFacebookReel, paginasFacebook } from "./lib/social.mjs";
-const url = "https://jsydqcxgcryblxrelavy.supabase.co/storage/v1/object/public/carrosseis/reels2-460-1795125391296/reels.mp4";
+import { paginasFacebook } from "./lib/social.mjs";
 const pg = paginasFacebook().find((p) => p.nome === "principal");
-try { console.log("FBDRAFT OK:", await postFacebookReel(url, "Rascunho de teste (pode apagar)", { ...pg, rascunho: true })); }
-catch (e) { console.log("FBDRAFT ERRO:", e.message); }
+const G = "https://graph.facebook.com/v24.0";
+const get = async (path) => (await fetch(`${G}/${path}${path.includes("?") ? "&" : "?"}access_token=${pg.token}`)).json();
+console.log("STATUS:", JSON.stringify(await get("1951557172680158?fields=status,published,permalink_url,created_time")));
+console.log("RASCUNHOS:", JSON.stringify(await get(`${pg.page}/video_reels?fields=id,status,published,created_time&limit=5`)).slice(0, 700));
