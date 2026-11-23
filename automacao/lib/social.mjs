@@ -115,13 +115,16 @@ export async function postReel(videoFile, caption, folder) {
 }
 
 // Reels na Página do Facebook (API: video_reels, 3 fases). O vídeo vem de URL pública (Storage).
-export async function postFacebookReel(video_url, description, { page = process.env.META_PAGE_ID, token = process.env.META_PAGE_TOKEN } = {}) {
+// rascunho (FB_REELS_RASCUNHO=sim): o Reels vai para os rascunhos da Página, sem publicar, para você editar e postar
+export const fbRascunho = () => (process.env.FB_REELS_RASCUNHO || "").trim().toLowerCase() === "sim";
+export async function postFacebookReel(video_url, description, { page = process.env.META_PAGE_ID, token = process.env.META_PAGE_TOKEN, rascunho = fbRascunho() } = {}) {
   if (!page) throw new Error("Falta META_PAGE_ID");
   const st = await graph("POST", `${page}/video_reels`, { upload_phase: "start" }, token);
   const up = await fetch(st.upload_url, { method: "POST", headers: { Authorization: `OAuth ${token}`, file_url: video_url }, signal: AbortSignal.timeout(120000) });
   const uj = await up.json().catch(() => ({}));
   if (!uj.success) throw new Error(`Facebook recusou o envio do Reels: ${JSON.stringify(uj).slice(0, 200)}`);
-  await graph("POST", `${page}/video_reels`, { upload_phase: "finish", video_id: st.video_id, video_state: "PUBLISHED", description: description.slice(0, 2000) }, token);
+  await graph("POST", `${page}/video_reels`, { upload_phase: "finish", video_id: st.video_id, video_state: rascunho ? "DRAFT" : "PUBLISHED", description: description.slice(0, 2000) }, token);
+  if (rascunho) return `RASCUNHO salvo (id ${st.video_id}). Abra a Página no Facebook → Meta Business Suite → Conteúdo → Rascunhos`;
   for (let i = 0; i < 60; i++) {
     await sleep(5000);
     const s = await graph("GET", st.video_id, { fields: "status,permalink_url" }, token);
