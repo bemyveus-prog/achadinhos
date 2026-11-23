@@ -159,7 +159,11 @@ export async function postReelUrl(video_url, caption) {
 export function paginasFacebook() {
   const l = [];
   if (process.env.META_PAGE_ID && process.env.META_PAGE_TOKEN) l.push({ page: process.env.META_PAGE_ID.trim(), token: process.env.META_PAGE_TOKEN.trim(), nome: "principal" });
-  if (process.env.META_PAGE_ID_2 && process.env.META_PAGE_TOKEN_2) l.push({ page: process.env.META_PAGE_ID_2.trim(), token: process.env.META_PAGE_TOKEN_2.trim(), nome: "2ª página" });
+  // páginas individuais: META_PAGE_ID_2/META_PAGE_TOKEN_2 até _8 (nome opcional: META_PAGE_NOME_N)
+  for (let n = 2; n <= 8; n++) {
+    const id = process.env[`META_PAGE_ID_${n}`], tk = process.env[`META_PAGE_TOKEN_${n}`];
+    if (id && tk) l.push({ page: id.trim(), token: tk.trim(), nome: (process.env[`META_PAGE_NOME_${n}`] || "").trim() || `página ${n}` });
+  }
   // demais páginas: secret META_PAGES_JSON = [{"nome":"Magali","id":"123","token":"EAA..."}, ...]
   try {
     let txt = (process.env.META_PAGES_JSON || "").trim().replace(/,\s*$/, "");
