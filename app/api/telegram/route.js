@@ -30,6 +30,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
 <b>/tiktok</b> 131 → vídeo para o <b>TikTok Shop</b>: abre com o problema/resultado e o final chama para o produto marcado (sem citar a Shopee). Você posta no app e marca o produto do TikTok Shop. Também vale como legenda de um vídeo ou álbum.
+<b>/tiktok produto: Escorredor de louça texto: sua narração</b> (com o vídeo ou as fotos) → para produto que só existe no TikTok Shop, sem item na vitrine.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
 🖼️ <b>Fotos/vídeos → vídeo</b>: mande várias fotos ou vídeos de uma vez (álbum, pode misturar) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Os vídeos são emendados com transição, ganham narração, legenda e o final.
 📝 <b>/roteiro</b>: mande um vídeo com a legenda /roteiro (ou /roteiro link-do-tiktok) e a IA transcreve a fala e escreve uma narração nova com as nossas palavras. Depois use <b>/reels 227 roteiro</b> (ou /shopee, /link) para gerar o vídeo com ela.
@@ -657,6 +658,17 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const juntos = args.join(" ");
   const semFraseCmd = /(?:^|\s)sem[\s-]?frase(?=\s|$)/i.test(juntos);
   if (semFraseCmd) args = juntos.replace(/(?:^|\s)sem[\s-]?frase(?=\s|$)/gi, " ").split(/\s+/).filter(Boolean);
+  // /tiktok sem número da vitrine: "/tiktok produto: Escorredor de louça texto: sua narração".
+  // Cria um item ESCONDIDO (não aparece no site) só para dar nome ao vídeo: o produto pode existir só no TikTok Shop.
+  if (modo === "tiktok" && !args.some((a) => /^#?\d+$/.test(a))) {
+    const palavrasFormato = args.filter((a) => /^(m[aá]scara|cheio|limpo|puro|ambos|postar)$/i.test(a));
+    const nomeProd = args.filter((a) => !palavrasFormato.includes(a)).join(" ").replace(/^(produto|nome)\s*:\s*/i, "").trim().slice(0, 120);
+    if (nomeProd.length < 3) return say(chat, "Para o TikTok Shop sem item da vitrine, diga o produto:\n<b>/tiktok produto: Escorredor de louça texto: sua narração</b>\n(mande junto o vídeo ou as fotos do produto)");
+    if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+    const { data: row, error } = await db().from("offers").insert({ kind: "produto", title: nomeProd, description: "tiktok:avulso", link: "https://www.tiktok.com/", platform: "tiktok", active: false, expires_at: null }).select("id").single();
+    if (error) return say(chat, `Erro ao criar o item do vídeo: ${esc(error.message)}`);
+    args = [String(row.id), ...palavrasFormato];
+  }
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
   // "roteiro": usa a última narração criada pelo /roteiro

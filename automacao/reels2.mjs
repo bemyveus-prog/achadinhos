@@ -258,6 +258,11 @@ async function main() {
       if (offerId) await sb.from("offers").update({ title: visto.nome.slice(0, 120) }).eq("id", offerId).then(() => {}, () => {});
     }
   }
+  // produto sem foto (ex.: item só do TikTok Shop, só com o seu vídeo): um quadro do vídeo vira a foto do produto
+  if (!p.imageUrl && clip?.file) {
+    const q = path.join(outDir, "produto-quadro.jpg");
+    try { await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "1", "-i", clip.file, "-frames:v", "1", "-vf", "scale=1080:-2", q]); p.imageUrl = q; log("  sem foto do produto: usando um quadro do vídeo"); } catch (e) { log(`  quadro do vídeo: ${e.message}`); }
+  }
   const nome = shortName(p.name, 5);
   // sem capa no Reels: só o gancho da categoria entra na narração padrão (quando não há texto próprio)
   const cfg = await coverConfig();

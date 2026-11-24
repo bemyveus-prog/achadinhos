@@ -388,7 +388,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   if (p.rating) chips.push(`⭐ ${num(Number(p.rating).toFixed(1))}`);
   if (p.sales >= 100) chips.push(`🛒 ${salesLabel(p.sales)} vendidos`);
   const data = {
-    cover: null, img: await imageDataUri(p.imageUrl),
+    cover: null, img: p.imageUrl ? await imageDataUri(p.imageUrl).catch(() => null) : null,
     tag: "", accent: cover?.accent || BRAND.accent, hookHtml: "", nome,
     chips, price: (process.env.VIDEO_PRECO || "").trim() === "sim" && Number(p.price) > 0 ? brl(p.price) : "", comment, number: number ? String(number).startsWith("#") ? number : `#${number}` : "",
     scenes: scenes.map(({ key, dur }) => ({ key, dur })),
