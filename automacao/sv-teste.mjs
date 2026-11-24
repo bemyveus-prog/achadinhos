@@ -1,6 +1,8 @@
 import { paginasFacebook } from "./lib/social.mjs";
-const pg = paginasFacebook().find((p) => p.nome === "principal");
 const G = "https://graph.facebook.com/v24.0";
-const get = async (path) => (await fetch(`${G}/${path}${path.includes("?") ? "&" : "?"}access_token=${pg.token}`)).json();
-console.log("STATUS:", JSON.stringify(await get("1951557172680158?fields=status,published,permalink_url,created_time")));
-console.log("RASCUNHOS:", JSON.stringify(await get(`${pg.page}/video_reels?fields=id,status,published,created_time&limit=5`)).slice(0, 700));
+for (const pg of paginasFacebook()) {
+  const r = await (await fetch(`${G}/me?fields=id,name&access_token=${pg.token}`)).json();
+  const d = await (await fetch(`${G}/debug_token?input_token=${pg.token}&access_token=${pg.token}`)).json();
+  const x = d.data || {};
+  console.log(`PAG ${pg.nome}: id_config=${pg.page} | token_de=${r.name || JSON.stringify(r.error?.message)} (${r.id || "-"}) | tipo=${x.type} | expira=${x.expires_at === 0 ? "NUNCA" : x.expires_at} | valido=${x.is_valid}`);
+}
