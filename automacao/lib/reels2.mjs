@@ -202,7 +202,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   if(d.layout==="limpo"){document.body.classList.add("limpo");if(d.soFoto)document.body.classList.add("foto");
     $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":(d.euQuero?"💬 Comenta EU QUERO\\n📩 Te mando o link no direct":d.temTg?"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+"\\n🔥 Ofertas VIP no Telegram":"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆");}
   if(d.layout==="mascara"){document.body.classList.add("mask");
-    $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
+    $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";$("mwho").style.display=d.semHandle?"none":"flex";
     if(d.avatar){$("mava").style.backgroundImage="url("+d.avatar+")"}else{$("mava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
     $("mcta").innerHTML=d.modo==="shopee"?"🛒 Toque no produto aqui embaixo":d.modo==="link"?"🔗 Clique no link abaixo":"🔗 Link na bio"+(d.number?"<i>"+d.number+"</i>":"");
     $("marrow").textContent=d.modo==="instagram"?"👆":"👇";}
@@ -397,6 +397,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     subs: (() => { const w = scenes[0].say.split(/\s+/).filter(Boolean); const out = []; for (let i = 0; i < w.length; i += 5) out.push(w.slice(i, i + 5).join(" ")); return out; })(),
     voiceDur: voice[0]?.duration || 0,
     handle: handle || BRAND.handle,
+    semHandle: modo === "tiktok",
     modo: modoTela,
     ctaTela: ctaShopee.tela,
     ctaInstaTela: ctaInsta.tela,
@@ -431,6 +432,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   await mixAudio(silent, voice, scenes, null, total, file);
   await writeFile(path.join(outDir, "roteiro.txt"), scenes.map((s, i) => `${i + 1}. [${s.key}] ${s.say}`).join("\n") + "\n");
   await rm(tmp, { recursive: true, force: true });
-  await marcaDagua(file, typeof log === "function" ? log : console.log);
+  // TikTok Shop: sem @ do Instagram na tela
+  if (modo !== "tiktok") await marcaDagua(file, typeof log === "function" ? log : console.log);
   return { file, seconds: total, scenes };
 }
