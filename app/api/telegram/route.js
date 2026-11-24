@@ -29,6 +29,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/comissao</b> fone bluetooth → só pela maior comissão, mesmo com poucas vendas
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
+<b>/tiktok</b> 131 → vídeo para o <b>TikTok Shop</b>: abre com o problema/resultado e o final chama para o produto marcado (sem citar a Shopee). Você posta no app e marca o produto do TikTok Shop. Também vale como legenda de um vídeo ou álbum.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
 🖼️ <b>Fotos/vídeos → vídeo</b>: mande várias fotos ou vídeos de uma vez (álbum, pode misturar) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Os vídeos são emendados com transição, ganham narração, legenda e o final.
 📝 <b>/roteiro</b>: mande um vídeo com a legenda /roteiro (ou /roteiro link-do-tiktok) e a IA transcreve a fala e escreve uma narração nova com as nossas palavras. Depois use <b>/reels 227 roteiro</b> (ou /shopee, /link) para gerar o vídeo com ela.
@@ -77,6 +78,7 @@ export async function GET(req) {
     { command: "top", description: "Reels com vários produtos (Top N)" },
     { command: "modo", description: "Formato dos vídeos encaminhados: shopee, reels ou ambos" },
     { command: "shopee", description: "Vídeo para o Shopee Vídeo: /shopee 131 SKU texto" },
+    { command: "tiktok", description: "Vídeo para o TikTok Shop: /tiktok 131" },
     { command: "relatorio", description: "Vendas, comissão e cliques (hoje, 7 ou 30 dias)" },
     { command: "ajuda", description: "Como usar" },
   ] });
@@ -189,9 +191,9 @@ async function onText(msg) {
   if (cmd === "lomadee" || cmd === "lojas") return buscarLomadee(chat, arg);
   if (cmd === "voz") return escolherVoz(chat, arg);
   if (cmd === "relatorio" || cmd === "relatório" || cmd === "vendas") return relatorio(chat, arg);
-  if (cmd === "reels" || cmd === "shopee" || cmd === "link") {
+  if (cmd === "reels" || cmd === "shopee" || cmd === "link" || cmd === "tiktok") {
     const { head, fala } = parseReels(text);
-    return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : cmd === "link" ? "link" : "instagram", cmd === "link" && !fala ? { gerarFala: true } : {});
+    return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : cmd === "link" ? "link" : cmd === "tiktok" ? "tiktok" : "instagram", (cmd === "link" || cmd === "tiktok") && !fala ? { gerarFala: true } : {});
   }
   if (cmd === "loja" || cmd === "lojas") {
     if (!arg) return say(chat, "Ex.: /loja samsung  ou  /loja vult");
@@ -358,7 +360,7 @@ async function onPhoto(msg) {
   const fm = cap.match(/^\/?foto\s+#?(\d+)/i);
   if (fm) return saveOfferPhoto(chat, msg, Number(fm[1]));
   // várias fotos (álbum) ou foto com link/comando: vira vídeo do produto
-  if (!/^\/?capas?\b/i.test(cap) && (msg.media_group_id || SHOPEE_RE.test(cap) || AMAZON_RE.test(cap) || /^\/?(reels|shopee|link)\b/i.test(cap))) return fotosProduto(msg, cap);
+  if (!/^\/?capas?\b/i.test(cap) && (msg.media_group_id || SHOPEE_RE.test(cap) || AMAZON_RE.test(cap) || /^\/?(reels|shopee|link|tiktok)\b/i.test(cap))) return fotosProduto(msg, cap);
   const m = cap.match(/^\/?capas?\s+(.+)$/i);
   if (!m) return say(chat, `Para usar como capa, mande a foto com a legenda <b>/capa categoria</b>.\nCategorias: ${CAPA_SLUGS.join(", ")}`);
   const slug = toSlug(m[1]);
@@ -432,7 +434,7 @@ async function fotosProduto(msg, cap) {
 
   await tg("sendChatAction", { chat_id: chat, action: "upload_video" }).catch(() => {});
   // 1) comando com o número da vitrine
-  const cm = cap.match(/^\/?(reels|shopee|link)\b/i);
+  const cm = cap.match(/^\/?(reels|shopee|link|tiktok)\b/i);
   if (cm) {
     const { head: head0, fala } = parseReels(cap);
     // "ambos": gera a versão do Reels e a do Shopee Vídeo com as mesmas mídias (a palavra não vira narração)
@@ -702,6 +704,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
     return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? `Confira o GITHUB_TOKEN da Vercel: precisa ter acesso ao repositório ${REPO} com a permissão Actions: Read and write.` : ""}`);
   }
   if (extra.fotos) return say(chat, `🖼️ Gerando o vídeo do <b>#${num}</b> com as suas fotos/vídeos (emendados)${modo === "link" ? " e final genérico (clique no link abaixo)" : modo === "shopee" ? " para o Shopee Vídeo" : " para o Reels"}. Chega aqui em uns 3 minutos.`);
+  if (modo === "tiktok") return say(chat, `🎵 Gerando o vídeo do <b>#${num}</b> para o <b>TikTok Shop</b> (gancho de problema/resultado, final chamando para o produto marcado, sem citar a Shopee)${video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}.\nChega aqui em uns 2 minutos.`);
   if (modo === "link") return say(chat, `🔗 Gerando o vídeo do <b>#${num}</b> com final genérico (clique no link abaixo, sem citar a loja). Chega aqui em uns 2 minutos.`);
   if (modo === "shopee") return say(chat, `🛍️ Gerando o vídeo do <b>#${num}</b> para o <b>Shopee Vídeo</b>${video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " e a sua narração" : ""}.\nChega aqui em uns 2 minutos.`);
   return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${video && sku ? ` com o seu vídeo + o vídeo da CJ (<code>${esc(sku)}</code>)` : video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " com a sua narração" : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
@@ -709,7 +712,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
 
 // "/reels 123 SKU texto: narração" (o texto também pode vir nas linhas de baixo)
 function parseReels(text) {
-  const full = String(text || "").replace(/^\/?(reels|shopee|link)(@\S+)?/i, "").trim();
+  const full = String(text || "").replace(/^\/?(reels|shopee|link|tiktok)(@\S+)?/i, "").trim();
   const m = full.match(/^(.*?)(?:\btexto:|\n)([\s\S]*)$/i);
   const head = (m ? m[1] : full).trim().split(/\s+/).filter(Boolean);
   const fala = m ? m[2].replace(/\s+/g, " ").trim() : "";
@@ -737,7 +740,7 @@ async function onVideo(msg) {
   }
   // vários vídeos de uma vez (álbum, pode misturar com fotos): emenda tudo num vídeo só
   if (msg.media_group_id) return fotosProduto(msg, cap);
-  const isCmd = /^\/?(reels|shopee|link)\b/i.test(cap);
+  const isCmd = /^\/?(reels|shopee|link|tiktok)\b/i.test(cap);
   const amzUrl = (cap.match(AMAZON_RE) || [])[0];
   if (!isCmd && amzUrl) return amazonVideo(msg, cap, amzUrl);
   // link do Shopee Vídeo (não traz o produto) ou texto sem link: a IA identifica o produto pelo vídeo
@@ -749,7 +752,7 @@ async function onVideo(msg) {
     await db().from("bot_config").upsert({ key: "video_pendente", value: JSON.stringify({ file_id: v.file_id, file_size: v.file_size || 0, at: Date.now() }), updated_at: new Date().toISOString() });
     return say(chat, "🎥 Recebi o vídeo. Agora manda (ou encaminha) o texto com o link da Shopee ou da Amazon.");
   }
-  if (!/^\/?(reels|shopee|link)\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
+  if (!/^\/?(reels|shopee|link|tiktok)\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
   const v = msg.video || msg.document;
   if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "O Telegram só deixa o bot baixar vídeos de até 20 MB. Mande uma versão menor (ex.: cortada ou em 720p).");
   if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
@@ -764,7 +767,7 @@ async function onVideo(msg) {
   const { error } = await db().storage.from("reels-videos").upload(name, buf, { contentType: type });
   if (error) return say(chat, `Erro ao guardar o vídeo: ${esc(error.message)}`);
   const { head, fala } = parseReels(cap);
-  const modoV = /^\/?shopee\b/i.test(cap) ? "shopee" : /^\/?link\b/i.test(cap) ? "link" : "instagram";
+  const modoV = /^\/?shopee\b/i.test(cap) ? "shopee" : /^\/?link\b/i.test(cap) ? "link" : /^\/?tiktok\b/i.test(cap) ? "tiktok" : "instagram";
   // "ambos" na legenda: gera a versão do Reels e a do Shopee Vídeo com o mesmo vídeo
   const ambos = /\bambos\b/i.test(cap.split(/texto:/i)[0]);
   const headLimpo = ambos ? head.filter((w) => !/^ambos$/i.test(w)) : head;
@@ -772,7 +775,7 @@ async function onVideo(msg) {
     for (const m of ["instagram", "shopee"]) await startReels(chat, headLimpo, fala, name, m, {});
     return;
   }
-  return startReels(chat, head, fala, name, modoV, modoV === "link" && !fala ? { gerarFala: true } : {});
+  return startReels(chat, head, fala, name, modoV, (modoV === "link" || modoV === "tiktok") && !fala ? { gerarFala: true } : {});
 }
 
 // ---------- aprovação de Reels ----------

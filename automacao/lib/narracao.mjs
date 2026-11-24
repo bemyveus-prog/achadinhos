@@ -43,7 +43,7 @@ export const GATILHOS = ["Curiosidade", "FOMO", "Prova social", "Identificação
 // a última análise feita (para mostrar no Telegram junto do vídeo)
 export let ultimaAnalise = null;
 
-export async function gerarNarracao(p, { contexto = "", max = 300, generico = false, log = console.log } = {}) {
+export async function gerarNarracao(p, { contexto = "", max = 300, generico = false, tiktok = false, log = console.log } = {}) {
   const key = env("ANTHROPIC_API_KEY");
   if (!key) { log("  narração: modelo de texto (sem ANTHROPIC_API_KEY)"); return modelo(p); }
   // variedade: um estilo de abertura e um gatilho "sugerido" sorteados (a IA usa se combinar com o produto)
@@ -61,10 +61,10 @@ Se fizer sentido para este produto, inclua "${sugerido}" (se não combinar, igno
 Por categoria: BELEZA E MODA → identificação, autoestima, desejo, linguagem sensorial, transformação realista. CASA E COZINHA → praticidade, demonstração, economia de tempo, solução de problema do dia a dia. ELETRÔNICOS → curiosidade, especificidade, demonstração, redução de risco. SAÚDE E BEM-ESTAR → informação responsável, confiança, características verificáveis, NUNCA prometa cura ou resultado médico. ACESSÓRIOS → identificação, estilo, praticidade, custo-benefício. INFANTIS → praticidade para os responsáveis, utilidade e segurança só se comprovada.
 PROIBIDO: inventar escassez, estoque acabando, avaliações, números de vendas, preços, resultados ou características que não estejam no nome/informações acima. FOMO, prova social, efeito manada e ancoragem só se houver dado real nas informações (se não houver, não use).
 
-3) HOOK (primeiros 3 segundos): interrompa a rolagem com um dos gatilhos escolhidos, começando direto pelo desejo, dor ou curiosidade. Inspiração de estilo (adapte, não copie): ${gancho.nome}, "${gancho.modelo}". Nunca comece com "Olá", "Hoje vim mostrar", "Você conhece esse produto?".
+3) HOOK (primeiros 3 segundos): interrompa a rolagem com um dos gatilhos escolhidos, começando direto pelo desejo, dor ou curiosidade. Inspiração de estilo (adapte, não copie): ${gancho.nome}, "${gancho.modelo}". Nunca comece com "Olá", "Hoje vim mostrar", "Você conhece esse produto?".${tiktok ? "\nFORMATO TIKTOK SHOP: abra pelo PROBLEMA ou pelo RESULTADO que a pessoa vê (nunca pelo nome do produto), mostre o produto em uso, responda UMA objeção comum e termine pedindo para tocar no produto marcado no vídeo. Sem citar Shopee, Instagram, TikTok, link na bio, Telegram ou cupom." : ""}
 
 4) NARRAÇÃO (texto que a voz vai ler): ATENÇÃO (o hook) → IDENTIFICAÇÃO (situação em que a pessoa se reconhece) → DESEJO → DEMONSTRAÇÃO (características e benefícios reais, de forma visual) → CONFIANÇA (quebre a principal objeção sem prometer nada). Deve parecer uma recomendação espontânea de amiga, não propaganda. Cada frase precisa ajudar na decisão; sem repetir benefício; venda o benefício, não só descreva o objeto.
-A chamada final (ação) NÃO entra na narração: o vídeo já tem uma tela final com o convite. Então não fale de link, bio, cupom, seguir ou comentar${generico ? ", nem cite loja ou plataforma (Amazon, Shopee etc.)" : ""}.
+A chamada final (ação) NÃO entra na narração: o vídeo já tem uma tela final com o convite. Então não fale de link, bio, cupom, seguir ou comentar${generico || tiktok ? ", nem cite loja ou plataforma (Amazon, Shopee etc.)" : ""}.
 - No máximo ${max} caracteres (${max <= 160 ? "1 ou 2 frases curtas" : "vídeo de ~15 a 20 s"}), linguagem falada do Brasil, frases curtas, ritmo rápido.
 - Não diga que você comprou ou usa o produto. Não fale de nota, avaliações, vendas nem preço exato.
 - Expressões proibidas (gastas): "para tudo", "olha isso", "cansada de", "cansado de", "cansou de", "aproveita enquanto", "garante o seu", "você não vai acreditar", "achadinho incrível", "como vivia sem", "vale cada centavo".
