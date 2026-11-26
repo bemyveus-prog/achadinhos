@@ -13,9 +13,29 @@ export async function audioDuration(file) {
   return Number(stdout.trim()) || 0;
 }
 
+// Voz do Fish Audio: escolhida no bot (/fish → bot_config "voz_fish" = "id|nome", ou "off" desliga) ou a variável FISH_VOICE_ID.
+let vozFish;
+async function cfgBot(chave) {
+  try {
+    const url = env("SUPABASE_URL"), key = env("SUPABASE_SERVICE_ROLE_KEY");
+    if (url && key) {
+      const r = await fetch(`${url}/rest/v1/bot_config?key=eq.${chave}&select=value`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+      return (await r.json())?.[0]?.value || "";
+    }
+  } catch {}
+  return "";
+}
+async function vozFishEscolhida() {
+  if (vozFish !== undefined) return vozFish;
+  vozFish = { id: env("FISH_VOICE_ID"), bot: false };
+  const v = await cfgBot("voz_fish");
+  if (v === "off") vozFish = { id: "", bot: false };
+  else if (v) vozFish = { id: v.split("|")[0], bot: true };
+  return vozFish;
+}
 async function fish(text, out) {
   const key = env("FISH_API_KEY");
-  const voice = env("FISH_VOICE_ID");
+  const voice = (await vozFishEscolhida()).id;
   if (!key || !voice) return false;
   const r = await fetch("https://api.fish.audio/v1/tts", {
     method: "POST",
@@ -87,6 +107,8 @@ export const falaParaVoz = (t) => String(t ?? "").replace(/shopee/gi, "Chopí");
 export async function narrate(lines, dir, log = console.log) {
   await mkdir(dir, { recursive: true });
   let providers = [["ElevenLabs", eleven], ["Fish Audio", fish], ["voz Microsoft", edge]];
+  // voz do Fish escolhida pelo bot (/fish): ela vem primeiro; a ElevenLabs fica de reserva
+  if ((await vozFishEscolhida()).bot) providers = [providers[1], providers[0], providers[2]];
   let chosen = null;
   const out = [];
   for (let i = 0; i < lines.length; i++) {

@@ -24,7 +24,7 @@ on:
         description: "Pasta de fotos enviadas pelo bot (Storage reels-videos), opcional"
         default: ""
       modo:
-        description: "instagram (final com Seguir + link da bio), shopee (final chamando para o produto do Shopee Vídeo) ou link (final genérico: clique no link abaixo)"
+        description: "instagram (final com Seguir + link da bio), shopee (final chamando para o produto do Shopee Vídeo) link (final genérico: clique no link abaixo) ou tiktok (TikTok Shop: gancho de problema/resultado e final sem citar a Shopee)"
         default: "instagram"
       fala:
         description: "Texto narrado na parte do produto (opcional)"

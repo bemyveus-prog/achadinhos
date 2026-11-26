@@ -29,6 +29,8 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 <b>/comissao</b> fone bluetooth → só pela maior comissão, mesmo com poucas vendas
 <b>/categoria</b> motos → os melhores da categoria
 <b>/reels</b> 105 SKU-da-CJ texto: sua narração → gera o Reels do produto #105 com o vídeo real da CJ (chega aqui em ~3 min). Sem SKU usa só a foto. Acrescente <i>postar</i> para já postar no Instagram.
+<b>/tiktok</b> 131 → vídeo para o <b>TikTok Shop</b>: abre com o problema/resultado e o final chama para o produto marcado (sem citar a Shopee). Você posta no app e marca o produto do TikTok Shop. Também vale como legenda de um vídeo ou álbum.
+<b>/tiktok produto: Escorredor de louça texto: sua narração</b> (com o vídeo ou as fotos) → para produto que só existe no TikTok Shop, sem item na vitrine.
 <b>/shopee</b> 131 SKU-da-CJ narração → mesmo vídeo, mas para o <b>Shopee Vídeo</b>: o final chama para tocar no produto vinculado (sem "seguir" nem "link na bio"). Também vale como legenda de um vídeo seu.
 🖼️ <b>Fotos/vídeos → vídeo</b>: mande várias fotos ou vídeos de uma vez (álbum, pode misturar) com o link do produto na legenda (Shopee, Amazon ou Shein) ou com <b>/link 227</b>. Os vídeos são emendados com transição, ganham narração, legenda e o final.
 📝 <b>/roteiro</b>: mande um vídeo com a legenda /roteiro (ou /roteiro link-do-tiktok) e a IA transcreve a fala e escreve uma narração nova com as nossas palavras. Depois use <b>/reels 227 roteiro</b> (ou /shopee, /link) para gerar o vídeo com ela.
@@ -39,6 +41,7 @@ const AJUDA = `🤖 <b>Bot de ofertas</b>
 🌎 <b>/traduzir</b> → mande o vídeo com essa legenda (ou /traduzir link): o texto escrito na tela em outra língua ganha a legenda em português por cima
 🏬 <b>/lomadee</b> air fryer (ou "panela até 150") → ofertas das lojas da Lomadee (Casas Bahia, Mondial, Brinox...) com botão para pôr na vitrine
 🎙️ <b>/vozes</b> → ouvir e escolher a voz da narração (ElevenLabs) · <b>/voz</b> mostra a voz atual e os créditos
+🐟 <b>/fish</b> → vozes do Fish Audio que você escolheu: ouvir e tocar em usar. <b>/fish add LINK-ou-ID nome</b> adiciona uma voz · <b>/fish remover 2</b> · <b>/fish off</b> desliga
 🎞️ <b>/formato</b> mascara | cheio | alternar → formato padrão dos vídeos (máscara = headline em cima, vídeo no meio, chamada embaixo). Para um vídeo só, escreva <i>mascara</i>, <i>cheio</i> ou <i>limpo</i> (vídeo cheio + narração + legenda) ou <i>puro</i> (só o vídeo e a narração, sem texto nenhum) no comando; <i>semfrase</i> tira só a frase de curiosidade do começo (/frase nao deixa assim sempre) ou na legenda do vídeo/fotos: <b>/reels 227 mascara</b>. Com <i>ambos</i> na legenda do vídeo sai a versão do Reels e a do Shopee de uma vez: <b>/reels 227 limpo ambos</b>
 <b>/top</b> sozinho → a IA escolhe tema e produtos. Ou: título na 1ª linha e, em cada linha de baixo, "136 narração" → Reels com vários produtos (ex.: 5 coisas que facilitam a vida)
 🛒 <b>Amazon / Shein / AliExpress</b>: cole o seu link de afiliado (amzn.to/…, onelink.shein.com/…, s.click.aliexpress.com/…) e o produto entra na vitrine com a etiqueta da loja. Na AliExpress, mande as fotos ou o vídeo com o link na legenda (a IA identifica o produto). Mande um <b>vídeo</b> com o link na legenda e ele gera o vídeo com final "clica no link aqui embaixo", sem citar a loja.
@@ -77,6 +80,8 @@ export async function GET(req) {
     { command: "top", description: "Reels com vários produtos (Top N)" },
     { command: "modo", description: "Formato dos vídeos encaminhados: shopee, reels ou ambos" },
     { command: "shopee", description: "Vídeo para o Shopee Vídeo: /shopee 131 SKU texto" },
+    { command: "fish", description: "Vozes do Fish Audio: ouvir e escolher" },
+    { command: "tiktok", description: "Vídeo para o TikTok Shop: /tiktok 131" },
     { command: "relatorio", description: "Vendas, comissão e cliques (hoje, 7 ou 30 dias)" },
     { command: "ajuda", description: "Como usar" },
   ] });
@@ -188,10 +193,11 @@ async function onText(msg) {
   if (cmd === "vozes") return listarVozes(chat, arg);
   if (cmd === "lomadee" || cmd === "lojas") return buscarLomadee(chat, arg);
   if (cmd === "voz") return escolherVoz(chat, arg);
+  if (cmd === "fish") return fishVozes(chat, arg);
   if (cmd === "relatorio" || cmd === "relatório" || cmd === "vendas") return relatorio(chat, arg);
-  if (cmd === "reels" || cmd === "shopee" || cmd === "link") {
+  if (cmd === "reels" || cmd === "shopee" || cmd === "link" || cmd === "tiktok") {
     const { head, fala } = parseReels(text);
-    return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : cmd === "link" ? "link" : "instagram", cmd === "link" && !fala ? { gerarFala: true } : {});
+    return startReels(chat, head, fala, "", cmd === "shopee" ? "shopee" : cmd === "link" ? "link" : cmd === "tiktok" ? "tiktok" : "instagram", (cmd === "link" || cmd === "tiktok") && !fala ? { gerarFala: true } : {});
   }
   if (cmd === "loja" || cmd === "lojas") {
     if (!arg) return say(chat, "Ex.: /loja samsung  ou  /loja vult");
@@ -293,6 +299,7 @@ async function onButton(q) {
   if (data.startsWith("pub:") || data.startsWith("nopub:")) return approveReels(chat, q, data);
   if (data.startsWith("yt:")) return postYouTube(chat, q, data);
   if (data.startsWith("ev:")) return usarVozBotao(chat, q, data);
+  if (data.startsWith("fv:")) return usarFishBotao(chat, q, data);
   if (data.startsWith("lmd:")) return addLomadee(chat, q, data);
   if (data.startsWith("gp:") || data.startsWith("gpx:")) return chooseGroupProduct(chat, q, data);
 
@@ -358,7 +365,7 @@ async function onPhoto(msg) {
   const fm = cap.match(/^\/?foto\s+#?(\d+)/i);
   if (fm) return saveOfferPhoto(chat, msg, Number(fm[1]));
   // várias fotos (álbum) ou foto com link/comando: vira vídeo do produto
-  if (!/^\/?capas?\b/i.test(cap) && (msg.media_group_id || SHOPEE_RE.test(cap) || AMAZON_RE.test(cap) || /^\/?(reels|shopee|link)\b/i.test(cap))) return fotosProduto(msg, cap);
+  if (!/^\/?capas?\b/i.test(cap) && (msg.media_group_id || SHOPEE_RE.test(cap) || AMAZON_RE.test(cap) || /^\/?(reels|shopee|link|tiktok)\b/i.test(cap))) return fotosProduto(msg, cap);
   const m = cap.match(/^\/?capas?\s+(.+)$/i);
   if (!m) return say(chat, `Para usar como capa, mande a foto com a legenda <b>/capa categoria</b>.\nCategorias: ${CAPA_SLUGS.join(", ")}`);
   const slug = toSlug(m[1]);
@@ -432,7 +439,7 @@ async function fotosProduto(msg, cap) {
 
   await tg("sendChatAction", { chat_id: chat, action: "upload_video" }).catch(() => {});
   // 1) comando com o número da vitrine
-  const cm = cap.match(/^\/?(reels|shopee|link)\b/i);
+  const cm = cap.match(/^\/?(reels|shopee|link|tiktok)\b/i);
   if (cm) {
     const { head: head0, fala } = parseReels(cap);
     // "ambos": gera a versão do Reels e a do Shopee Vídeo com as mesmas mídias (a palavra não vira narração)
@@ -655,6 +662,17 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   const juntos = args.join(" ");
   const semFraseCmd = /(?:^|\s)sem[\s-]?frase(?=\s|$)/i.test(juntos);
   if (semFraseCmd) args = juntos.replace(/(?:^|\s)sem[\s-]?frase(?=\s|$)/gi, " ").split(/\s+/).filter(Boolean);
+  // /tiktok sem número da vitrine: "/tiktok produto: Escorredor de louça texto: sua narração".
+  // Cria um item ESCONDIDO (não aparece no site) só para dar nome ao vídeo: o produto pode existir só no TikTok Shop.
+  if (modo === "tiktok" && !args.some((a) => /^#?\d+$/.test(a))) {
+    const palavrasFormato = args.filter((a) => /^(m[aá]scara|cheio|limpo|puro|ambos|postar)$/i.test(a));
+    const nomeProd = args.filter((a) => !palavrasFormato.includes(a)).join(" ").replace(/^(produto|nome)\s*:\s*/i, "").trim().slice(0, 120);
+    if (nomeProd.length < 3) return say(chat, "Para o TikTok Shop sem item da vitrine, diga o produto:\n<b>/tiktok produto: Escorredor de louça texto: sua narração</b>\n(mande junto o vídeo ou as fotos do produto)");
+    if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
+    const { data: row, error } = await db().from("offers").insert({ kind: "produto", title: nomeProd, description: "tiktok:avulso", link: "https://www.tiktok.com/", platform: "tiktok", active: false, expires_at: null }).select("id").single();
+    if (error) return say(chat, `Erro ao criar o item do vídeo: ${esc(error.message)}`);
+    args = [String(row.id), ...palavrasFormato];
+  }
   const num = (args.find((a) => /^#?\d+$/.test(a)) || "").replace("#", "");
   const postar = args.some((a) => /^postar$/i.test(a));
   // "roteiro": usa a última narração criada pelo /roteiro
@@ -702,6 +720,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
     return say(chat, `⚠️ O GitHub recusou (${r.status}): <i>${esc(String(msg).slice(0, 200))}</i>\n${r.status === 403 || r.status === 401 || r.status === 404 ? `Confira o GITHUB_TOKEN da Vercel: precisa ter acesso ao repositório ${REPO} com a permissão Actions: Read and write.` : ""}`);
   }
   if (extra.fotos) return say(chat, `🖼️ Gerando o vídeo do <b>#${num}</b> com as suas fotos/vídeos (emendados)${modo === "link" ? " e final genérico (clique no link abaixo)" : modo === "shopee" ? " para o Shopee Vídeo" : " para o Reels"}. Chega aqui em uns 3 minutos.`);
+  if (modo === "tiktok") return say(chat, `🎵 Gerando o vídeo do <b>#${num}</b> para o <b>TikTok Shop</b> (gancho de problema/resultado, final chamando para o produto marcado, sem citar a Shopee)${video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}.\nChega aqui em uns 2 minutos.`);
   if (modo === "link") return say(chat, `🔗 Gerando o vídeo do <b>#${num}</b> com final genérico (clique no link abaixo, sem citar a loja). Chega aqui em uns 2 minutos.`);
   if (modo === "shopee") return say(chat, `🛍️ Gerando o vídeo do <b>#${num}</b> para o <b>Shopee Vídeo</b>${video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " e a sua narração" : ""}.\nChega aqui em uns 2 minutos.`);
   return say(chat, `🎬 Gerando o Reels do <b>#${num}</b>${video && sku ? ` com o seu vídeo + o vídeo da CJ (<code>${esc(sku)}</code>)` : video ? " com o seu vídeo" : sku ? ` com o vídeo da CJ (<code>${esc(sku)}</code>)` : ""}${fala ? " com a sua narração" : ""}${postar ? " e postando no Instagram" : ""}.\nChega aqui em uns 3 minutos.`);
@@ -709,7 +728,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
 
 // "/reels 123 SKU texto: narração" (o texto também pode vir nas linhas de baixo)
 function parseReels(text) {
-  const full = String(text || "").replace(/^\/?(reels|shopee|link)(@\S+)?/i, "").trim();
+  const full = String(text || "").replace(/^\/?(reels|shopee|link|tiktok)(@\S+)?/i, "").trim();
   const m = full.match(/^(.*?)(?:\btexto:|\n)([\s\S]*)$/i);
   const head = (m ? m[1] : full).trim().split(/\s+/).filter(Boolean);
   const fala = m ? m[2].replace(/\s+/g, " ").trim() : "";
@@ -737,7 +756,7 @@ async function onVideo(msg) {
   }
   // vários vídeos de uma vez (álbum, pode misturar com fotos): emenda tudo num vídeo só
   if (msg.media_group_id) return fotosProduto(msg, cap);
-  const isCmd = /^\/?(reels|shopee|link)\b/i.test(cap);
+  const isCmd = /^\/?(reels|shopee|link|tiktok)\b/i.test(cap);
   const amzUrl = (cap.match(AMAZON_RE) || [])[0];
   if (!isCmd && amzUrl) return amazonVideo(msg, cap, amzUrl);
   // link do Shopee Vídeo (não traz o produto) ou texto sem link: a IA identifica o produto pelo vídeo
@@ -749,7 +768,7 @@ async function onVideo(msg) {
     await db().from("bot_config").upsert({ key: "video_pendente", value: JSON.stringify({ file_id: v.file_id, file_size: v.file_size || 0, at: Date.now() }), updated_at: new Date().toISOString() });
     return say(chat, "🎥 Recebi o vídeo. Agora manda (ou encaminha) o texto com o link da Shopee ou da Amazon.");
   }
-  if (!/^\/?(reels|shopee|link)\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
+  if (!/^\/?(reels|shopee|link|tiktok)\b/i.test(cap)) return say(chat, "Para virar Reels, mande o vídeo com a legenda: <b>/reels 123 SKU-da-CJ texto: sua narração</b> (o SKU e o texto são opcionais)");
   const v = msg.video || msg.document;
   if ((v.file_size || 0) > 20 * 1024 * 1024) return say(chat, "O Telegram só deixa o bot baixar vídeos de até 20 MB. Mande uma versão menor (ex.: cortada ou em 720p).");
   if (!hasDb()) return say(chat, "Supabase não configurado na Vercel.");
@@ -764,7 +783,7 @@ async function onVideo(msg) {
   const { error } = await db().storage.from("reels-videos").upload(name, buf, { contentType: type });
   if (error) return say(chat, `Erro ao guardar o vídeo: ${esc(error.message)}`);
   const { head, fala } = parseReels(cap);
-  const modoV = /^\/?shopee\b/i.test(cap) ? "shopee" : /^\/?link\b/i.test(cap) ? "link" : "instagram";
+  const modoV = /^\/?shopee\b/i.test(cap) ? "shopee" : /^\/?link\b/i.test(cap) ? "link" : /^\/?tiktok\b/i.test(cap) ? "tiktok" : "instagram";
   // "ambos" na legenda: gera a versão do Reels e a do Shopee Vídeo com o mesmo vídeo
   const ambos = /\bambos\b/i.test(cap.split(/texto:/i)[0]);
   const headLimpo = ambos ? head.filter((w) => !/^ambos$/i.test(w)) : head;
@@ -772,7 +791,7 @@ async function onVideo(msg) {
     for (const m of ["instagram", "shopee"]) await startReels(chat, headLimpo, fala, name, m, {});
     return;
   }
-  return startReels(chat, head, fala, name, modoV, modoV === "link" && !fala ? { gerarFala: true } : {});
+  return startReels(chat, head, fala, name, modoV, (modoV === "link" || modoV === "tiktok") && !fala ? { gerarFala: true } : {});
 }
 
 // ---------- aprovação de Reels ----------
@@ -1051,6 +1070,76 @@ async function escolherVoz(chat, arg) {
   let creditos = "";
   try { const j = await (await EL("/v1/user/subscription")).json(); if (j.character_limit) creditos = `\nCréditos do mês: <b>${(j.character_limit - j.character_count).toLocaleString("pt-BR")}</b> de ${j.character_limit.toLocaleString("pt-BR")}`; } catch {}
   return say(chat, `🎙️ Voz atual: <b>${esc(atual && atual !== "microsoft" ? atual.split("|")[1] || atual : "Microsoft (rodízio grátis)")}</b>${creditos}\n\n/vozes → ouvir e escolher vozes brasileiras\n/voz microsoft → voz grátis\n/voz ID → usar uma voz pelo Voice ID`);
+}
+
+// ---------- vozes do Fish Audio: você escolhe algumas no site (/fish add), ouve a amostra aqui e toca em usar ----------
+const FISH_KEY = () => (process.env.FISH_API_KEY || "").trim();
+const FISH_ID_RE = /\b([0-9a-f]{32})\b/i;
+async function fishLista() {
+  const { data } = await db().from("bot_config").select("value").eq("key", "fish_vozes").maybeSingle();
+  try { return JSON.parse(data?.value || "[]"); } catch { return []; }
+}
+const fishSalvarLista = (l) => db().from("bot_config").upsert({ key: "fish_vozes", value: JSON.stringify(l), updated_at: new Date().toISOString() });
+async function fishVozes(chat, arg) {
+  const a = String(arg || "").trim();
+  if (!FISH_KEY()) return say(chat, "Falta a chave <b>FISH_API_KEY</b> na Vercel (e no GitHub, para os vídeos). Depois de colocar, faça um novo deploy.");
+  let lista = await fishLista();
+  const atual = await db().from("bot_config").select("value").eq("key", "voz_fish").maybeSingle().then((r) => r.data?.value || "");
+  if (/^(off|desligar|desliga)$/i.test(a)) { await db().from("bot_config").upsert({ key: "voz_fish", value: "off", updated_at: new Date().toISOString() }); return say(chat, "✅ Fish Audio desligado. A narração volta para a ElevenLabs/voz da Microsoft."); }
+  const mAdd = a.match(/^(?:add|adicionar)\s+(.+)$/i);
+  if (mAdd) {
+    const id = (mAdd[1].match(FISH_ID_RE) || [])[1];
+    if (!id) return say(chat, "Cole o link da voz no site do Fish (fish.audio/m/…) ou o ID de 32 letras e números.\nEx.: <b>/fish add https://fish.audio/m/… Voz da Ana</b>");
+    let nome = mAdd[1].replace(/https?:\/\/\S+/g, " ").replace(FISH_ID_RE, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+    try {
+      const r = await fetch(`https://api.fish.audio/model/${id}`, { headers: { Authorization: `Bearer ${FISH_KEY()}` } });
+      if (r.ok) { const j = await r.json(); if (!nome) nome = String(j.title || "").slice(0, 40); }
+      else if (r.status === 401 || r.status === 402) return say(chat, `⚠️ O Fish recusou a chave (${r.status}). Confira a FISH_API_KEY e o saldo da conta.`);
+      else if (r.status === 404) return say(chat, "⚠️ Não achei essa voz no Fish. Confira o link ou o ID.");
+    } catch {}
+    nome = nome || `Voz ${lista.length + 1}`;
+    lista = [...lista.filter((v) => v.id !== id), { id, nome }].slice(-12);
+    await fishSalvarLista(lista);
+    return say(chat, `✅ Adicionei <b>${esc(nome)}</b> (${lista.length} na lista). Mande /fish para ouvir e escolher.`);
+  }
+  const mRem = a.match(/^(?:remover|tirar|apagar)\s+(\d+)$/i);
+  if (mRem) {
+    const i = Number(mRem[1]) - 1;
+    if (!lista[i]) return say(chat, "Esse número não existe na lista. Mande /fish para ver.");
+    const [tirada] = lista.splice(i, 1);
+    await fishSalvarLista(lista);
+    return say(chat, `🗑️ Tirei <b>${esc(tirada.nome)}</b> da lista.`);
+  }
+  if (!lista.length) return say(chat, "Você ainda não adicionou vozes. No site do Fish (fish.audio), abra a voz que gostou, copie o link e mande:\n<b>/fish add LINK Nome da voz</b>\nDepois mande /fish de novo para ouvir e escolher.");
+  const nomeAtual = atual === "off" ? "desligado" : atual ? atual.split("|")[1] || atual : "nenhuma escolhida (usa a variável FISH_VOICE_ID, se houver)";
+  await say(chat, `🐟 Voz atual do Fish: <b>${esc(nomeAtual)}</b>\nOuça as amostras e toque em <b>✅ Usar essa</b>. Cada amostra nova gasta um pouquinho do seu saldo no Fish (depois fica guardada).`);
+  const { data: cc } = await db().from("bot_config").select("value").eq("key", "fish_amostras").maybeSingle();
+  let cache = {}; try { cache = JSON.parse(cc?.value || "{}"); } catch {}
+  for (const [i, v] of lista.entries()) {
+    const cap = `${i + 1}. ${v.nome}`.slice(0, 200);
+    const kb = { inline_keyboard: [[{ text: `✅ Usar essa (${v.nome.slice(0, 20)})`, callback_data: `fv:${i}` }]] };
+    try {
+      if (cache[v.id]) { await tg("sendAudio", { chat_id: chat, audio: cache[v.id], caption: cap, title: v.nome, reply_markup: kb }); continue; }
+      const r = await fetch("https://api.fish.audio/v1/tts", { method: "POST", headers: { Authorization: `Bearer ${FISH_KEY()}`, "Content-Type": "application/json", model: (process.env.FISH_MODEL || "s1").trim() },
+        body: JSON.stringify({ text: AMOSTRA_PT, reference_id: v.id, format: "mp3", latency: "normal" }), signal: AbortSignal.timeout(40000) });
+      if (!r.ok) throw new Error(`Fish ${r.status}`);
+      const form = new FormData();
+      form.append("chat_id", String(chat));
+      form.append("audio", new Blob([Buffer.from(await r.arrayBuffer())], { type: "audio/mpeg" }), `${v.nome}.mp3`);
+      form.append("caption", cap); form.append("title", v.nome); form.append("reply_markup", JSON.stringify(kb));
+      const j = await (await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN.trim()}/sendAudio`, { method: "POST", body: form })).json();
+      if (j.result?.audio?.file_id) cache[v.id] = j.result.audio.file_id;
+    } catch (e) { await tg("sendMessage", { chat_id: chat, text: `${cap}\n(sem amostra: ${String(e.message).slice(0, 80)})`, reply_markup: kb }).catch(() => {}); }
+  }
+  await db().from("bot_config").upsert({ key: "fish_amostras", value: JSON.stringify(cache), updated_at: new Date().toISOString() });
+}
+async function usarFishBotao(chat, q, data) {
+  const lista = await fishLista();
+  const v = lista[Number(data.split(":")[1])];
+  if (!v) return tg("answerCallbackQuery", { callback_query_id: q.id, text: "Lista antiga: mande /fish de novo" });
+  await tg("answerCallbackQuery", { callback_query_id: q.id, text: `Escolhendo ${v.nome}…` });
+  await db().from("bot_config").upsert({ key: "voz_fish", value: `${v.id}|${v.nome}`, updated_at: new Date().toISOString() });
+  return say(chat, `✅ Pronto! Os próximos vídeos serão narrados pela voz <b>${esc(v.nome)}</b> (Fish Audio). Se o saldo do Fish acabar, cai sozinho para a ElevenLabs e depois para a voz da Microsoft.`);
 }
 
 // ---------- relatório: vendas da Shopee (API de afiliado) + cliques do site ----------

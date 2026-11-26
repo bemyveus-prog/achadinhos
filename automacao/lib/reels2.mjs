@@ -47,6 +47,9 @@ export const CTAS_SHOPEE = [
   { say: "Não deixa pra depois, toca no produto aqui embaixo!", tela: "Não deixa pra depois: <span>toque aqui embaixo</span>" },
 ];
 
+// Finais do TikTok Shop: chama para o produto marcado no vídeo, sem citar a Shopee nem "link na bio"
+export const CTAS_TIKTOK = CTAS_SHOPEE.filter((c) => !/shopee/i.test(c.say + c.tela));
+
 // Final do Instagram: chamadas que geram salvamento, compartilhamento e comentário (sorteia uma por vídeo)
 // final do Instagram: seguir + link na bio (produto pelo número) + ofertas exclusivas no Telegram (quando a marca tem canal)
 // {N} = "é o número 227" (ou vazio). Sem canal do Telegram, usa as versões sem ele.
@@ -199,7 +202,7 @@ window.setup=(d)=>{D=d;document.body.style.setProperty("--ac",d.accent);
   if(d.layout==="limpo"){document.body.classList.add("limpo");if(d.soFoto)document.body.classList.add("foto");
     $("lctat").textContent=d.destino==="youtube"?"🔗 Link no meu perfil"+(d.number?" · "+d.number:"")+" 👆":d.modo==="shopee"?"🛒 Toque no produto aqui embaixo 👇":d.modo==="link"?"🔗 Clique no link abaixo 👇":(d.euQuero?"💬 Comenta EU QUERO\\n📩 Te mando o link no direct":d.temTg?"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+"\\n🔥 Ofertas VIP no Telegram":"➕ Me segue\\n🔗 Link na bio"+(d.number?" · "+d.number:"")+" 👆");}
   if(d.layout==="mascara"){document.body.classList.add("mask");
-    $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";
+    $("mhead").innerHTML=d.headHtml||"";$("mhandle").textContent=d.handle||"@minh.asofertas";$("mwho").style.display=d.semHandle?"none":"flex";
     if(d.avatar){$("mava").style.backgroundImage="url("+d.avatar+")"}else{$("mava").textContent=(d.handle||"@MO").replace("@","").slice(0,2).toUpperCase()}
     $("mcta").innerHTML=d.modo==="shopee"?"🛒 Toque no produto aqui embaixo":d.modo==="link"?"🔗 Clique no link abaixo":"🔗 Link na bio"+(d.number?"<i>"+d.number+"</i>":"");
     $("marrow").textContent=d.modo==="instagram"?"👆":"👇";}
@@ -346,10 +349,12 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   const tmp = path.join(outDir, "_tmp");
   await mkdir(tmp, { recursive: true });
   comment = comment || "Quanto você chutou? Comenta aí!";
-  const lista = modo === "link" ? CTAS_LINK : CTAS_SHOPEE;
+  const lista = modo === "link" ? CTAS_LINK : modo === "tiktok" ? CTAS_TIKTOK : CTAS_SHOPEE;
+  // tiktok usa a mesma tela de "toque no produto" do Shopee Vídeo (com os textos sem citar a Shopee)
+  const modoTela = modo === "tiktok" ? "shopee" : modo;
   const ctaShopee = lista[Math.floor(Math.random() * lista.length)];
   const ctaInsta = euQueroLigado() && Math.random() < 0.5 ? CTA_EU_QUERO : CTAS_INSTA[Math.floor(Math.random() * CTAS_INSTA.length)];
-  const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom, modo, ctaShopee, ctaInsta });
+  const scenes = buildScenes2(p, { hook: cover?.hook || "", nome, number, comment, fala, cupom, modo: modoTela, ctaShopee, ctaInsta });
   // fala mais rápida e sem o silêncio que a voz traz no começo e no fim (vídeo curto retém mais)
   process.env.EDGE_RATE = process.env.EDGE_RATE_REELS || "+22%";
   const voice = await narrate(scenes.map((s) => s.say), tmp, log);
@@ -383,7 +388,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   if (p.rating) chips.push(`⭐ ${num(Number(p.rating).toFixed(1))}`);
   if (p.sales >= 100) chips.push(`🛒 ${salesLabel(p.sales)} vendidos`);
   const data = {
-    cover: null, img: await imageDataUri(p.imageUrl),
+    cover: null, img: p.imageUrl ? await imageDataUri(p.imageUrl).catch(() => null) : null,
     tag: "", accent: cover?.accent || BRAND.accent, hookHtml: "", nome,
     chips, price: (process.env.VIDEO_PRECO || "").trim() === "sim" && Number(p.price) > 0 ? brl(p.price) : "", comment, number: number ? String(number).startsWith("#") ? number : `#${number}` : "",
     scenes: scenes.map(({ key, dur }) => ({ key, dur })),
@@ -392,7 +397,8 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
     subs: (() => { const w = scenes[0].say.split(/\s+/).filter(Boolean); const out = []; for (let i = 0; i < w.length; i += 5) out.push(w.slice(i, i + 5).join(" ")); return out; })(),
     voiceDur: voice[0]?.duration || 0,
     handle: handle || BRAND.handle,
-    modo,
+    semHandle: modo === "tiktok",
+    modo: modoTela,
     ctaTela: ctaShopee.tela,
     ctaInstaTela: ctaInsta.tela,
     avatar: avatar ? await imageDataUri(avatar).catch(() => null) : null,
@@ -426,6 +432,7 @@ export async function renderReel2(p, { cover, nome, number, handle, comment, out
   await mixAudio(silent, voice, scenes, null, total, file);
   await writeFile(path.join(outDir, "roteiro.txt"), scenes.map((s, i) => `${i + 1}. [${s.key}] ${s.say}`).join("\n") + "\n");
   await rm(tmp, { recursive: true, force: true });
-  await marcaDagua(file, typeof log === "function" ? log : console.log);
+  // TikTok Shop: sem @ do Instagram na tela
+  if (modo !== "tiktok") await marcaDagua(file, typeof log === "function" ? log : console.log);
   return { file, seconds: total, scenes };
 }
