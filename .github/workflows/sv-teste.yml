@@ -17,27 +17,5 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: node sv-teste.mjs
         env:
-          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
-          META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
-          META_PAGE_ID_2: ${{ secrets.META_PAGE_ID_2 }}
-          META_PAGE_TOKEN_2: ${{ secrets.META_PAGE_TOKEN_2 }}
-          META_PAGES_JSON: ${{ secrets.META_PAGES_JSON }}
-          META_PAGE_NOME_2: ${{ secrets.META_PAGE_NOME_2 }}
-          META_PAGE_ID_3: ${{ secrets.META_PAGE_ID_3 }}
-          META_PAGE_TOKEN_3: ${{ secrets.META_PAGE_TOKEN_3 }}
-          META_PAGE_NOME_3: ${{ secrets.META_PAGE_NOME_3 }}
-          META_PAGE_ID_4: ${{ secrets.META_PAGE_ID_4 }}
-          META_PAGE_TOKEN_4: ${{ secrets.META_PAGE_TOKEN_4 }}
-          META_PAGE_NOME_4: ${{ secrets.META_PAGE_NOME_4 }}
-          META_PAGE_ID_5: ${{ secrets.META_PAGE_ID_5 }}
-          META_PAGE_TOKEN_5: ${{ secrets.META_PAGE_TOKEN_5 }}
-          META_PAGE_NOME_5: ${{ secrets.META_PAGE_NOME_5 }}
-          META_PAGE_ID_6: ${{ secrets.META_PAGE_ID_6 }}
-          META_PAGE_TOKEN_6: ${{ secrets.META_PAGE_TOKEN_6 }}
-          META_PAGE_NOME_6: ${{ secrets.META_PAGE_NOME_6 }}
-          META_PAGE_ID_7: ${{ secrets.META_PAGE_ID_7 }}
-          META_PAGE_TOKEN_7: ${{ secrets.META_PAGE_TOKEN_7 }}
-          META_PAGE_NOME_7: ${{ secrets.META_PAGE_NOME_7 }}
-          META_PAGE_ID_8: ${{ secrets.META_PAGE_ID_8 }}
-          META_PAGE_TOKEN_8: ${{ secrets.META_PAGE_TOKEN_8 }}
-          META_PAGE_NOME_8: ${{ secrets.META_PAGE_NOME_8 }}
+          SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+          SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}

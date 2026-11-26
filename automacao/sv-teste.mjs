@@ -1,8 +1,7 @@
-import { paginasFacebook } from "./lib/social.mjs";
-const G = "https://graph.facebook.com/v24.0";
-for (const pg of paginasFacebook()) {
-  const r = await (await fetch(`${G}/me?fields=id,name&access_token=${pg.token}`)).json();
-  const d = await (await fetch(`${G}/debug_token?input_token=${pg.token}&access_token=${pg.token}`)).json();
-  const x = d.data || {};
-  console.log(`PAG ${pg.nome}: id_config=${pg.page} | token_de=${r.name || JSON.stringify(r.error?.message)} (${r.id || "-"}) | tipo=${x.type} | expira=${x.expires_at === 0 ? "NUNCA" : x.expires_at} | valido=${x.is_valid}`);
-}
+import { gql } from "./lib/shopee.mjs";
+const t = await gql(`{ __type(name: "ProductOfferV2") { fields { name type { name kind ofType { name } } } } }`).catch((e) => ({ erro: e.message }));
+console.log("CAMPOS ProductOfferV2:", JSON.stringify(t?.__type?.fields?.map((f) => f.name) ?? t));
+const q = await gql(`{ productOfferV2(keyword: "serrote podador", sortType: 2, page: 1, limit: 3) { nodes { itemId productName sales ratingStar } } }`).catch((e) => ({ erro: e.message }));
+console.log("EXEMPLO:", JSON.stringify(q));
+const t2 = await gql(`{ __schema { queryType { fields { name } } } }`).catch((e) => ({ erro: e.message }));
+console.log("QUERIES:", JSON.stringify(t2?.__schema?.queryType?.fields?.map((f) => f.name) ?? t2));
