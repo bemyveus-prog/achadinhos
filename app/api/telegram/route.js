@@ -701,7 +701,7 @@ async function startReels(chat, parts, fala = "", video = "", modo = "instagram"
   fala = String(fala).replace(/(?:https?:\/\/|www\.)\S+/gi, " ").replace(/\s+/g, " ").trim();
   if (!fala && extra.fotos && !extra.gerarFala) extra = { ...extra, gerarFala: true };
   if (!num) return say(chat, "Use assim: <b>/reels 105 CJYD2300009</b>\n(número da vitrine e, se quiser, o SKU da CJ; acrescente <i>postar</i> para postar direto)\nPara narrar o seu texto: <b>/reels 105 CJYD2300009 texto: seu texto aqui</b>");
-  if (fala.length > 400) return say(chat, `O texto ficou com ${fala.length} letras. Use até 400 (uns 25 segundos de fala).`);
+  if (fala.length > 550) return say(chat, `O texto ficou com ${fala.length} letras. Use até 550 (uns 35 segundos de fala).`);
   const token = (process.env.GITHUB_TOKEN || "").trim();
   if (!token) return say(chat, "Falta a variável GITHUB_TOKEN na Vercel.");
   if (hasDb()) {
